@@ -5,7 +5,7 @@ using jeanf.EventSystem;
 using jeanf.propertyDrawer;
 using jeanf.vrplayer;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [RequireComponent(typeof(SceneLoader))]
     [RequireComponent(typeof(ScenarioManager))]

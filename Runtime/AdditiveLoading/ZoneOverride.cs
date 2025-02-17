@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [CreateAssetMenu(fileName = "ZoneOverride", menuName = "LoadingSystem/ZoneOverride")]
     public class ZoneOverride : ScriptableObject

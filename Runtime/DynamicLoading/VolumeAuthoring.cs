@@ -3,7 +3,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     public class VolumeAuthoring : MonoBehaviour
     {

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     public class RegionManager : MonoBehaviour
     {

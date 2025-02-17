@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-namespace Streaming.SceneManagement.Common
+namespace jeanf.scenemanagement
 {
     [BurstCompile]
     public partial class  FollowSystem : SystemBase

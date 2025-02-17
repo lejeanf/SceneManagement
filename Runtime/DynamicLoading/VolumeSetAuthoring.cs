@@ -4,7 +4,7 @@ using Unity.Entities.Serialization;
 using Unity.Scenes;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     public struct LevelInfo : IComponentData
     {

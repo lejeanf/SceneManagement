@@ -1,4 +1,4 @@
-﻿namespace jeanf.SceneManagment
+﻿namespace jeanf.scenemanagement
 {
     public enum ZoneType
     {

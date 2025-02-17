@@ -4,7 +4,7 @@ using System.Linq;
 using jeanf.EventSystem;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     public class ScenarioManager : MonoBehaviour
     {

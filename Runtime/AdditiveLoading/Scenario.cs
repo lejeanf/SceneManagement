@@ -2,7 +2,7 @@
 using jeanf.propertyDrawer;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [ScriptableObjectDrawer]
     [CreateAssetMenu(fileName = "Scenario", menuName = "LoadingSystem/Scenario")]

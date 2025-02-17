@@ -5,9 +5,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Scenes;
 using Unity.Transforms;
-using Streaming.SceneManagement.Common;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct VolumeSystem : ISystem

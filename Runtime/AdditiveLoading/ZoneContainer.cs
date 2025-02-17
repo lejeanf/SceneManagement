@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [RequireComponent(typeof(BoxCollider))]
     public class ZoneContainer : MonoBehaviour

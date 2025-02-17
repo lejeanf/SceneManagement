@@ -6,7 +6,7 @@ using jeanf.propertyDrawer;
 using UnityEditor;
 #endif
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [ScriptableObjectDrawer]
     [CreateAssetMenu(fileName = "Region", menuName = "LoadingSystem/Region")]

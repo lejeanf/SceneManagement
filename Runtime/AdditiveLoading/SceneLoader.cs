@@ -6,7 +6,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     public class SceneLoader : MonoBehaviour
     {

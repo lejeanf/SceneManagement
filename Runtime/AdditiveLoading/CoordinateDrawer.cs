@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [CustomPropertyDrawer(typeof(Coordinate))]
     public class CoordinateDrawer : PropertyDrawer

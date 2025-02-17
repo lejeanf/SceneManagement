@@ -6,7 +6,7 @@ using Unity.Transforms;
 using UnityEditor;
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     public partial struct VolumeRenderingSystem : ISystem

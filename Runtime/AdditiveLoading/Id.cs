@@ -4,7 +4,7 @@ using UnityEditor;
 
 using UnityEngine;
 
-namespace jeanf.SceneManagment
+namespace jeanf.scenemanagement
 {
     [System.Serializable]
     public class Id 
