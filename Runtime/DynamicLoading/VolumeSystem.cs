@@ -23,13 +23,23 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            _relevantQuery = state.GetEntityQuery(
-                ComponentType.ReadOnly<Relevant>(),
-                ComponentType.ReadOnly<LocalToWorld>());
+            _relevantQuery = new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<Relevant, LocalToWorld>()
+                .WithOptions(EntityQueryOptions.FilterWriteGroup)
+                .Build(ref state);
+
+            _volumeSetQuery = new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<LevelInfo>()
+                .WithAll<VolumeBuffer>()  // Changed from WithReadOnly to WithAll
+                .Build(ref state);
+            
+            //_relevantQuery = state.GetEntityQuery(
+            //    ComponentType.ReadOnly<Relevant>(),
+            //    ComponentType.ReadOnly<LocalToWorld>());
                 
-            _volumeSetQuery = state.GetEntityQuery(
-                ComponentType.ReadWrite<LevelInfo>(),
-                ComponentType.ReadOnly<VolumeBuffer>());
+            //_volumeSetQuery = state.GetEntityQuery(
+            //    ComponentType.ReadWrite<LevelInfo>(),
+            //    ComponentType.ReadOnly<VolumeBuffer>());
                 
             _activeScenes = new NativeHashSet<Entity>(10, Allocator.Persistent);
             _preloadingScenes = new NativeHashSet<Entity>(10, Allocator.Persistent);
