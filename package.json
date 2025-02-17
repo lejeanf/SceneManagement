@@ -1,7 +1,7 @@
-﻿{
-  "name": "fr.jeanf.sceneManagment",
+{
+  "name": "fr.jeanf.sceneManagement",
   "version": "0.0.1",
-  "displayName": "Scene Managment",
+  "displayName": "Scene Management",
   "description": "This package contains two scene loading system, one is additive, the other is to load subscenes. \nBoth system are living side-by-side.\nThe dynamic systems handles the loading of all static content (environment) using subscenes.\nThe additive system loads scene additively depending on zone & region and upon scenario load/unload requests. Each region or scenario can have dependency that will remain loaded until either a region or a scenario became irrelevant.",
   "unity": "6000.0.24f1",
   "keywords": [
