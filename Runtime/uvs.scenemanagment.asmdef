@@ -1,5 +1,5 @@
 {
-    "name": "uvs.SceneLoader",
+    "name": "jeanf.scenemanagement",
     "rootNamespace": "",
     "references": [
         "GUID:734d92eba21c94caba915361bd5ac177",
