@@ -1,0 +1,36 @@
+﻿namespace jeanf.SceneManagment
+{
+    public enum AppType
+    {
+        Home,
+        Bedroom,
+        Discussions,
+        File,
+        Log,
+        Pharmacy,
+        Printer,
+        Settings,
+        Scenarios,
+        Instructions,
+        OfficeSpace,
+        Cardiotocograph,
+        Monitor,
+        Pump,
+        BedControls,
+        ArteryCannulation,
+        Auscultation,Banding,
+        CapillaryRefill,
+        Debimeter,
+        Vesical,
+        Pvc,
+        Help,
+        Doctor,
+        Hottable,
+        PainIntervention,
+        ApcrCardiaque,
+        ApcrPulmonaire,
+        AdministrationDirect,
+        Civ,
+        Inventory
+    }
+}
