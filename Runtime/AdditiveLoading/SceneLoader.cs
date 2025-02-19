@@ -127,7 +127,7 @@ namespace jeanf.scenemanagement
         {
             try
             {
-                if(isDebug) Debug.Log($"Loading scene: {sceneName}");
+                if(isDebug) Debug.Log($"[SceneLoader] Loading scene: {sceneName}");
                 var loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
                 loadOperation.allowSceneActivation = true;
                 
