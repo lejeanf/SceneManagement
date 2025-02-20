@@ -28,8 +28,11 @@ namespace jeanf.scenemanagement
         public static Zone CurrentPlayerZone { get; private set; }
         public static Region CurrentPlayerRegion { get; private set; }
 
-        public delegate void RequestRegionChangeDelegate(string newRegionID);
-        public static RequestRegionChangeDelegate RequestRegionChange;
+        public delegate void SendId(string newRegionID);
+        public static SendId RequestRegionChange;
+        
+        public static SendId PublishCurrentRegionId;
+        public static SendId PublishCurrentZoneId;
         
         public delegate void Reset();
         public static Reset ResetWorld;
@@ -104,6 +107,7 @@ namespace jeanf.scenemanagement
         {
             if (!gameObject.CompareTag("Player")) return;
             CurrentPlayerZone = zone;
+            PublishCurrentZoneId?.Invoke(zone.id);
             PublishAppList(zone);
             var newRegion = _regionDictionaryPerZone[zone.id];
             if(newRegion != CurrentPlayerRegion) OnRegionChange(newRegion);
@@ -119,6 +123,7 @@ namespace jeanf.scenemanagement
         private void OnRegionChange(Region region)
         {
             CurrentPlayerRegion = region;
+            PublishCurrentRegionId?.Invoke(CurrentPlayerRegion.id);
 
             var currentActiveRegion = _activeRegions;
             var regionsToRemove = currentActiveRegion.Select(RequestUnLoadForObsoleteRegion).ToList();
