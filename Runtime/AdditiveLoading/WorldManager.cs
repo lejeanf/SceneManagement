@@ -166,6 +166,7 @@ namespace jeanf.scenemanagement
             {
                 // if yes, send override list
                 listToBroadcast = value;
+                Debug.Log($"[WorldManager] List override found: [{string.Join(", ", listToBroadcast)}]");
             }
             
             // broadcast list
