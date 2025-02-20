@@ -33,7 +33,7 @@ How to use:
 </br><img width="355" alt="so_zone" src="https://github.com/user-attachments/assets/6406484c-3751-4543-ad48-b146414efd5b" /></br>
 </br><img width="356" alt="so_region" src="https://github.com/user-attachments/assets/ebf4b91d-7762-4c20-9485-8dbf86d5ad65" /></br>
 </br><img width="234" alt="region_data" src="https://github.com/user-attachments/assets/8386ff82-f2a2-4dbb-b279-3c674c00d1d3" /></br>
-7: setup your spawn points per region, note that you can create a different initial spawn point, only one region should have the initial spawn point (later will be overriten by last player position when last playing the game)
+7 [OPTIONAL]: setup your spawn points per region, note that you can create a different initial spawn point, only one region should have the initial spawn point (later will be overriten by last player position when last playing the game)
 </br><img width="806" alt="sapwn_points" src="https://github.com/user-attachments/assets/968fd020-2c58-4873-9f69-2b6f9943d56c" /></br>
 
 
