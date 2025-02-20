@@ -12,7 +12,6 @@ namespace jeanf.scenemanagement
 
         private void OnTriggerEnter(Collider other)
         {
-            Debug.Log($"[ZoneContainer] {Zone.id.id} - detected: [{other.name}]", this);
             broadcastObject?.Invoke(other.gameObject, this.Zone);
         }
 

@@ -275,11 +275,7 @@ namespace jeanf.scenemanagement
             scenesToPreload.Dispose();
         }
 
-        private void ProcessSceneOperations(
-            ref SystemState state,
-            NativeList<Entity> scenesToUnload,
-            NativeList<Entity> scenesToLoad,
-            NativeList<Entity> scenesToPreload)
+        private void ProcessSceneOperations( ref SystemState state, NativeList<Entity> scenesToUnload, NativeList<Entity> scenesToLoad, NativeList<Entity> scenesToPreload)
         {
             var operationsThisFrame = 0;
 
@@ -287,6 +283,22 @@ namespace jeanf.scenemanagement
             foreach (var scene in scenesToUnload)
             {
                 if (operationsThisFrame >= MAX_OPERATIONS_PER_FRAME) break;
+                
+                // Check if entity exists before trying to access it
+                if (!state.EntityManager.Exists(scene)) 
+                {
+                    _activeScenes.Remove(scene);
+                    _preloadingScenes.Remove(scene);
+                    continue;
+                }
+
+                // Check if entity has the required component
+                if (!state.EntityManager.HasComponent<LevelInfo>(scene)) 
+                {
+                    _activeScenes.Remove(scene);
+                    _preloadingScenes.Remove(scene);
+                    continue;
+                }
                 
                 var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
                 if (levelInfo.runtimeEntity == Entity.Null) continue;
@@ -308,6 +320,11 @@ namespace jeanf.scenemanagement
             {
                 if (operationsThisFrame >= MAX_OPERATIONS_PER_FRAME) break;
                 
+                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
+                {
+                    continue;
+                }
+                
                 var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
                 if (levelInfo.runtimeEntity != Entity.Null || !levelInfo.sceneReference.IsReferenceValid) continue;
                 
@@ -325,6 +342,11 @@ namespace jeanf.scenemanagement
             foreach (var scene in scenesToPreload)
             {
                 if (operationsThisFrame >= MAX_OPERATIONS_PER_FRAME) break;
+                
+                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
+                {
+                    continue;
+                }
                 
                 var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
                 if (levelInfo.runtimeEntity != Entity.Null || !levelInfo.sceneReference.IsReferenceValid) continue;
