@@ -33,8 +33,6 @@ How to use:
 
 <img width="358" alt="ZoneContainer" src="https://github.com/user-attachments/assets/5b25e7f9-80e9-4330-9140-a5e2eb7f0cb0" />
 
-<img width="279" alt="scriptable_objects" src="https://github.com/user-attachments/assets/ea1ab562-0256-4a46-a28e-ae81031b3d7d" />
-
 5: Import the AdditiveLoading prefab in your scene from the samples
 
 <img width="356" alt="system-prefab" src="https://github.com/user-attachments/assets/4b9e37ff-9721-4012-aa41-4b1df236c53c" />
@@ -42,6 +40,8 @@ How to use:
 <img width="157" alt="Samples" src="https://github.com/user-attachments/assets/fc147a92-3359-4db4-a5f1-40ea3ef92204" />
 
 6: setup your & organize scriptable objects:
+
+<img width="279" alt="scriptable_objects" src="https://github.com/user-attachments/assets/ea1ab562-0256-4a46-a28e-ae81031b3d7d" />
 
 <img width="359" alt="so_scenarios" src="https://github.com/user-attachments/assets/7c8caa9a-47da-4b67-8f1b-0d77d53a78ac" />
 
