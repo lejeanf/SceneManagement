@@ -15,9 +15,9 @@ namespace jeanf.scenemanagement
         public List<Region> ListOfRegions;
         private Dictionary<string, Zone> _zoneDictionary = new Dictionary<string, Zone>();
         private Dictionary<string, Region> _regionDictionary = new Dictionary<string, Region>();
-        private Dictionary<Zone, Region> _regionDictionaryPerZone = new Dictionary<Zone, Region>();
+        private Dictionary<string, Region> _regionDictionaryPerZone = new Dictionary<string, Region>();
         private Dictionary<Collider, Region> _regionDictionaryPerCollider = new Dictionary<Collider, Region>();
-        private Dictionary<Region, List<SceneReference>> _dependenciesPerRegion = new Dictionary<Region, List<SceneReference>>();
+        private Dictionary<string, List<SceneReference>> _dependenciesPerRegion = new Dictionary<string, List<SceneReference>>();
 
         private List<Region> _activeRegions = new List<Region>();
         private List<GameObject> _activeZones = new List<GameObject>();
@@ -91,12 +91,12 @@ namespace jeanf.scenemanagement
                 {
                     if(isDebug) Debug.Log($"[WorldManager] Adding zone with id: {zone.id} to the zone dictionary.");
                     _zoneDictionary.TryAdd(zone.id, zone);
-                    _regionDictionaryPerZone.TryAdd(zone, region);
+                    _regionDictionaryPerZone.TryAdd(zone.id, region);
                 }   
 
                 // build dependency Dictionary
                 if(isDebug) Debug.Log($"[WorldManager] Adding list of dependencies for the region with id: {region.id.id} to the dependency dictionary.");
-                _dependenciesPerRegion.TryAdd(region, region.dependenciesInThisRegion);
+                _dependenciesPerRegion.TryAdd(region.id, region.dependenciesInThisRegion);
             }
         }
 
@@ -105,7 +105,7 @@ namespace jeanf.scenemanagement
             if (!gameObject.CompareTag("Player")) return;
             CurrentPlayerZone = zone;
             PublishAppList(zone);
-            var newRegion = _regionDictionaryPerZone[zone];
+            var newRegion = _regionDictionaryPerZone[zone.id];
             if(newRegion != CurrentPlayerRegion) OnRegionChange(newRegion);
         }
 
