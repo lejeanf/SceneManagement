@@ -51,14 +51,12 @@ namespace jeanf.scenemanagement
 
         private void QueueLoadScene(string sceneName)
         {
-            if(isDebug) Debug.Log($"[SceneLoader] Queuing {sceneName} loading request into the taskQueue");
             _sceneQueue.Enqueue(new SceneOperation(SceneOperationType.Load, sceneName));
             ProcessQueue().Forget();
         }
 
         private void QueueUnloadScene(string sceneName)
         {
-            if(isDebug) Debug.Log($"[SceneLoader] Queuing {sceneName} unloading request into the taskQueue");
             _sceneQueue.Enqueue(new SceneOperation(SceneOperationType.Unload, sceneName));
             ProcessQueue().Forget();
         }
@@ -108,14 +106,6 @@ namespace jeanf.scenemanagement
                     await UniTask.Yield();
                 }
             }
-            catch (OperationCanceledException)
-            {
-                Debug.Log("[SceneLoader] Scene loading operations cancelled.");
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"[SceneLoader] Error processing scene queue: {e}");
-            }
             finally
             {
                 _isProcessingQueue = false;
@@ -127,14 +117,10 @@ namespace jeanf.scenemanagement
         {
             try
             {
-                if(isDebug) Debug.Log($"[SceneLoader] Loading scene: {sceneName}");
                 var loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-                loadOperation.allowSceneActivation = true;
-                
+                loadOperation!.allowSceneActivation = true;
                 await loadOperation.ToUniTask(cancellationToken: cancellationToken);
-
                 _loadedScenes.Add(sceneName);
-                if(isDebug) Debug.Log($"[SceneLoader] Scene {sceneName} loaded.");
             }
             finally
             {
@@ -146,13 +132,9 @@ namespace jeanf.scenemanagement
         {
             try
             {
-                if(isDebug) Debug.Log($"[SceneLoader] Unloading scene: {sceneName}");
                 var unloadOperation = SceneManager.UnloadSceneAsync(sceneName);
-                
                 await unloadOperation.ToUniTask(cancellationToken: cancellationToken);
-
                 _loadedScenes.Remove(sceneName);
-                if(isDebug) Debug.Log($"[SceneLoader] Scene {sceneName} unloaded.");
             }
             finally
             {

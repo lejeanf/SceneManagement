@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using jeanf.EventSystem;
@@ -17,7 +16,7 @@ namespace jeanf.scenemanagement
         [SerializeField] private StringEventChannelSO EndScenarioRequest;
         [SerializeField] private VoidEventChannelSO KillAllScenariosRequest;
 
-        public static Dictionary<Zone, List<AppType>> activeOverridesPerZone = new Dictionary<Zone, List<AppType>>();
+        public static Dictionary<string, List<AppType>> activeOverridesPerZone = new Dictionary<string, List<AppType>>();
         private void Awake()
         {
             _sceneLoader = this.GetComponent<SceneLoader>();
@@ -53,7 +52,7 @@ namespace jeanf.scenemanagement
 
             foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
             {
-                activeOverridesPerZone.Add(zoneOverride.zone, zoneOverride.AppsForThisZone_Override);
+                activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
             }
 
             foreach (var scene in CompileSceneList(scenario))
@@ -74,35 +73,23 @@ namespace jeanf.scenemanagement
             
             if (!_activeScenarios.Contains(scenario))
             {
-                Debug.Log($"[ScenarioManager] A request to unload scenario with ID: {scenario.scenarioName} has been received but that scenario not in the list of active scenarios. The request has been denied.");
                 return null;
             }
             foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
             {
-                Debug.Log($"[ScenarioManager] Removing zone: {zoneOverride.zone.zoneName} from the zone overrides.");
-                activeOverridesPerZone.Remove(zoneOverride.zone);
+                activeOverridesPerZone.Remove(zoneOverride.zone.id);
             }
             foreach (var scene in CompileSceneList(scenario))
             {
-                Debug.Log($"[ScenarioManager] Unloading scene: {scene}.");
-                _sceneLoader.UnLoadSceneRequest(scene);
+               _sceneLoader.UnLoadSceneRequest(scene);
             }
-            
-            Debug.Log($"[ScenarioManager] Removing : {scenario.scenarioName} from the list of active scenarios.");
             return scenario;
         }
 
         private void OnKillAllRequest()
         {
-            Debug.Log($"[ScenarioManager] Received request to unload all scenarios.");
             var scenariosToRemove = _activeScenarios;
-            var obsoleteScenarios = new List<Scenario>();
-            foreach (var scenario in scenariosToRemove)
-            {
-                Debug.Log($"[ScenarioManager] Sending unloading instruction for {scenario.scene.SceneName}.");
-                var scenarioToUnload = UnloadScenario(scenario.id);
-                if (scenarioToUnload!= null) obsoleteScenarios.Add(scenarioToUnload);
-            }
+            var obsoleteScenarios = scenariosToRemove.Select(scenario => UnloadScenario(scenario.id)).Where(scenarioToUnload => scenarioToUnload is not null).ToList();
 
             foreach (var obsoleteScenario in obsoleteScenarios)
             {
@@ -114,10 +101,6 @@ namespace jeanf.scenemanagement
         {
             var requiredScenes = new List<string> { scenario.scene.SceneName };
             requiredScenes.AddRange(scenario.dependenciesInThisScenario.Select(dependency => dependency.SceneName));
-            foreach (var scene in requiredScenes)
-            {
-                Debug.Log($"[ScenarioManager] Adding {scene} to current list."); 
-            }
             return requiredScenes;
         }
     }

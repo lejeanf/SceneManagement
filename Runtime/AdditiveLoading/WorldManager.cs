@@ -100,19 +100,10 @@ namespace jeanf.scenemanagement
             }
         }
 
-        private void DebugDictionary<T>(Dictionary<T, T> dictionary, string dictionaryName)
-        {
-            foreach (var key in dictionary.Keys)
-            {
-                if(isDebug) Debug.Log($"[WorldManager] Dictionary with name {dictionaryName} contains key: {key}.");
-            }
-        }
-
         private void SetCurrentZoneAndRegion(GameObject gameObject, Zone zone)
         {
             if (!gameObject.CompareTag("Player")) return;
             CurrentPlayerZone = zone;
-            Debug.Log($"[WorldManager] Current region: {zone.zoneName}.");
             PublishAppList(zone);
             var newRegion = _regionDictionaryPerZone[zone];
             if(newRegion != CurrentPlayerRegion) OnRegionChange(newRegion);
@@ -120,22 +111,14 @@ namespace jeanf.scenemanagement
 
         private void OnRegionChange(string newRegionID)
         {
-            if (!_regionDictionary.TryGetValue(newRegionID, out var region))
-            {
-                if(isDebug) Debug.Log($"[WorldManager] Unknown region change request received, id: {newRegionID}.");
-                foreach (var key in _regionDictionary.Keys)
-                {
-                    if(isDebug) Debug.Log($"[WorldManager] Region dictionary contains key: {key}.");
-                }
-                return;
-            }
-
+            if (!_regionDictionary.TryGetValue(newRegionID, out var region)) return;
             OnRegionChange(region);
         }
         
+        // ReSharper disable Unity.PerformanceAnalysis
         private void OnRegionChange(Region region)
         {
-            if(isDebug) Debug.Log($"[WorldManager] Request to move to region with id: {region.id.id} received.");
+            CurrentPlayerRegion = region;
 
             var currentActiveRegion = _activeRegions;
             var regionsToRemove = currentActiveRegion.Select(RequestUnLoadForObsoleteRegion).ToList();
@@ -155,7 +138,6 @@ namespace jeanf.scenemanagement
             sendTeleportTarget.Teleport();
             
             Debug.Log($"[WorldManager] Current region: {region.levelName}.");
-            CurrentPlayerRegion = region;
             _activeRegions.Add(region);
         }
 
@@ -175,7 +157,7 @@ namespace jeanf.scenemanagement
         {
             var listToBroadcast = zone.DefaultAppsInZone;
             // check if for this zone there is no override 
-            if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone, out var value))
+            if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone.id, out var value))
             {
                 // if yes, send override list
                 listToBroadcast = value;
