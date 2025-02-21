@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using jeanf.EventSystem;
+using jeanf.propertyDrawer;
 using jeanf.vrplayer;
 
 namespace jeanf.scenemanagement
@@ -25,8 +26,20 @@ namespace jeanf.scenemanagement
         [SerializeField] private StringEventChannelSO regionChangeRequestChannel;
         [SerializeField] private SendTeleportTarget sendTeleportTarget;
 
-        public static Zone CurrentPlayerZone { get; private set; }
-        public static Region CurrentPlayerRegion { get; private set; }
+        [ReadOnly] [SerializeField] private Zone _currentPlayerZone;
+        private static WorldManager Instance;
+        public static Zone CurrentPlayerZone 
+        { 
+            get => Instance._currentPlayerZone;
+            private set => Instance._currentPlayerZone = value;
+        }
+        
+        [ReadOnly] [SerializeField] private Region _currentPlayerRegion;
+        public static Region CurrentPlayerRegion
+        { 
+            get => Instance._currentPlayerRegion;
+            private set => Instance._currentPlayerRegion = value;
+        }
 
         public delegate void SendId(string newRegionID);
         public static SendId RequestRegionChange;
@@ -45,6 +58,7 @@ namespace jeanf.scenemanagement
 
         private void Awake()
         {
+            Instance = this;
             _sceneLoader = this.GetComponent<SceneLoader>();
             Init();
         }
