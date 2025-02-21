@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c96c6420dc848df48969d92d82fab61f, type: 3}
+  m_Name: Region_00
+  m_EditorClassIdentifier: 
+  id:
+    id: f6a8a488-c421-48db-8b31-fc5d846a16fa
+  Coordinate:
+    x: 0
+    y: 0
+  levelName: region_00
+  level: 0
+  scenariosInThisRegion:
+  - {fileID: 11400000, guid: da48d91e553f86f47add3deca44799c2, type: 2}
+  zonesInThisRegion:
+  - {fileID: 11400000, guid: 2b0939a48ac9b554d9da18a49189cb9d, type: 2}
+  - {fileID: 11400000, guid: a171907111fad6941a4b6e06501f0a26, type: 2}
+  - {fileID: 11400000, guid: 31277bf1125592b41afff901df8ad815, type: 2}
+  - {fileID: 11400000, guid: 89857cc01bad650448624ec63199b051, type: 2}
+  dependenciesInThisRegion:
+  - sceneAsset: {fileID: 102900000, guid: eca06b9066d8efb4fae7239d6bec44d5, type: 3}
+    sceneName: World_depedency
+  SpawnPosOnRegionChangeRequest:
+    position: {x: 2.5, y: 0, z: 2.5}
+    rotation: {x: 0, y: 0, z: 0}
+  isUsingOnInitSpawnPos: 1
+  SpawnPosOnInit:
+    position: {x: -2.5, y: 0, z: -2.5}
+    rotation: {x: 0, y: 0, z: 0}

@@ -13,12 +13,14 @@ namespace jeanf.scenemanagement
     {
         private EntityQuery _relevantQuery;
         private EntityQuery _volumeSetQuery;
+        private EntityQuery _configQuery;
         private NativeHashSet<Entity> _activeScenes;
         private NativeHashSet<Entity> _preloadingScenes;
         
-        private const float PRELOAD_HORIZONTAL_MULTIPLIER = 2.0f;
-        private const float PRELOAD_VERTICAL_MULTIPLIER = 1.0f;
-        private const int MAX_OPERATIONS_PER_FRAME = 2;
+        // Default values if no config is present
+        private const float DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER = 1.0f;
+        private const float DEFAULT_PRELOAD_VERTICAL_MULTIPLIER = 1.0f;
+        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 2;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -31,6 +33,10 @@ namespace jeanf.scenemanagement
             _volumeSetQuery = new EntityQueryBuilder(Allocator.Temp)
                 .WithAll<LevelInfo>()
                 .WithAll<VolumeBuffer>()  // Changed from WithReadOnly to WithAll
+                .Build(ref state);
+            
+            _configQuery = new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<VolumeSystemConfig>()
                 .Build(ref state);
             
             //_relevantQuery = state.GetEntityQuery(
@@ -55,6 +61,8 @@ namespace jeanf.scenemanagement
             [ReadOnly] public ComponentLookup<LocalToWorld> LocalToWorldLookup;
             [ReadOnly] public ComponentLookup<Volume> VolumeLookup;
             [ReadOnly] public BufferLookup<VolumeBuffer> VolumeBufferLookup;
+            [ReadOnly] public float PreloadHorizontalMultiplier;  // Added this
+            [ReadOnly] public float PreloadVerticalMultiplier;    // Added this
             
             public NativeHashSet<Entity> ContainingVolumes;
             public NativeHashSet<Entity> NearbyVolumes;
@@ -70,9 +78,9 @@ namespace jeanf.scenemanagement
             private bool IsPositionNearVolume(float3 position, float3 volumePosition, float3 range)
             {
                 var distance = math.abs(position - volumePosition);
-                bool isNearHorizontally = distance.x < range.x * PRELOAD_HORIZONTAL_MULTIPLIER && 
-                                        distance.z < range.z * PRELOAD_HORIZONTAL_MULTIPLIER;
-                bool isNearVertically = distance.y < range.y * PRELOAD_VERTICAL_MULTIPLIER;
+                bool isNearHorizontally = distance.x < range.x * PreloadHorizontalMultiplier && 
+                                        distance.z < range.z * PreloadHorizontalMultiplier;
+                bool isNearVertically = distance.y < range.y * PreloadVerticalMultiplier;
                 return isNearHorizontally && isNearVertically;
             }
 
@@ -203,9 +211,21 @@ namespace jeanf.scenemanagement
             }
         }
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            // Get config values with fallback to defaults
+            float preloadHorizontalMultiplier = DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER;
+            float preloadVerticalMultiplier = DEFAULT_PRELOAD_VERTICAL_MULTIPLIER;
+            int maxOperationsPerFrame = DEFAULT_MAX_OPERATIONS_PER_FRAME;
+
+            if (_configQuery.HasSingleton<VolumeSystemConfig>())
+            {
+                var config = SystemAPI.GetSingleton<VolumeSystemConfig>();
+                preloadHorizontalMultiplier = config.PreloadHorizontalMultiplier;
+                preloadVerticalMultiplier = config.PreloadVerticalMultiplier;
+                maxOperationsPerFrame = config.MaxOperationsPerFrame;
+            }
+            
             var relevantTransforms = _relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
             var playerPosition = relevantTransforms[0].Position;
             var volumeSets = _volumeSetQuery.ToEntityArray(Allocator.TempJob);
@@ -228,7 +248,9 @@ namespace jeanf.scenemanagement
                 VolumeLookup = SystemAPI.GetComponentLookup<Volume>(true),
                 VolumeBufferLookup = SystemAPI.GetBufferLookup<VolumeBuffer>(true),
                 ContainingVolumes = containingVolumes,
-                NearbyVolumes = nearbyVolumes
+                NearbyVolumes = nearbyVolumes,
+                PreloadHorizontalMultiplier = preloadHorizontalMultiplier,
+                PreloadVerticalMultiplier = preloadVerticalMultiplier
             };
 
             // Schedule scene filter job
@@ -261,7 +283,7 @@ namespace jeanf.scenemanagement
             sceneChangeHandle.Complete();
 
             // Process scene operations (this part cannot be burst compiled or parallelized due to SceneSystem calls)
-            ProcessSceneOperations(ref state, scenesToUnload, scenesToLoad, scenesToPreload);
+            ProcessSceneOperations(ref state, scenesToUnload, scenesToLoad, scenesToPreload, maxOperationsPerFrame);
 
             // Cleanup
             relevantTransforms.Dispose();
@@ -275,14 +297,14 @@ namespace jeanf.scenemanagement
             scenesToPreload.Dispose();
         }
 
-        private void ProcessSceneOperations( ref SystemState state, NativeList<Entity> scenesToUnload, NativeList<Entity> scenesToLoad, NativeList<Entity> scenesToPreload)
+        private void ProcessSceneOperations( ref SystemState state, NativeList<Entity> scenesToUnload, NativeList<Entity> scenesToLoad, NativeList<Entity> scenesToPreload, int maxOperationsPerFrame)
         {
             var operationsThisFrame = 0;
 
             // Process unloads first
             foreach (var scene in scenesToUnload)
             {
-                if (operationsThisFrame >= MAX_OPERATIONS_PER_FRAME) break;
+                if (operationsThisFrame >= maxOperationsPerFrame) break;
                 
                 // Check if entity exists before trying to access it
                 if (!state.EntityManager.Exists(scene)) 
@@ -318,7 +340,7 @@ namespace jeanf.scenemanagement
             // Process loads
             foreach (var scene in scenesToLoad)
             {
-                if (operationsThisFrame >= MAX_OPERATIONS_PER_FRAME) break;
+                if (operationsThisFrame >= maxOperationsPerFrame) break;
                 
                 if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
                 {
@@ -341,7 +363,7 @@ namespace jeanf.scenemanagement
             // Process preloads
             foreach (var scene in scenesToPreload)
             {
-                if (operationsThisFrame >= MAX_OPERATIONS_PER_FRAME) break;
+                if (operationsThisFrame >= maxOperationsPerFrame) break;
                 
                 if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
                 {

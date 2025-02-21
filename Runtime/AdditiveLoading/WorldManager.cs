@@ -60,6 +60,7 @@ namespace jeanf.scenemanagement
             
             ZoneContainer.broadcastObject += SetCurrentZoneAndRegion;
             ResetWorld += Init;
+            ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
         }
 
         private void Unsubscribe()
@@ -69,6 +70,7 @@ namespace jeanf.scenemanagement
             
             ZoneContainer.broadcastObject -= SetCurrentZoneAndRegion;
             ResetWorld -= Init;
+            ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
         }
 
 
@@ -100,6 +102,16 @@ namespace jeanf.scenemanagement
                 // build dependency Dictionary
                 if(isDebug) Debug.Log($"[WorldManager] Adding list of dependencies for the region with id: {region.id.id} to the dependency dictionary.");
                 _dependenciesPerRegion.TryAdd(region.id, region.dependenciesInThisRegion);
+            }
+        }
+        
+        // Add new method to handle zone override changes
+        private void OnZoneOverridesChanged(string zoneId)
+        {
+            // Only update if we're in the affected zone
+            if (CurrentPlayerZone != null && CurrentPlayerZone.id == zoneId)
+            {
+                PublishAppList(CurrentPlayerZone);
             }
         }
 
@@ -161,12 +173,13 @@ namespace jeanf.scenemanagement
         private void PublishAppList(Zone zone)
         {
             var listToBroadcast = zone.DefaultAppsInZone;
+            if(isDebug) Debug.Log($"[WorldManager] Default list for zone [{zone.name}] : [{string.Join(", ", listToBroadcast)}]");
             // check if for this zone there is no override 
             if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone.id, out var value))
             {
                 // if yes, send override list
                 listToBroadcast = value;
-                Debug.Log($"[WorldManager] List override found: [{string.Join(", ", listToBroadcast)}]");
+                if(isDebug) Debug.Log($"[WorldManager] List override found for zone [{zone.name}] : [{string.Join(", ", listToBroadcast)}]");
             }
             
             // broadcast list

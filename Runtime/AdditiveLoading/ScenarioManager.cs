@@ -17,6 +17,9 @@ namespace jeanf.scenemanagement
         [SerializeField] private VoidEventChannelSO KillAllScenariosRequest;
 
         public static Dictionary<string, List<AppType>> activeOverridesPerZone = new Dictionary<string, List<AppType>>();
+        
+        public delegate void ScenarioStateChanged(string zoneId);
+        public static ScenarioStateChanged OnZoneOverridesChanged;
         private void Awake()
         {
             _sceneLoader = this.GetComponent<SceneLoader>();
@@ -53,6 +56,7 @@ namespace jeanf.scenemanagement
             foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
             {
                 activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
+                OnZoneOverridesChanged?.Invoke(zoneOverride.zone.id);
             }
 
             foreach (var scene in CompileSceneList(scenario))
@@ -78,6 +82,7 @@ namespace jeanf.scenemanagement
             foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
             {
                 activeOverridesPerZone.Remove(zoneOverride.zone.id);
+                OnZoneOverridesChanged?.Invoke(zoneOverride.zone.id);
             }
             foreach (var scene in CompileSceneList(scenario))
             {
@@ -90,10 +95,24 @@ namespace jeanf.scenemanagement
         {
             var scenariosToRemove = _activeScenarios;
             var obsoleteScenarios = scenariosToRemove.Select(scenario => UnloadScenario(scenario.id)).Where(scenarioToUnload => scenarioToUnload is not null).ToList();
+            var affectedZones = new HashSet<string>();
+            // Collect all affected zones before unloading
+            foreach (var scenario in scenariosToRemove)
+            {
+                foreach (var zoneOverride in scenario.ZoneOverrides)
+                {
+                    affectedZones.Add(zoneOverride.zone.id);
+                }
+            }
 
             foreach (var obsoleteScenario in obsoleteScenarios)
             {
                 _activeScenarios.Remove(obsoleteScenario);
+            }
+            // Notify for all affected zones after everything is unloaded
+            foreach (var zoneId in affectedZones)
+            {
+                OnZoneOverridesChanged?.Invoke(zoneId);
             }
         }
 

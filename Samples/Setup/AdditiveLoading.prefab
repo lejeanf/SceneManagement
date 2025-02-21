@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TestChannel: {fileID: 11400000, guid: 0a0e8a2adda6b6842901101278def4b1, type: 2}
-  messageToSend: 05a1465a-98fd-4836-b48a-b714e6996df1
+  messageToSend: f6a8a488-c421-48db-8b31-fc5d846a16fa
 --- !u!114 &2596939862821607135
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -60,7 +60,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TestChannel: {fileID: 11400000, guid: 0a0e8a2adda6b6842901101278def4b1, type: 2}
-  messageToSend: ec455f82-d864-40ef-875d-90d8e5854b88
+  messageToSend: f6a8a488-c421-48db-8b31-fc5d846a16fa
 --- !u!1 &2024255771601921181
 GameObject:
   m_ObjectHideFlags: 0
@@ -111,6 +111,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0cc0c90446bf3447bcbb365f52157b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isDebug: 0
+  maxConcurrentLoads: 2
 --- !u!114 &8979075195523201058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -123,19 +125,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6c8ad50910b9914da859cb2a490065a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isDebug: 0
   ListOfRegions:
-  - {fileID: 11400000, guid: a27bc466a0b4afc4da1b9839f7669750, type: 2}
-  - {fileID: 11400000, guid: 06c76166f3bb3fd44ad91e1607b5f6c0, type: 2}
-  - {fileID: 11400000, guid: c7954033e5804d6428bff29fda9153e5, type: 2}
-  - {fileID: 11400000, guid: 993a96140759e4e43ab61307db368a00, type: 2}
-  - {fileID: 11400000, guid: f8b69a02551975a4986b3152586124db, type: 2}
-  - {fileID: 11400000, guid: d0680c21cf7330f4681ecedb9b22766a, type: 2}
-  - {fileID: 11400000, guid: 7f421cc98f9480646ae026051369ab12, type: 2}
+  - {fileID: 11400000, guid: bbabf3e47905c1b4da96100c0b4e4484, type: 2}
   regionChangeRequestChannel: {fileID: 11400000, guid: 0a0e8a2adda6b6842901101278def4b1,
     type: 2}
   sendTeleportTarget: {fileID: 4547402059037323192}
-  currentPlayerZone: {fileID: 0}
-  currentPlayerRegion: {fileID: 0}
 --- !u!114 &2246953710021239090
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -164,8 +159,6 @@ GameObject:
   - component: {fileID: 5982544509634223705}
   - component: {fileID: 6232970506828227128}
   - component: {fileID: 1997517872495139347}
-  - component: {fileID: 6911358166674935813}
-  - component: {fileID: 2819036940532251739}
   - component: {fileID: 6221867875032602280}
   m_Layer: 0
   m_Name: TEST_LoadScenarioOnClick
@@ -202,7 +195,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TestChannel: {fileID: 11400000, guid: 030966fcf034be946ab6123e0405c29b, type: 2}
-  messageToSend: 4351aab9-b773-4d55-9b24-b32c4632d6e4
+  messageToSend: 2e9fa4a0-5282-479b-ba67-e68ad77f6443
 --- !u!114 &1997517872495139347
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -216,35 +209,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TestChannel: {fileID: 11400000, guid: 7c9cef042075e874585508cd8bf5c84e, type: 2}
-  messageToSend: 4351aab9-b773-4d55-9b24-b32c4632d6e4
---- !u!114 &6911358166674935813
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2311871612787447076}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 025cc6d62b166084c9a929ec0d7ce112, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  TestChannel: {fileID: 11400000, guid: 030966fcf034be946ab6123e0405c29b, type: 2}
-  messageToSend: 741d0077-a690-4097-9a32-94b946d9a553
---- !u!114 &2819036940532251739
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2311871612787447076}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 025cc6d62b166084c9a929ec0d7ce112, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  TestChannel: {fileID: 11400000, guid: 7c9cef042075e874585508cd8bf5c84e, type: 2}
-  messageToSend: 741d0077-a690-4097-9a32-94b946d9a553
+  messageToSend: 2e9fa4a0-5282-479b-ba67-e68ad77f6443
 --- !u!114 &6221867875032602280
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -304,7 +269,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TestChannel: {fileID: 11400000, guid: 4c613ca97b0ba684abc28c7399be9e28, type: 2}
-  messageToSend: 01_UVSI_npc
+  messageToSend: World_depedency
 --- !u!114 &2920600471980357480
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -318,7 +283,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   TestChannel: {fileID: 11400000, guid: f1ce5b7a4438016479dc85d476986557, type: 2}
-  messageToSend: 01_UVSI_npc
+  messageToSend: World_depedency
 --- !u!1 &5894908492078299560
 GameObject:
   m_ObjectHideFlags: 0
