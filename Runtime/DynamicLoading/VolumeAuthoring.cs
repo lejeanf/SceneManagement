@@ -7,6 +7,7 @@ namespace jeanf.scenemanagement
 {
     public class VolumeAuthoring : MonoBehaviour
     {
+        public bool isDebug = false;
         public class Baker : Baker<VolumeAuthoring>
         {
             public override void Bake(VolumeAuthoring authoring)
@@ -24,6 +25,7 @@ namespace jeanf.scenemanagement
                 {
                     InstanceID = authoring.gameObject.GetInstanceID()
                 });
+                if(authoring.isDebug) AddComponent<VolumeDebugTag>(entity);
             }
         }
     }

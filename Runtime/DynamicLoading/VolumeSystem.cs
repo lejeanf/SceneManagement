@@ -31,7 +31,8 @@ namespace jeanf.scenemanagement
         // Default values if no config is present
         private const float DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER = 1.0f;
         private const float DEFAULT_PRELOAD_VERTICAL_MULTIPLIER = 1.0f;
-        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 2;
+        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 10;
+        private const bool IS_DEBUG = false;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -83,17 +84,22 @@ namespace jeanf.scenemanagement
             private bool IsPositionInsideVolume(float3 position, float3 volumePosition, float3 range)
             {
                 var distance = math.abs(position - volumePosition);
-                return distance.x < range.x && 
-                       distance.y < range.y && 
-                       distance.z < range.z;
+                return distance.x <= range.x && 
+                       distance.y <= range.y && 
+                       distance.z <= range.z;
             }
 
             private bool IsPositionNearVolume(float3 position, float3 volumePosition, float3 range)
             {
+                var expandedRangeHorizontal = new float2(
+                    range.x * PreloadHorizontalMultiplier,
+                    range.z * PreloadHorizontalMultiplier);
+                var expandedRangeVertical = range.y * PreloadVerticalMultiplier;
+    
                 var distance = math.abs(position - volumePosition);
-                bool isNearHorizontally = distance.x < range.x * PreloadHorizontalMultiplier && 
-                                        distance.z < range.z * PreloadHorizontalMultiplier;
-                bool isNearVertically = distance.y < range.y * PreloadVerticalMultiplier;
+                bool isNearHorizontally = distance.x <= expandedRangeHorizontal.x && 
+                                          distance.z <= expandedRangeHorizontal.y;
+                bool isNearVertically = distance.y <= expandedRangeVertical;
                 return isNearHorizontally && isNearVertically;
             }
 
@@ -200,35 +206,44 @@ namespace jeanf.scenemanagement
                 ScenesToLoad.Clear();
                 ScenesToPreload.Clear();
                 
-                // Find scenes to unload
+                // Find scenes to unload from currently active scenes
                 foreach (var scene in CurrentActiveScenes)
                 {
+                    // Only unload if it's not in either new set
                     if (!NewActiveScenes.Contains(scene) && !NewPreloadingScenes.Contains(scene))
                     {
                         ScenesToUnload.Add(scene);
                     }
                 }
                 
+                // Find scenes to unload from currently preloading scenes
                 foreach (var scene in CurrentPreloadingScenes)
                 {
+                    // Only unload if it's not in either new set
                     if (!NewActiveScenes.Contains(scene) && !NewPreloadingScenes.Contains(scene))
                     {
                         ScenesToUnload.Add(scene);
                     }
                 }
 
-                // Find scenes to load
+                // Find scenes to load (from new active scenes that aren't already active)
                 foreach (var scene in NewActiveScenes)
                 {
                     if (!CurrentActiveScenes.Contains(scene))
                     {
-                        ScenesToLoad.Add(scene);
+                        // Check if it was preloading - if so, we don't need to add it to ScenesToLoad
+                        // since it's already loaded, just not active
+                        if (!CurrentPreloadingScenes.Contains(scene))
+                        {
+                            ScenesToLoad.Add(scene);
+                        }
                     }
                 }
 
-                // Find scenes to preload
+                // Find scenes to preload (from new preloading scenes that aren't loaded at all)
                 foreach (var scene in NewPreloadingScenes)
                 {
+                    // Only preload if not already loaded or preloaded
                     if (!CurrentActiveScenes.Contains(scene) && !CurrentPreloadingScenes.Contains(scene))
                     {
                         ScenesToPreload.Add(scene);
@@ -237,13 +252,14 @@ namespace jeanf.scenemanagement
             }
         }
 
-        [BurstCompile]
+        [BurstDiscard]  // Add this to disable Burst compilation for OnUpdate
         public void OnUpdate(ref SystemState state)
         {
             // Get config values with fallback to defaults
             float preloadHorizontalMultiplier = DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER;
             float preloadVerticalMultiplier = DEFAULT_PRELOAD_VERTICAL_MULTIPLIER;
             int maxOperationsPerFrame = DEFAULT_MAX_OPERATIONS_PER_FRAME;
+            bool isDebug = IS_DEBUG;
 
             if (_configQuery.HasSingleton<VolumeSystemConfig>())
             {
@@ -251,6 +267,7 @@ namespace jeanf.scenemanagement
                 preloadHorizontalMultiplier = config.PreloadHorizontalMultiplier;
                 preloadVerticalMultiplier = config.PreloadVerticalMultiplier;
                 maxOperationsPerFrame = config.MaxOperationsPerFrame;
+                isDebug = config.IsDebug;
             }
             
             // Reuse persistent collections instead of creating new ones
@@ -322,10 +339,25 @@ namespace jeanf.scenemanagement
             var sceneChangeHandle = sceneChangeJob.Schedule(sceneFilterHandle);
             sceneChangeHandle.Complete();
 
-            // Process scene operations
-            ProcessSceneOperations(ref state, _scenesToUnload, _scenesToLoad, _scenesToPreload, maxOperationsPerFrame);
+            #if UNITY_EDITOR
+            if (isDebug)
+            {
+                UnityEngine.Debug.Log($"After jobs - Scenes to load: {_scenesToLoad.Length}");
+                if (_scenesToLoad.Length > 0)
+                {
+                    for (int i = 0; i < _scenesToLoad.Length; i++)
+                    {
+                        UnityEngine.Debug.Log($"  Scene to load: {_scenesToLoad[i].Index}");
+                    }
+                }
+            }
+            #endif
 
-            // Update tracking collections
+            // Important: Don't clear _scenesToLoad, _scenesToUnload, or _scenesToPreload here
+            // Process scene operations without clearing the lists first
+            ProcessSceneOperations(ref state, _scenesToUnload, _scenesToLoad, _scenesToPreload, maxOperationsPerFrame, isDebug);
+
+            // Update tracking collections AFTER processing operations
             UpdateActiveSceneSets();
         }
 
@@ -345,79 +377,111 @@ namespace jeanf.scenemanagement
                 _preloadingScenes.Add(scene);
             }
         }
-
-        private void ProcessSceneOperations(ref SystemState state, NativeList<Entity> scenesToUnload, NativeList<Entity> scenesToLoad, NativeList<Entity> scenesToPreload, int maxOperationsPerFrame)
+        
+        private void ProcessSceneOperations(ref SystemState state, NativeList<Entity> scenesToUnload, NativeList<Entity> scenesToLoad, NativeList<Entity> scenesToPreload, int maxOperationsPerFrame, bool isDebug)
         {
-            var operationsThisFrame = 0;
-
-            // Process unloads first - prioritize this to free up resources
-            for (int i = 0; i < scenesToUnload.Length; i++)
+            #if UNITY_EDITOR
+            if (isDebug) UnityEngine.Debug.Log($"Process operations - Unload: {scenesToUnload.Length}, Load: {scenesToLoad.Length}, Preload: {scenesToPreload.Length}");
+            #endif
+            
+            // Force load all scenes immediately, regardless of operation limits
+            foreach (var scene in scenesToLoad)
             {
-                if (operationsThisFrame >= maxOperationsPerFrame) break;
-                
-                var scene = scenesToUnload[i];
-                
-                // Check if entity exists before trying to access it
-                if (!state.EntityManager.Exists(scene)) 
+                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
                     continue;
-
-                // Check if entity has the required component
-                if (!state.EntityManager.HasComponent<LevelInfo>(scene)) 
+                
+                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
+                
+                // Skip if already loaded
+                if (levelInfo.runtimeEntity != Entity.Null)
+                    continue;
+                    
+                try
+                {
+                    #if UNITY_EDITOR
+                    if (isDebug) UnityEngine.Debug.Log($"Attempting to load scene: {scene.Index}");
+                    #endif
+                    
+                    // Load the scene and store the runtime entity
+                    var runtimeEntity = SceneSystem.LoadSceneAsync(
+                        state.WorldUnmanaged,
+                        levelInfo.sceneReference);
+                        
+                    #if UNITY_EDITOR
+                    if (isDebug)UnityEngine.Debug.Log($"Load result for scene {scene.Index}: {runtimeEntity.Index}");
+                    #endif
+                    
+                    // Set the runtime entity on the level info
+                    levelInfo.runtimeEntity = runtimeEntity;
+                    state.EntityManager.SetComponentData(scene, levelInfo);
+                }
+                catch (System.Exception e)
+                {
+                    #if UNITY_EDITOR
+                    if(isDebug) UnityEngine.Debug.LogError($"Exception loading scene {scene.Index}: {e.Message}");
+                    #endif
+                }
+            }
+            
+            // Handle unloads after all loads are processed
+            foreach (var scene in scenesToUnload)
+            {
+                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene)) 
                     continue;
                 
                 var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
                 if (levelInfo.runtimeEntity == Entity.Null) continue;
                 
+                #if UNITY_EDITOR
+                if (isDebug) UnityEngine.Debug.Log($"Unloading scene: {scene.Index}");
+                #endif
+                
                 SceneSystem.UnloadScene(
                     state.WorldUnmanaged,
                     levelInfo.runtimeEntity,
                     SceneSystem.UnloadParameters.DestroyMetaEntities);
-                    
+                        
                 levelInfo.runtimeEntity = Entity.Null;
                 state.EntityManager.SetComponentData(scene, levelInfo);
-                operationsThisFrame++;
             }
-
-            // Process loads
-            for (int i = 0; i < scenesToLoad.Length; i++)
+            
+            // Handle preloads after loads and unloads
+            foreach (var scene in scenesToPreload)
             {
-                if (operationsThisFrame >= maxOperationsPerFrame) break;
-                
-                var scene = scenesToLoad[i];
-                
                 if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
                     continue;
                 
                 var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
-                if (levelInfo.runtimeEntity != Entity.Null || !levelInfo.sceneReference.IsReferenceValid) continue;
                 
-                levelInfo.runtimeEntity = SceneSystem.LoadSceneAsync(
-                    state.WorldUnmanaged,
-                    levelInfo.sceneReference);
-                    
-                state.EntityManager.SetComponentData(scene, levelInfo);
-                operationsThisFrame++;
-            }
-
-            // Process preloads
-            for (int i = 0; i < scenesToPreload.Length; i++)
-            {
-                if (operationsThisFrame >= maxOperationsPerFrame) break;
-                
-                var scene = scenesToPreload[i];
-                
-                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
+                // Skip if already loaded
+                if (levelInfo.runtimeEntity != Entity.Null)
                     continue;
-                
-                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
-                if (levelInfo.runtimeEntity != Entity.Null || !levelInfo.sceneReference.IsReferenceValid) continue;
-                
-                levelInfo.runtimeEntity = SceneSystem.LoadSceneAsync(
-                    state.WorldUnmanaged,
-                    levelInfo.sceneReference);
                     
-                state.EntityManager.SetComponentData(scene, levelInfo);
-                operationsThisFrame++;
+                try
+                {
+                    #if UNITY_EDITOR
+                    if (isDebug) UnityEngine.Debug.Log($"Attempting to preload scene: {scene.Index}");
+                    #endif
+                    
+                    // Preload the scene
+                    var runtimeEntity = SceneSystem.LoadSceneAsync(
+                        state.WorldUnmanaged,
+                        levelInfo.sceneReference);
+                        
+                    #if UNITY_EDITOR
+                    if (isDebug) UnityEngine.Debug.Log($"Preload result for scene {scene.Index}: {runtimeEntity.Index}");
+                    #endif
+                    
+                    // Store the runtime entity
+                    levelInfo.runtimeEntity = runtimeEntity;
+                    state.EntityManager.SetComponentData(scene, levelInfo);
+                }
+                catch (System.Exception e)
+                {
+                    #if UNITY_EDITOR
+                    if (isDebug) UnityEngine.Debug.LogError($"Exception preloading scene {scene.Index}: {e.Message}");
+                    #endif
+                }
             }
         }
 

@@ -5,6 +5,7 @@ namespace jeanf.scenemanagement
 {
     public class VolumeSystemAuthoring : MonoBehaviour
     {
+        public bool isDebug = false;
         public float preloadHorizontalMultiplier = 2.0f;
         public float preloadVerticalMultiplier = 1.0f;
         public int maxOperationsPerFrame = 2;
@@ -18,7 +19,8 @@ namespace jeanf.scenemanagement
                 {
                     PreloadHorizontalMultiplier = authoring.preloadHorizontalMultiplier,
                     PreloadVerticalMultiplier = authoring.preloadVerticalMultiplier,
-                    MaxOperationsPerFrame = authoring.maxOperationsPerFrame
+                    MaxOperationsPerFrame = authoring.maxOperationsPerFrame,
+                    IsDebug = authoring.isDebug
                 });
             }
         }
@@ -29,5 +31,6 @@ namespace jeanf.scenemanagement
         public float PreloadHorizontalMultiplier;
         public float PreloadVerticalMultiplier;
         public int MaxOperationsPerFrame;
+        public bool IsDebug;
     }
 }

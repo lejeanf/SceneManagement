@@ -514,6 +514,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: a03c9fca588e41848abdc740acc54aeb,
         type: 2}
+    - target: {fileID: 4547402059037323192, guid: e87a4cab69290cb40805f373b8ccd8d7,
+        type: 3}
+      propertyPath: sendEventOnEnable
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7951339239912631404, guid: e87a4cab69290cb40805f373b8ccd8d7,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -567,7 +572,7 @@ PrefabInstance:
     - target: {fileID: 8979075195523201058, guid: e87a4cab69290cb40805f373b8ccd8d7,
         type: 3}
       propertyPath: isDebug
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1597,11 +1602,10 @@ MonoBehaviour:
   OnEventRaised:
     m_PersistentCalls:
       m_Calls: []
-  _isDebug: 0
+  _isDebug: 1
   player: {fileID: 1757655712}
   cameraOffset: {fileID: 376454066}
-  listOfFilters:
-  - {fileID: 11400000, guid: 710fde9ddb9905c468ce1b051d216eef, type: 2}
+  listOfFilters: []
   cameraResetChannel: {fileID: 11400000, guid: 869cdbdb9de48ea42aa65f9a90dbc1d4, type: 2}
 --- !u!4 &1631578571
 Transform:
@@ -1972,7 +1976,7 @@ PrefabInstance:
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 2.46
       objectReference: {fileID: 0}
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
@@ -1982,7 +1986,7 @@ PrefabInstance:
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.663
+      value: -2.7
       objectReference: {fileID: 0}
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
