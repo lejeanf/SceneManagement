@@ -21,6 +21,7 @@ MonoBehaviour:
   level: 0
   scenariosInThisRegion:
   - {fileID: 11400000, guid: da48d91e553f86f47add3deca44799c2, type: 2}
+  - {fileID: 11400000, guid: 1085c744a096c374dbfdb13da6e13e6f, type: 2}
   zonesInThisRegion:
   - {fileID: 11400000, guid: 2b0939a48ac9b554d9da18a49189cb9d, type: 2}
   - {fileID: 11400000, guid: a171907111fad6941a4b6e06501f0a26, type: 2}

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using jeanf.EventSystem;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace jeanf.scenemanagement
 {
@@ -13,13 +14,19 @@ namespace jeanf.scenemanagement
         
         [Header("Listening on:")]
         [SerializeField] private StringEventChannelSO BeginScenarioRequest;
-        [SerializeField] private StringEventChannelSO EndScenarioRequest;
+        [FormerlySerializedAs("EndScenarioRequest")] [SerializeField] private StringEventChannelSO EndScenarioRequestSO;
         [SerializeField] private VoidEventChannelSO KillAllScenariosRequest;
 
         public static Dictionary<string, List<AppType>> activeOverridesPerZone = new Dictionary<string, List<AppType>>();
         
         public delegate void ScenarioStateChanged(string zoneId);
         public static ScenarioStateChanged OnZoneOverridesChanged;
+
+        public delegate void EndScenarioRequestDelegate(string scenarioId);
+        public EndScenarioRequestDelegate EndScenarioRequestPing;
+        public EndScenarioRequestDelegate EndScenarioRequest;
+
+        [SerializeField] private bool automaticScenarioUnload = true;
         private void Awake()
         {
             _sceneLoader = this.GetComponent<SceneLoader>();
@@ -32,29 +39,51 @@ namespace jeanf.scenemanagement
         private void Subscribe()
         {        
             BeginScenarioRequest.OnEventRaised += OnScenarioBeginRequest;
-            EndScenarioRequest.OnEventRaised += OnScenarioEndRequest;
-            KillAllScenariosRequest.OnEventRaised += OnKillAllRequest;
+            EndScenarioRequestSO.OnEventRaised += OnScenarioEndRequest;
+            EndScenarioRequestSO.OnEventRaised += OnScenarioEndRequest;
+            EndScenarioRequest += OnScenarioEndRequest;
+            KillAllScenariosRequest.OnEventRaised += UnloadAllScenarios;
         }
         
         private void Unsubscribe()
         {
             BeginScenarioRequest.OnEventRaised -= OnScenarioBeginRequest;
-            EndScenarioRequest.OnEventRaised -= OnScenarioEndRequest;
-            KillAllScenariosRequest.OnEventRaised -= OnKillAllRequest;
+            EndScenarioRequestSO.OnEventRaised -= OnScenarioEndRequest;
+            EndScenarioRequest -= OnScenarioEndRequest;
+            KillAllScenariosRequest.OnEventRaised -= UnloadAllScenarios;
         }
 
         private void OnScenarioBeginRequest(string scenarioID)
         {
-            if(!ScenarioDictionary.TryGetValue(scenarioID, out var scenario)) return;
+            if (!ScenarioDictionary.TryGetValue(scenarioID, out var scenario)) return;
 
             if (_activeScenarios.Contains(scenario))
             {
-                Debug.Log($"A request to load scenario with ID: {scenario.scenarioName} has been received but that scenario is already in the list of active scenarios. The request has been denied.");
+                Debug.Log(
+                    $"A request to load scenario with ID: {scenario.scenarioName} has been received but that scenario is already in the list of active scenarios. The request has been denied.");
                 return;
+            }
+
+            switch (_activeScenarios.Count)
+            {
+                // automatic unload previously loaded scenarios
+                case > 0 when automaticScenarioUnload:
+                    UnloadAllScenarios();
+                    break;
+                // if not automatic, send outside request to unload scenarios one by one.
+                case > 0 when !automaticScenarioUnload:
+                {
+                    foreach (var s in _activeScenarios)
+                    {
+                        EndScenarioRequestPing?.Invoke(s.id);
+                    }
+                    break;
+                }
             }
 
             foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
             {
+                if (activeOverridesPerZone.ContainsKey(zoneOverride.zone.id)) continue;
                 activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
                 OnZoneOverridesChanged?.Invoke(zoneOverride.zone.id);
             }
@@ -91,18 +120,15 @@ namespace jeanf.scenemanagement
             return scenario;
         }
 
-        private void OnKillAllRequest()
+        private void UnloadAllScenarios()
         {
             var scenariosToRemove = _activeScenarios;
             var obsoleteScenarios = scenariosToRemove.Select(scenario => UnloadScenario(scenario.id)).Where(scenarioToUnload => scenarioToUnload is not null).ToList();
             var affectedZones = new HashSet<string>();
             // Collect all affected zones before unloading
-            foreach (var scenario in scenariosToRemove)
+            foreach (var zoneOverride in scenariosToRemove.SelectMany(scenario => scenario.ZoneOverrides))
             {
-                foreach (var zoneOverride in scenario.ZoneOverrides)
-                {
-                    affectedZones.Add(zoneOverride.zone.id);
-                }
+                affectedZones.Add(zoneOverride.zone.id);
             }
 
             foreach (var obsoleteScenario in obsoleteScenarios)
