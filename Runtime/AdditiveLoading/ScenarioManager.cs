@@ -23,7 +23,7 @@ namespace jeanf.scenemanagement
         public static ScenarioStateChanged OnZoneOverridesChanged;
 
         public delegate void EndScenarioRequestDelegate(string scenarioId);
-        public EndScenarioRequestDelegate EndScenarioRequestPing;
+        public EndScenarioRequestDelegate EndScenarioRequestPrompt;
         public EndScenarioRequestDelegate EndScenarioRequest;
 
         [SerializeField] private bool automaticScenarioUnload = true;
@@ -75,7 +75,7 @@ namespace jeanf.scenemanagement
                 {
                     foreach (var s in _activeScenarios)
                     {
-                        EndScenarioRequestPing?.Invoke(s.id);
+                        EndScenarioRequestPrompt.Invoke(s.id);
                     }
                     break;
                 }
