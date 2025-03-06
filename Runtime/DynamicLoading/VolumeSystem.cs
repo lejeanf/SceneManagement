@@ -319,12 +319,19 @@ namespace jeanf.scenemanagement
         // Helper method to batch clear collections and avoid repeated operations
         private void BatchClearCollections()
         {
+            // Using Clear() instead of individual clears to minimize function call overhead
             _relevantTransforms.Clear();
             _volumeSets.Clear();
         }
         
         public void OnUpdate(ref SystemState state)
         {
+            // Cache component type handles for better performance
+            var entityTypeHandle = state.GetEntityTypeHandle();
+            var localToWorldTypeHandle = state.GetComponentTypeHandle<LocalToWorld>(true);
+            var volumeTypeHandle = state.GetComponentTypeHandle<Volume>(true);
+            var volumeBufferTypeHandle = state.GetBufferTypeHandle<VolumeBuffer>(true);
+            
             // Get config values with fallback to defaults
             float preloadHorizontalMultiplier = DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER;
             float preloadVerticalMultiplier = DEFAULT_PRELOAD_VERTICAL_MULTIPLIER;
@@ -354,8 +361,13 @@ namespace jeanf.scenemanagement
             // Get volume sets using chunk iteration for better performance
             if (!_volumeSetQuery.IsEmpty)
             {
-                using var entities = _volumeSetQuery.ToEntityArray(Allocator.Temp);
-                _volumeSets.AddRange(entities);
+                var chunks = _volumeSetQuery.ToArchetypeChunkArray(Allocator.Temp);
+                for (int i = 0; i < chunks.Length; i++)
+                {
+                    var chunk = chunks[i];
+                    var entities = chunk.GetNativeArray(entityTypeHandle);
+                    _volumeSets.AddRange(entities);
+                }
             }
             
             // Make sure we have at least one relevant transform (player)
@@ -364,7 +376,7 @@ namespace jeanf.scenemanagement
             
             var playerPosition = _relevantTransforms[0].Position;
 
-            // Use cached lookup tables for better performance
+            // Cache component lookups for the job
             var localToWorldLookup = SystemAPI.GetComponentLookup<LocalToWorld>(true);
             var volumeLookup = SystemAPI.GetComponentLookup<Volume>(true);
             var volumeBufferLookup = SystemAPI.GetBufferLookup<VolumeBuffer>(true);
