@@ -12,64 +12,80 @@ namespace jeanf.scenemanagement
     public partial struct VolumeRenderingSystem : ISystem
     {
         private NativeHashSet<int> selectedGameObjectsIds;
-        private bool isInitialized;
+        private EntityQuery volumeQuery;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Volume>();
             
+            volumeQuery = state.GetEntityQuery(
+                ComponentType.ReadOnly<Volume>(),
+                ComponentType.ReadOnly<LocalToWorld>(),
+                ComponentType.ReadOnly<StreamingGO>()
+            );
+            
             selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.Persistent);
-            isInitialized = true;
         }
 
         public void OnDestroy(ref SystemState state)
         {
-            if (isInitialized)
+            state.CompleteDependency();
+            
+            if (selectedGameObjectsIds.IsCreated)
             {
                 selectedGameObjectsIds.Dispose();
-                isInitialized = false;
             }
         }
 
         public void OnUpdate(ref SystemState state)
         {
-            if (!isInitialized)
+            state.CompleteDependency();
+            
+            if (!selectedGameObjectsIds.IsCreated)
             {
                 selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.Persistent);
-                isInitialized = true;
             }
-
+            
             selectedGameObjectsIds.Clear();
-
+            
             #if UNITY_EDITOR
-            var selectedObjs = Selection.gameObjects;
-            foreach (var selected in selectedObjs)
+            GameObject[] selectedObjs = Selection.gameObjects;
+            if (selectedObjs != null && selectedObjs.Length > 0)
             {
-                selectedGameObjectsIds.Add(selected.GetInstanceID());
+                foreach (var selected in selectedObjs)
+                {
+                    if (selected != null)
+                    {
+                        selectedGameObjectsIds.Add(selected.GetInstanceID());
+                    }
+                }
             }
             #endif
 
-            state.Dependency = new DrawBBJob
+            var dependency = state.Dependency;
+            
+            dependency = new DrawBBJob
             {
                 selectedGOIds = selectedGameObjectsIds,
                 checkGO = true,
                 color = Color.yellow
-            }.ScheduleParallel(state.Dependency);
+            }.ScheduleParallel(dependency);
 
-            state.Dependency = new DrawBBSceneJob
+            dependency = new DrawBBSceneJob
             {
                 selectedGOIds = selectedGameObjectsIds,
                 checkGO = true,
                 color = Color.green,
                 localToWorldLookUp = SystemAPI.GetComponentLookup<LocalToWorld>(true),
                 streamingVolumeLookUp = SystemAPI.GetComponentLookup<Volume>(true),
-            }.ScheduleParallel(state.Dependency);
+            }.ScheduleParallel(dependency);
+            
+            state.Dependency = dependency;
         }
 
         public static void DrawAABB(in float3 pos, in float3 min, in float3 max, in Color color)
         {
-            // Draw a bounding box
             Debug.DrawLine(pos + new float3(min.x, min.y, min.z), pos + new float3(max.x, min.y, min.z), color);
             Debug.DrawLine(pos + new float3(min.x, max.y, min.z), pos + new float3(max.x, max.y, min.z), color);
             Debug.DrawLine(pos + new float3(min.x, min.y, min.z), pos + new float3(min.x, max.y, min.z), color);
