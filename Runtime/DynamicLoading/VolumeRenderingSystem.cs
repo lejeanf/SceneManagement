@@ -11,22 +11,44 @@ namespace jeanf.scenemanagement
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     public partial struct VolumeRenderingSystem : ISystem
     {
+        private NativeHashSet<int> selectedGameObjectsIds;
+        private bool isInitialized;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Volume>();
+            
+            selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.Persistent);
+            isInitialized = true;
+        }
+
+        public void OnDestroy(ref SystemState state)
+        {
+            if (isInitialized)
+            {
+                selectedGameObjectsIds.Dispose();
+                isInitialized = false;
+            }
         }
 
         public void OnUpdate(ref SystemState state)
         {
-            NativeHashSet<int> selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.TempJob);
-#if UNITY_EDITOR
+            if (!isInitialized)
+            {
+                selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.Persistent);
+                isInitialized = true;
+            }
+
+            selectedGameObjectsIds.Clear();
+
+            #if UNITY_EDITOR
             var selectedObjs = Selection.gameObjects;
             foreach (var selected in selectedObjs)
             {
                 selectedGameObjectsIds.Add(selected.GetInstanceID());
             }
-#endif
+            #endif
 
             state.Dependency = new DrawBBJob
             {
@@ -43,8 +65,6 @@ namespace jeanf.scenemanagement
                 localToWorldLookUp = SystemAPI.GetComponentLookup<LocalToWorld>(true),
                 streamingVolumeLookUp = SystemAPI.GetComponentLookup<Volume>(true),
             }.ScheduleParallel(state.Dependency);
-
-            selectedGameObjectsIds.Dispose(state.Dependency);
         }
 
         public static void DrawAABB(in float3 pos, in float3 min, in float3 max, in Color color)
