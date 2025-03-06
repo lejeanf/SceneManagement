@@ -28,11 +28,23 @@ namespace jeanf.scenemanagement
         private NativeList<Entity> _scenesToLoad;
         private NativeList<Entity> _scenesToPreload;
         
+        // Queue to throttle operations over multiple frames
+        private NativeQueue<SceneOperation> _pendingOperations;
+        
         // Default values if no config is present
         private const float DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER = 1.0f;
         private const float DEFAULT_PRELOAD_VERTICAL_MULTIPLIER = 1.0f;
-        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 10;
+        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 3; // Reduced from 10
         private const bool IS_DEBUG = false;
+        
+        // Struct to track pending operations
+        private struct SceneOperation
+        {
+            public enum OperationType { Load, Unload, Preload }
+            
+            public Entity sceneEntity;
+            public OperationType type;
+        }
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -63,6 +75,7 @@ namespace jeanf.scenemanagement
             _scenesToUnload = new NativeList<Entity>(10, Allocator.Persistent);
             _scenesToLoad = new NativeList<Entity>(10, Allocator.Persistent);
             _scenesToPreload = new NativeList<Entity>(10, Allocator.Persistent);
+            _pendingOperations = new NativeQueue<SceneOperation>(Allocator.Persistent);
                 
             state.RequireForUpdate<Relevant>();
         }
@@ -252,7 +265,6 @@ namespace jeanf.scenemanagement
             }
         }
 
-        [BurstDiscard]  // Add this to disable Burst compilation for OnUpdate
         public void OnUpdate(ref SystemState state)
         {
             // Get config values with fallback to defaults
@@ -274,21 +286,28 @@ namespace jeanf.scenemanagement
             _relevantTransforms.Clear();
             _volumeSets.Clear();
             
-            // Get relevant transforms data using the correct API
-            var relevantTransformsArray = _relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
-            for (int i = 0; i < relevantTransformsArray.Length; i++)
+            // Get relevant entities directly into the persistent collection
+            // Optimization: Use EntityManager's more efficient methods rather than query.ToXXX methods
+            if (!_relevantQuery.IsEmpty)
             {
-                _relevantTransforms.Add(relevantTransformsArray[i]);
+                state.EntityManager.GetEntityQueryMask(_relevantQuery);
+                using var entities = _relevantQuery.ToEntityArray(Allocator.Temp);
+                
+                foreach (var entity in entities)
+                {
+                    var transform = state.EntityManager.GetComponentData<LocalToWorld>(entity);
+                    _relevantTransforms.Add(transform);
+                }
             }
-            relevantTransformsArray.Dispose();
             
-            // Get volume sets entities using the correct API
-            var volumeSetsArray = _volumeSetQuery.ToEntityArray(Allocator.Temp);
-            for (int i = 0; i < volumeSetsArray.Length; i++)
+            if (!_volumeSetQuery.IsEmpty)
             {
-                _volumeSets.Add(volumeSetsArray[i]);
+                using var entities = _volumeSetQuery.ToEntityArray(Allocator.Temp);
+                foreach (var entity in entities)
+                {
+                    _volumeSets.Add(entity);
+                }
             }
-            volumeSetsArray.Dispose();
             
             // Make sure we have at least one relevant transform (player)
             if (_relevantTransforms.Length == 0)
@@ -337,28 +356,60 @@ namespace jeanf.scenemanagement
             var volumeCheckHandle = volumeCheckJob.Schedule();
             var sceneFilterHandle = sceneFilterJob.Schedule(volumeCheckHandle);
             var sceneChangeHandle = sceneChangeJob.Schedule(sceneFilterHandle);
+            
+            // Complete the job chain to get the results
             sceneChangeHandle.Complete();
 
-            #if UNITY_EDITOR
-            if (isDebug)
-            {
-                UnityEngine.Debug.Log($"After jobs - Scenes to load: {_scenesToLoad.Length}");
-                if (_scenesToLoad.Length > 0)
-                {
-                    for (int i = 0; i < _scenesToLoad.Length; i++)
-                    {
-                        UnityEngine.Debug.Log($"  Scene to load: {_scenesToLoad[i].Index}");
-                    }
-                }
-            }
-            #endif
-
-            // Important: Don't clear _scenesToLoad, _scenesToUnload, or _scenesToPreload here
-            // Process scene operations without clearing the lists first
-            ProcessSceneOperations(ref state, _scenesToUnload, _scenesToLoad, _scenesToPreload, maxOperationsPerFrame, isDebug);
-
+            // Queue operations instead of executing immediately
+            QueueSceneOperations(ref state);
+            
+            // Process a limited number of pending operations per frame
+            ProcessPendingOperations(ref state, maxOperationsPerFrame, isDebug);
+            
             // Update tracking collections AFTER processing operations
             UpdateActiveSceneSets();
+        }
+
+        private void QueueSceneOperations(ref SystemState state)
+        {
+            // Queue high priority load operations first
+            foreach (var scene in _scenesToLoad)
+            {
+                if (!state.EntityManager.Exists(scene)) continue;
+                
+                var op = new SceneOperation
+                {
+                    sceneEntity = scene,
+                    type = SceneOperation.OperationType.Load
+                };
+                _pendingOperations.Enqueue(op);
+            }
+            
+            // Queue unload operations next
+            foreach (var scene in _scenesToUnload)
+            {
+                if (!state.EntityManager.Exists(scene)) continue;
+                
+                var op = new SceneOperation
+                {
+                    sceneEntity = scene,
+                    type = SceneOperation.OperationType.Unload
+                };
+                _pendingOperations.Enqueue(op);
+            }
+            
+            // Queue preload operations last (lowest priority)
+            foreach (var scene in _scenesToPreload)
+            {
+                if (!state.EntityManager.Exists(scene)) continue;
+                
+                var op = new SceneOperation
+                {
+                    sceneEntity = scene,
+                    type = SceneOperation.OperationType.Preload
+                };
+                _pendingOperations.Enqueue(op);
+            }
         }
 
         private void UpdateActiveSceneSets()
@@ -378,110 +429,81 @@ namespace jeanf.scenemanagement
             }
         }
         
-        private void ProcessSceneOperations(ref SystemState state, NativeList<Entity> scenesToUnload, NativeList<Entity> scenesToLoad, NativeList<Entity> scenesToPreload, int maxOperationsPerFrame, bool isDebug)
+        // This is the method that cannot be burst-compiled due to SceneSystem operations
+        [BurstDiscard]
+        private void ProcessPendingOperations(ref SystemState state, int maxOperationsPerFrame, bool isDebug)
         {
-            #if UNITY_EDITOR
-            if (isDebug) UnityEngine.Debug.Log($"Process operations - Unload: {scenesToUnload.Length}, Load: {scenesToLoad.Length}, Preload: {scenesToPreload.Length}");
-            #endif
+            // Process only a limited number of operations per frame
+            int operationsProcessed = 0;
             
-            // Force load all scenes immediately, regardless of operation limits
-            foreach (var scene in scenesToLoad)
+            while (operationsProcessed < maxOperationsPerFrame && _pendingOperations.TryDequeue(out var operation))
             {
-                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
-                    continue;
+                Entity sceneEntity = operation.sceneEntity;
                 
-                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
-                
-                // Skip if already loaded
-                if (levelInfo.runtimeEntity != Entity.Null)
+                if (!state.EntityManager.Exists(sceneEntity) || !state.EntityManager.HasComponent<LevelInfo>(sceneEntity))
                     continue;
                     
-                try
+                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(sceneEntity);
+                
+                switch (operation.type)
                 {
-                    #if UNITY_EDITOR
-                    if (isDebug) UnityEngine.Debug.Log($"Attempting to load scene: {scene.Index}");
-                    #endif
-                    
-                    // Load the scene and store the runtime entity
-                    var runtimeEntity = SceneSystem.LoadSceneAsync(
-                        state.WorldUnmanaged,
-                        levelInfo.sceneReference);
+                    case SceneOperation.OperationType.Load:
+                    case SceneOperation.OperationType.Preload:
+                        // Skip if already loaded
+                        if (levelInfo.runtimeEntity != Entity.Null)
+                            continue;
+                            
+                        try
+                        {
+                            #if UNITY_EDITOR
+                            if (isDebug && operationsProcessed == 0) 
+                            {
+                                // Log only the first operation to reduce logging overhead
+                                UnityEngine.Debug.Log($"Processing operation: {operation.type} for scene {sceneEntity.Index}");
+                            }
+                            #endif
+                            
+                            // Load the scene and store the runtime entity
+                            var runtimeEntity = SceneSystem.LoadSceneAsync(
+                                state.WorldUnmanaged,
+                                levelInfo.sceneReference);
+                                
+                            // Set the runtime entity on the level info
+                            levelInfo.runtimeEntity = runtimeEntity;
+                            state.EntityManager.SetComponentData(sceneEntity, levelInfo);
+                        }
+                        catch (System.Exception e)
+                        {
+                            #if UNITY_EDITOR
+                            if (isDebug) UnityEngine.Debug.LogError($"Exception loading scene {sceneEntity.Index}: {e.Message}");
+                            #endif
+                        }
+                        break;
                         
-                    #if UNITY_EDITOR
-                    if (isDebug)UnityEngine.Debug.Log($"Load result for scene {scene.Index}: {runtimeEntity.Index}");
-                    #endif
-                    
-                    // Set the runtime entity on the level info
-                    levelInfo.runtimeEntity = runtimeEntity;
-                    state.EntityManager.SetComponentData(scene, levelInfo);
-                }
-                catch (System.Exception e)
-                {
-                    #if UNITY_EDITOR
-                    if(isDebug) UnityEngine.Debug.LogError($"Exception loading scene {scene.Index}: {e.Message}");
-                    #endif
-                }
-            }
-            
-            // Handle unloads after all loads are processed
-            foreach (var scene in scenesToUnload)
-            {
-                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene)) 
-                    continue;
-                
-                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
-                if (levelInfo.runtimeEntity == Entity.Null) continue;
-                
-                #if UNITY_EDITOR
-                if (isDebug) UnityEngine.Debug.Log($"Unloading scene: {scene.Index}");
-                #endif
-                
-                SceneSystem.UnloadScene(
-                    state.WorldUnmanaged,
-                    levelInfo.runtimeEntity,
-                    SceneSystem.UnloadParameters.DestroyMetaEntities);
+                    case SceneOperation.OperationType.Unload:
+                        // Skip if not loaded
+                        if (levelInfo.runtimeEntity == Entity.Null)
+                            continue;
+                            
+                        #if UNITY_EDITOR
+                        if (isDebug && operationsProcessed == 0)
+                        {
+                            // Log only the first operation to reduce logging overhead
+                            UnityEngine.Debug.Log($"Processing operation: Unload for scene {sceneEntity.Index}");
+                        }
+                        #endif
                         
-                levelInfo.runtimeEntity = Entity.Null;
-                state.EntityManager.SetComponentData(scene, levelInfo);
-            }
-            
-            // Handle preloads after loads and unloads
-            foreach (var scene in scenesToPreload)
-            {
-                if (!state.EntityManager.Exists(scene) || !state.EntityManager.HasComponent<LevelInfo>(scene))
-                    continue;
-                
-                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(scene);
-                
-                // Skip if already loaded
-                if (levelInfo.runtimeEntity != Entity.Null)
-                    continue;
-                    
-                try
-                {
-                    #if UNITY_EDITOR
-                    if (isDebug) UnityEngine.Debug.Log($"Attempting to preload scene: {scene.Index}");
-                    #endif
-                    
-                    // Preload the scene
-                    var runtimeEntity = SceneSystem.LoadSceneAsync(
-                        state.WorldUnmanaged,
-                        levelInfo.sceneReference);
-                        
-                    #if UNITY_EDITOR
-                    if (isDebug) UnityEngine.Debug.Log($"Preload result for scene {scene.Index}: {runtimeEntity.Index}");
-                    #endif
-                    
-                    // Store the runtime entity
-                    levelInfo.runtimeEntity = runtimeEntity;
-                    state.EntityManager.SetComponentData(scene, levelInfo);
+                        SceneSystem.UnloadScene(
+                            state.WorldUnmanaged,
+                            levelInfo.runtimeEntity,
+                            SceneSystem.UnloadParameters.DestroyMetaEntities);
+                                
+                        levelInfo.runtimeEntity = Entity.Null;
+                        state.EntityManager.SetComponentData(sceneEntity, levelInfo);
+                        break;
                 }
-                catch (System.Exception e)
-                {
-                    #if UNITY_EDITOR
-                    if (isDebug) UnityEngine.Debug.LogError($"Exception preloading scene {scene.Index}: {e.Message}");
-                    #endif
-                }
+                
+                operationsProcessed++;
             }
         }
 
@@ -500,6 +522,7 @@ namespace jeanf.scenemanagement
             if (_scenesToUnload.IsCreated) _scenesToUnload.Dispose();
             if (_scenesToLoad.IsCreated) _scenesToLoad.Dispose();
             if (_scenesToPreload.IsCreated) _scenesToPreload.Dispose();
+            if (_pendingOperations.IsCreated) _pendingOperations.Dispose();
         }
     }
 }
