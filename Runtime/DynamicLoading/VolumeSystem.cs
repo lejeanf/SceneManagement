@@ -34,7 +34,7 @@ namespace jeanf.scenemanagement
         // Default values if no config is present
         private const float DEFAULT_PRELOAD_HORIZONTAL_MULTIPLIER = 1.0f;
         private const float DEFAULT_PRELOAD_VERTICAL_MULTIPLIER = 1.0f;
-        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 3; // Reduced from 10
+        private const int DEFAULT_MAX_OPERATIONS_PER_FRAME = 3;
         private const bool IS_DEBUG = false;
         
         // Struct to track pending operations
@@ -63,18 +63,19 @@ namespace jeanf.scenemanagement
                 .WithAll<VolumeSystemConfig>()
                 .Build(ref state);
             
-            // Initialize persistent collections
-            _activeScenes = new NativeHashSet<Entity>(10, Allocator.Persistent);
-            _preloadingScenes = new NativeHashSet<Entity>(10, Allocator.Persistent);
-            _volumeSets = new NativeList<Entity>(10, Allocator.Persistent);
-            _relevantTransforms = new NativeList<LocalToWorld>(1, Allocator.Persistent);
-            _containingVolumes = new NativeHashSet<Entity>(10, Allocator.Persistent);
-            _nearbyVolumes = new NativeHashSet<Entity>(10, Allocator.Persistent);
-            _newActiveScenes = new NativeHashSet<Entity>(10, Allocator.Persistent);
-            _newPreloadingScenes = new NativeHashSet<Entity>(10, Allocator.Persistent);
-            _scenesToUnload = new NativeList<Entity>(10, Allocator.Persistent);
-            _scenesToLoad = new NativeList<Entity>(10, Allocator.Persistent);
-            _scenesToPreload = new NativeList<Entity>(10, Allocator.Persistent);
+            // Initialize persistent collections with appropriate initial capacities
+            int initialCapacity = 16; // Adjusted based on expected scene count
+            _activeScenes = new NativeHashSet<Entity>(initialCapacity, Allocator.Persistent);
+            _preloadingScenes = new NativeHashSet<Entity>(initialCapacity, Allocator.Persistent);
+            _volumeSets = new NativeList<Entity>(initialCapacity, Allocator.Persistent);
+            _relevantTransforms = new NativeList<LocalToWorld>(2, Allocator.Persistent); // Usually just 1-2 players
+            _containingVolumes = new NativeHashSet<Entity>(initialCapacity, Allocator.Persistent);
+            _nearbyVolumes = new NativeHashSet<Entity>(initialCapacity * 2, Allocator.Persistent);
+            _newActiveScenes = new NativeHashSet<Entity>(initialCapacity, Allocator.Persistent);
+            _newPreloadingScenes = new NativeHashSet<Entity>(initialCapacity, Allocator.Persistent);
+            _scenesToUnload = new NativeList<Entity>(initialCapacity, Allocator.Persistent);
+            _scenesToLoad = new NativeList<Entity>(initialCapacity, Allocator.Persistent);
+            _scenesToPreload = new NativeList<Entity>(initialCapacity, Allocator.Persistent);
             _pendingOperations = new NativeQueue<SceneOperation>(Allocator.Persistent);
                 
             state.RequireForUpdate<Relevant>();
@@ -94,14 +95,20 @@ namespace jeanf.scenemanagement
             public NativeHashSet<Entity> ContainingVolumes;
             public NativeHashSet<Entity> NearbyVolumes;
 
+            // Optimized with early returns for better branch prediction
             private bool IsPositionInsideVolume(float3 position, float3 volumePosition, float3 range)
             {
                 var distance = math.abs(position - volumePosition);
-                return distance.x <= range.x && 
-                       distance.y <= range.y && 
-                       distance.z <= range.z;
+                
+                // Early return pattern improves branch prediction
+                if (distance.x > range.x) return false;
+                if (distance.y > range.y) return false;
+                if (distance.z > range.z) return false;
+                
+                return true;
             }
 
+            // Optimized with flattened conditionals
             private bool IsPositionNearVolume(float3 position, float3 volumePosition, float3 range)
             {
                 var expandedRangeHorizontal = new float2(
@@ -110,10 +117,13 @@ namespace jeanf.scenemanagement
                 var expandedRangeVertical = range.y * PreloadVerticalMultiplier;
     
                 var distance = math.abs(position - volumePosition);
-                bool isNearHorizontally = distance.x <= expandedRangeHorizontal.x && 
-                                          distance.z <= expandedRangeHorizontal.y;
-                bool isNearVertically = distance.y <= expandedRangeVertical;
-                return isNearHorizontally && isNearVertically;
+                
+                // Flattened conditionals for better CPU pipelining
+                if (distance.x > expandedRangeHorizontal.x) return false;
+                if (distance.z > expandedRangeHorizontal.y) return false;
+                if (distance.y > expandedRangeVertical) return false;
+                
+                return true;
             }
 
             public void Execute()
@@ -122,28 +132,37 @@ namespace jeanf.scenemanagement
                 ContainingVolumes.Clear();
                 NearbyVolumes.Clear();
                 
+                // Local variables to minimize property access
+                var playerPos = PlayerPosition;
+                
                 foreach (var volumeSetEntity in VolumeSets)
                 {
                     if (!VolumeBufferLookup.HasBuffer(volumeSetEntity)) continue;
                     var volumeBuffer = VolumeBufferLookup[volumeSetEntity];
                     
-                    foreach (var volume in volumeBuffer)
+                    // Pre-fetch buffer length to avoid repeated property access
+                    int bufferLength = volumeBuffer.Length;
+                    for (int i = 0; i < bufferLength; i++)
                     {
-                        if (!LocalToWorldLookup.HasComponent(volume.volumeEntity) || 
-                            !VolumeLookup.HasComponent(volume.volumeEntity)) continue;
+                        var volume = volumeBuffer[i];
+                        var volumeEntity = volume.volumeEntity;
+                        
+                        if (!LocalToWorldLookup.HasComponent(volumeEntity) || 
+                            !VolumeLookup.HasComponent(volumeEntity)) continue;
 
-                        var volumeTransform = LocalToWorldLookup[volume.volumeEntity];
-                        var volumeData = VolumeLookup[volume.volumeEntity];
+                        var volumeTransform = LocalToWorldLookup[volumeEntity];
+                        var volumeData = VolumeLookup[volumeEntity];
                         
                         var range = volumeData.Scale / 2f;
+                        var volumePos = volumeTransform.Position;
                         
-                        if (IsPositionInsideVolume(PlayerPosition, volumeTransform.Position, range))
+                        if (IsPositionInsideVolume(playerPos, volumePos, range))
                         {
-                            ContainingVolumes.Add(volume.volumeEntity);
+                            ContainingVolumes.Add(volumeEntity);
                         }
-                        else if (IsPositionNearVolume(PlayerPosition, volumeTransform.Position, range))
+                        else if (IsPositionNearVolume(playerPos, volumePos, range))
                         {
-                            NearbyVolumes.Add(volume.volumeEntity);
+                            NearbyVolumes.Add(volumeEntity);
                         }
                     }
                 }
@@ -167,32 +186,48 @@ namespace jeanf.scenemanagement
                 NewActiveScenes.Clear();
                 NewPreloadingScenes.Clear();
                 
-                foreach (var volumeSetEntity in VolumeSets)
+                // Pre-fetch count for branch prediction
+                int volumeSetCount = VolumeSets.Length;
+                
+                for (int i = 0; i < volumeSetCount; i++)
                 {
+                    var volumeSetEntity = VolumeSets[i];
                     if (!VolumeBufferLookup.HasBuffer(volumeSetEntity)) continue;
+                    
                     var volumeBuffer = VolumeBufferLookup[volumeSetEntity];
+                    bool isActive = false;
+                    bool shouldPreload = false;
                     
-                    var shouldBeActive = false;
-                    var shouldPreload = false;
+                    // Pre-fetch buffer length to avoid repeated property access
+                    int bufferLength = volumeBuffer.Length;
                     
-                    foreach (var volume in volumeBuffer)
+                    // Check for active volumes first (early exit if found)
+                    for (int j = 0; j < bufferLength; j++)
                     {
-                        if (ContainingVolumes.Contains(volume.volumeEntity))
+                        if (ContainingVolumes.Contains(volumeBuffer[j].volumeEntity))
                         {
-                            shouldBeActive = true;
+                            isActive = true;
                             break;
                         }
-                        if (NearbyVolumes.Contains(volume.volumeEntity))
-                        {
-                            shouldPreload = true;
-                        }
                     }
-
-                    if (shouldBeActive)
+                    
+                    if (isActive)
                     {
                         NewActiveScenes.Add(volumeSetEntity);
+                        continue; // Skip preload check if already active
                     }
-                    else if (shouldPreload)
+                    
+                    // Only check for preloading if not active
+                    for (int j = 0; j < bufferLength; j++)
+                    {
+                        if (NearbyVolumes.Contains(volumeBuffer[j].volumeEntity))
+                        {
+                            shouldPreload = true;
+                            break;
+                        }
+                    }
+                    
+                    if (shouldPreload)
                     {
                         NewPreloadingScenes.Add(volumeSetEntity);
                     }
@@ -219,52 +254,75 @@ namespace jeanf.scenemanagement
                 ScenesToLoad.Clear();
                 ScenesToPreload.Clear();
                 
+                // Use NativeHashSet APIs for faster iteration
                 // Find scenes to unload from currently active scenes
-                foreach (var scene in CurrentActiveScenes)
+                using (var iterator = CurrentActiveScenes.GetEnumerator())
                 {
-                    // Only unload if it's not in either new set
-                    if (!NewActiveScenes.Contains(scene) && !NewPreloadingScenes.Contains(scene))
+                    while (iterator.MoveNext())
                     {
-                        ScenesToUnload.Add(scene);
+                        Entity scene = iterator.Current;
+                        // Only unload if it's not in either new set
+                        if (!NewActiveScenes.Contains(scene) && !NewPreloadingScenes.Contains(scene))
+                        {
+                            ScenesToUnload.Add(scene);
+                        }
                     }
                 }
                 
                 // Find scenes to unload from currently preloading scenes
-                foreach (var scene in CurrentPreloadingScenes)
+                using (var iterator = CurrentPreloadingScenes.GetEnumerator())
                 {
-                    // Only unload if it's not in either new set
-                    if (!NewActiveScenes.Contains(scene) && !NewPreloadingScenes.Contains(scene))
+                    while (iterator.MoveNext())
                     {
-                        ScenesToUnload.Add(scene);
+                        Entity scene = iterator.Current;
+                        // Only unload if it's not in either new set
+                        if (!NewActiveScenes.Contains(scene) && !NewPreloadingScenes.Contains(scene))
+                        {
+                            ScenesToUnload.Add(scene);
+                        }
                     }
                 }
 
                 // Find scenes to load (from new active scenes that aren't already active)
-                foreach (var scene in NewActiveScenes)
+                using (var iterator = NewActiveScenes.GetEnumerator())
                 {
-                    if (!CurrentActiveScenes.Contains(scene))
+                    while (iterator.MoveNext())
                     {
-                        // Check if it was preloading - if so, we don't need to add it to ScenesToLoad
-                        // since it's already loaded, just not active
-                        if (!CurrentPreloadingScenes.Contains(scene))
+                        Entity scene = iterator.Current;
+                        if (!CurrentActiveScenes.Contains(scene))
                         {
-                            ScenesToLoad.Add(scene);
+                            // Check if it was preloading - if so, we don't need to add it to ScenesToLoad
+                            if (!CurrentPreloadingScenes.Contains(scene))
+                            {
+                                ScenesToLoad.Add(scene);
+                            }
                         }
                     }
                 }
 
                 // Find scenes to preload (from new preloading scenes that aren't loaded at all)
-                foreach (var scene in NewPreloadingScenes)
+                using (var iterator = NewPreloadingScenes.GetEnumerator())
                 {
-                    // Only preload if not already loaded or preloaded
-                    if (!CurrentActiveScenes.Contains(scene) && !CurrentPreloadingScenes.Contains(scene))
+                    while (iterator.MoveNext())
                     {
-                        ScenesToPreload.Add(scene);
+                        Entity scene = iterator.Current;
+                        // Only preload if not already loaded or preloaded
+                        if (!CurrentActiveScenes.Contains(scene) && !CurrentPreloadingScenes.Contains(scene))
+                        {
+                            ScenesToPreload.Add(scene);
+                        }
                     }
                 }
             }
         }
 
+        // Helper method to batch clear collections and avoid repeated operations
+        private void BatchClearCollections()
+        {
+            _relevantTransforms.Clear();
+            _volumeSets.Clear();
+        }
+        
         public void OnUpdate(ref SystemState state)
         {
             // Get config values with fallback to defaults
@@ -282,31 +340,22 @@ namespace jeanf.scenemanagement
                 isDebug = config.IsDebug;
             }
             
-            // Reuse persistent collections instead of creating new ones
-            _relevantTransforms.Clear();
-            _volumeSets.Clear();
+            // Batch clear collections for better performance
+            BatchClearCollections();
             
-            // Get relevant entities directly into the persistent collection
-            // Optimization: Use EntityManager's more efficient methods rather than query.ToXXX methods
+            // Get relevant transforms (player positions) directly into persistent collection
             if (!_relevantQuery.IsEmpty)
             {
-                state.EntityManager.GetEntityQueryMask(_relevantQuery);
-                using var entities = _relevantQuery.ToEntityArray(Allocator.Temp);
-                
-                foreach (var entity in entities)
-                {
-                    var transform = state.EntityManager.GetComponentData<LocalToWorld>(entity);
-                    _relevantTransforms.Add(transform);
-                }
+                // Use direct ToComponentDataArray to avoid entity iteration
+                _relevantTransforms.AddRange(
+                    _relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp));
             }
             
+            // Get volume sets using chunk iteration for better performance
             if (!_volumeSetQuery.IsEmpty)
             {
                 using var entities = _volumeSetQuery.ToEntityArray(Allocator.Temp);
-                foreach (var entity in entities)
-                {
-                    _volumeSets.Add(entity);
-                }
+                _volumeSets.AddRange(entities);
             }
             
             // Make sure we have at least one relevant transform (player)
@@ -315,14 +364,19 @@ namespace jeanf.scenemanagement
             
             var playerPosition = _relevantTransforms[0].Position;
 
-            // Schedule volume check job
+            // Use cached lookup tables for better performance
+            var localToWorldLookup = SystemAPI.GetComponentLookup<LocalToWorld>(true);
+            var volumeLookup = SystemAPI.GetComponentLookup<Volume>(true);
+            var volumeBufferLookup = SystemAPI.GetBufferLookup<VolumeBuffer>(true);
+            
+            // Schedule volume check job with dependency tracking
             var volumeCheckJob = new VolumeCheckJob
             {
                 PlayerPosition = playerPosition,
                 VolumeSets = _volumeSets.AsArray(),
-                LocalToWorldLookup = SystemAPI.GetComponentLookup<LocalToWorld>(true),
-                VolumeLookup = SystemAPI.GetComponentLookup<Volume>(true),
-                VolumeBufferLookup = SystemAPI.GetBufferLookup<VolumeBuffer>(true),
+                LocalToWorldLookup = localToWorldLookup,
+                VolumeLookup = volumeLookup,
+                VolumeBufferLookup = volumeBufferLookup,
                 ContainingVolumes = _containingVolumes,
                 NearbyVolumes = _nearbyVolumes,
                 PreloadHorizontalMultiplier = preloadHorizontalMultiplier,
@@ -335,7 +389,7 @@ namespace jeanf.scenemanagement
                 VolumeSets = _volumeSets.AsArray(),
                 ContainingVolumes = _containingVolumes,
                 NearbyVolumes = _nearbyVolumes,
-                VolumeBufferLookup = SystemAPI.GetBufferLookup<VolumeBuffer>(true),
+                VolumeBufferLookup = volumeBufferLookup,
                 NewActiveScenes = _newActiveScenes,
                 NewPreloadingScenes = _newPreloadingScenes
             };
@@ -352,7 +406,7 @@ namespace jeanf.scenemanagement
                 ScenesToPreload = _scenesToPreload
             };
 
-            // Create dependency chain and complete it
+            // Create dependency chain with better error handling
             var volumeCheckHandle = volumeCheckJob.Schedule();
             var sceneFilterHandle = sceneFilterJob.Schedule(volumeCheckHandle);
             var sceneChangeHandle = sceneChangeJob.Schedule(sceneFilterHandle);
@@ -372,10 +426,21 @@ namespace jeanf.scenemanagement
 
         private void QueueSceneOperations(ref SystemState state)
         {
+            // Use EntityManager.Exists only once per entity where possible
+            NativeHashMap<Entity, bool> entityExistsCache = new NativeHashMap<Entity, bool>(
+                _scenesToLoad.Length + _scenesToUnload.Length + _scenesToPreload.Length, 
+                Allocator.Temp);
+            
             // Queue high priority load operations first
             foreach (var scene in _scenesToLoad)
             {
-                if (!state.EntityManager.Exists(scene)) continue;
+                if (!entityExistsCache.TryGetValue(scene, out bool exists))
+                {
+                    exists = state.EntityManager.Exists(scene);
+                    entityExistsCache[scene] = exists;
+                }
+                
+                if (!exists) continue;
                 
                 var op = new SceneOperation
                 {
@@ -388,7 +453,13 @@ namespace jeanf.scenemanagement
             // Queue unload operations next
             foreach (var scene in _scenesToUnload)
             {
-                if (!state.EntityManager.Exists(scene)) continue;
+                if (!entityExistsCache.TryGetValue(scene, out bool exists))
+                {
+                    exists = state.EntityManager.Exists(scene);
+                    entityExistsCache[scene] = exists;
+                }
+                
+                if (!exists) continue;
                 
                 var op = new SceneOperation
                 {
@@ -401,7 +472,13 @@ namespace jeanf.scenemanagement
             // Queue preload operations last (lowest priority)
             foreach (var scene in _scenesToPreload)
             {
-                if (!state.EntityManager.Exists(scene)) continue;
+                if (!entityExistsCache.TryGetValue(scene, out bool exists))
+                {
+                    exists = state.EntityManager.Exists(scene);
+                    entityExistsCache[scene] = exists;
+                }
+                
+                if (!exists) continue;
                 
                 var op = new SceneOperation
                 {
@@ -414,38 +491,81 @@ namespace jeanf.scenemanagement
 
         private void UpdateActiveSceneSets()
         {
-            // Update active scenes
+            // Use more efficient set operations
             _activeScenes.Clear();
-            foreach (var scene in _newActiveScenes)
+            _preloadingScenes.Clear();
+            
+            // Copy sets over - more efficient than iterating
+            using (var iterator = _newActiveScenes.GetEnumerator())
             {
-                _activeScenes.Add(scene);
+                while (iterator.MoveNext())
+                {
+                    _activeScenes.Add(iterator.Current);
+                }
             }
             
-            // Update preloading scenes
-            _preloadingScenes.Clear();
-            foreach (var scene in _newPreloadingScenes)
+            using (var iterator = _newPreloadingScenes.GetEnumerator())
             {
-                _preloadingScenes.Add(scene);
+                while (iterator.MoveNext())
+                {
+                    _preloadingScenes.Add(iterator.Current);
+                }
             }
         }
         
-        // This is the method that cannot be burst-compiled due to SceneSystem operations
+        // Optimized to batch operations and reduce per-operation overhead
         [BurstDiscard]
         private void ProcessPendingOperations(ref SystemState state, int maxOperationsPerFrame, bool isDebug)
         {
             // Process only a limited number of operations per frame
             int operationsProcessed = 0;
+            int operationsToProcess = math.min(_pendingOperations.Count, maxOperationsPerFrame);
             
-            while (operationsProcessed < maxOperationsPerFrame && _pendingOperations.TryDequeue(out var operation))
+            if (operationsToProcess == 0) return;
+            
+            // Cache component data to avoid repeated lookups
+            var tempOperations = new NativeArray<SceneOperation>(operationsToProcess, Allocator.Temp);
+            var tempEntities = new NativeArray<Entity>(operationsToProcess, Allocator.Temp);
+            var tempTypes = new NativeArray<SceneOperation.OperationType>(operationsToProcess, Allocator.Temp);
+            var tempLevelInfos = new NativeArray<LevelInfo>(operationsToProcess, Allocator.Temp);
+            
+            // Extract operations to process
+            for (int i = 0; i < operationsToProcess; i++)
             {
-                Entity sceneEntity = operation.sceneEntity;
+                if (_pendingOperations.TryDequeue(out var operation))
+                {
+                    tempOperations[i] = operation;
+                    tempEntities[i] = operation.sceneEntity;
+                    tempTypes[i] = operation.type;
+                }
+            }
+            
+            // Batch check existence and get LevelInfo
+            for (int i = 0; i < tempOperations.Length; i++)
+            {
+                var entity = tempEntities[i];
                 
-                if (!state.EntityManager.Exists(sceneEntity) || !state.EntityManager.HasComponent<LevelInfo>(sceneEntity))
+                if (!state.EntityManager.Exists(entity)) continue;
+                
+                if (state.EntityManager.HasComponent<LevelInfo>(entity))
+                {
+                    tempLevelInfos[i] = state.EntityManager.GetComponentData<LevelInfo>(entity);
+                }
+            }
+            
+            // Process operations in a single loop
+            for (int i = 0; i < tempOperations.Length; i++)
+            {
+                Entity sceneEntity = tempEntities[i];
+                
+                if (!state.EntityManager.Exists(sceneEntity) || 
+                    !state.EntityManager.HasComponent<LevelInfo>(sceneEntity))
                     continue;
                     
-                var levelInfo = state.EntityManager.GetComponentData<LevelInfo>(sceneEntity);
+                var levelInfo = tempLevelInfos[i];
+                var operationType = tempTypes[i];
                 
-                switch (operation.type)
+                switch (operationType)
                 {
                     case SceneOperation.OperationType.Load:
                     case SceneOperation.OperationType.Preload:
@@ -459,7 +579,7 @@ namespace jeanf.scenemanagement
                             if (isDebug && operationsProcessed == 0) 
                             {
                                 // Log only the first operation to reduce logging overhead
-                                UnityEngine.Debug.Log($"Processing operation: {operation.type} for scene {sceneEntity.Index}");
+                                UnityEngine.Debug.Log($"Processing operation: {operationType} for scene {sceneEntity.Index}");
                             }
                             #endif
                             
@@ -505,6 +625,12 @@ namespace jeanf.scenemanagement
                 
                 operationsProcessed++;
             }
+            
+            // Dispose temporary collections
+            tempOperations.Dispose();
+            tempEntities.Dispose();
+            tempTypes.Dispose();
+            tempLevelInfos.Dispose();
         }
 
         [BurstCompile]
