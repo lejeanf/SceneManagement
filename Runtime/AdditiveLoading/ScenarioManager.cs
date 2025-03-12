@@ -23,8 +23,8 @@ namespace jeanf.scenemanagement
         public static ScenarioStateChanged OnZoneOverridesChanged;
 
         public delegate void EndScenarioRequestDelegate(string scenarioId);
-        public EndScenarioRequestDelegate EndScenarioRequestPrompt;
-        public EndScenarioRequestDelegate EndScenarioRequest;
+        public static EndScenarioRequestDelegate EndScenarioRequestPrompt;
+        public static EndScenarioRequestDelegate EndScenarioRequest;
 
         [SerializeField] private bool automaticScenarioUnload = true;
         private void Awake()
@@ -39,7 +39,6 @@ namespace jeanf.scenemanagement
         private void Subscribe()
         {        
             BeginScenarioRequest.OnEventRaised += OnScenarioBeginRequest;
-            EndScenarioRequestSO.OnEventRaised += OnScenarioEndRequest;
             EndScenarioRequestSO.OnEventRaised += OnScenarioEndRequest;
             EndScenarioRequest += OnScenarioEndRequest;
             KillAllScenariosRequest.OnEventRaised += UnloadAllScenarios;
