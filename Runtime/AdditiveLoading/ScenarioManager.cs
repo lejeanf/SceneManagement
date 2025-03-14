@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using jeanf.EventSystem;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -25,6 +26,8 @@ namespace jeanf.scenemanagement
         public delegate void EndScenarioRequestDelegate(string scenarioId);
         public static EndScenarioRequestDelegate EndScenarioRequestPrompt;
         public static EndScenarioRequestDelegate EndScenarioRequest;
+        public static EndScenarioRequestDelegate StartScenarioRequest;
+        public static EndScenarioRequestDelegate RestartScenarioRequest;
 
         [SerializeField] private bool automaticScenarioUnload = true;
         private void Awake()
@@ -35,26 +38,44 @@ namespace jeanf.scenemanagement
         private void OnEnable() => Subscribe();
         private void OnDisable() => Unsubscribe();
         private void OnDestroy() => Unsubscribe();
-        
+
         private void Subscribe()
-        {        
-            BeginScenarioRequest.OnEventRaised += OnScenarioBeginRequest;
-            EndScenarioRequestSO.OnEventRaised += OnScenarioEndRequest;
-            EndScenarioRequest += OnScenarioEndRequest;
-            KillAllScenariosRequest.OnEventRaised += UnloadAllScenarios;
-        }
-        
-        private void Unsubscribe()
         {
-            BeginScenarioRequest.OnEventRaised -= OnScenarioBeginRequest;
-            EndScenarioRequestSO.OnEventRaised -= OnScenarioEndRequest;
-            EndScenarioRequest -= OnScenarioEndRequest;
-            KillAllScenariosRequest.OnEventRaised -= UnloadAllScenarios;
+            BeginScenarioRequest.OnEventRaised += LoadScenario;
+            EndScenarioRequestSO.OnEventRaised += OnScenarioEndRequest;
+            KillAllScenariosRequest.OnEventRaised += UnloadAllScenarios;
+            StartScenarioRequest += LoadScenario;
+            RestartScenarioRequest += OnScenarioRestartRequest;
+            EndScenarioRequest += OnScenarioEndRequest;
         }
 
-        private void OnScenarioBeginRequest(string scenarioID)
+        private void Unsubscribe()
         {
-            if (!ScenarioDictionary.TryGetValue(scenarioID, out var scenario)) return;
+            BeginScenarioRequest.OnEventRaised -= LoadScenario;
+            EndScenarioRequestSO.OnEventRaised -= OnScenarioEndRequest;
+            KillAllScenariosRequest.OnEventRaised -= UnloadAllScenarios;
+            StartScenarioRequest -= LoadScenario;
+            RestartScenarioRequest -= OnScenarioRestartRequest;
+            EndScenarioRequest -= OnScenarioEndRequest;
+        }
+
+        private void OnScenarioRestartRequest(string scenarioId)
+        {
+            _ = ScenarioRestartAsync(scenarioId);
+        }
+        
+        private async Task ScenarioRestartAsync(string scenarioId)
+        {
+            Debug.Log("Restarting scenario : " + scenarioId); 
+            UnloadScenario(scenarioId);
+            Debug.Log("after unload wait 2s");
+            await Task.Delay(2000);
+            LoadScenario(scenarioId);
+        }
+
+        private void LoadScenario(string scenarioId)
+        {
+            if (!ScenarioDictionary.TryGetValue(scenarioId, out var scenario)) return;
 
             if (_activeScenarios.Contains(scenario))
             {
@@ -76,11 +97,12 @@ namespace jeanf.scenemanagement
                     {
                         EndScenarioRequestPrompt.Invoke(s.id);
                     }
+
                     break;
                 }
             }
 
-            foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
+            foreach (var zoneOverride in ScenarioDictionary[scenarioId].ZoneOverrides)
             {
                 if (activeOverridesPerZone.ContainsKey(zoneOverride.zone.id)) continue;
                 activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
@@ -91,9 +113,10 @@ namespace jeanf.scenemanagement
             {
                 _sceneLoader.LoadSceneRequest(scene);
             }
-            
+
             _activeScenarios.Add(scenario);
         }
+
         private void OnScenarioEndRequest(string scenarioID)
         {
             _activeScenarios.Remove(UnloadScenario(scenarioID));
@@ -101,28 +124,32 @@ namespace jeanf.scenemanagement
 
         private Scenario UnloadScenario(string scenarioID)
         {
-            if(!ScenarioDictionary.TryGetValue(scenarioID, out var scenario)) return null;
-            
+            if (!ScenarioDictionary.TryGetValue(scenarioID, out var scenario)) return null;
+
             if (!_activeScenarios.Contains(scenario))
             {
                 return null;
             }
+
             foreach (var zoneOverride in ScenarioDictionary[scenarioID].ZoneOverrides)
             {
                 activeOverridesPerZone.Remove(zoneOverride.zone.id);
                 OnZoneOverridesChanged?.Invoke(zoneOverride.zone.id);
             }
+
             foreach (var scene in CompileSceneList(scenario))
             {
-               _sceneLoader.UnLoadSceneRequest(scene);
+                _sceneLoader.UnLoadSceneRequest(scene);
             }
+
             return scenario;
         }
 
         private void UnloadAllScenarios()
         {
             var scenariosToRemove = _activeScenarios;
-            var obsoleteScenarios = scenariosToRemove.Select(scenario => UnloadScenario(scenario.id)).Where(scenarioToUnload => scenarioToUnload is not null).ToList();
+            var obsoleteScenarios = scenariosToRemove.Select(scenario => UnloadScenario(scenario.id))
+                .Where(scenarioToUnload => scenarioToUnload is not null).ToList();
             var affectedZones = new HashSet<string>();
             // Collect all affected zones before unloading
             foreach (var zoneOverride in scenariosToRemove.SelectMany(scenario => scenario.ZoneOverrides))
@@ -134,6 +161,7 @@ namespace jeanf.scenemanagement
             {
                 _activeScenarios.Remove(obsoleteScenario);
             }
+
             // Notify for all affected zones after everything is unloaded
             foreach (var zoneId in affectedZones)
             {
