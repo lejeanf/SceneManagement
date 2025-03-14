@@ -123,7 +123,7 @@ namespace jeanf.scenemanagement
         private void OnZoneOverridesChanged(string zoneId)
         {
             // Only update if we're in the affected zone
-            if (CurrentPlayerZone != null && CurrentPlayerZone.id == zoneId)
+            if (CurrentPlayerZone.id == zoneId)
             {
                 PublishAppList(CurrentPlayerZone);
             }

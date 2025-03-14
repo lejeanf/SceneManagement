@@ -6,18 +6,7 @@ using UnityEngine;
 
 namespace jeanf.scenemanagement
 {
-    public struct LevelInfo : IComponentData
-    {
-        public EntitySceneReference sceneReference;
-        public Entity runtimeEntity;
-    }
-
-    public struct VolumeBuffer : IBufferElementData
-    {
-        public Entity volumeEntity;
-    }
-    
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
     public class VolumeSetAuthoring : MonoBehaviour
     {
         public List<VolumeAuthoring> volumes;
@@ -33,7 +22,7 @@ namespace jeanf.scenemanagement
                         $"{subScene.SceneAsset.name}_Loader");
                     AddComponent(sceneEntity, new LevelInfo
                     {
-                        sceneReference = new EntitySceneReference(subScene.SceneAsset),
+                        sceneReference = new EntitySceneReference(subScene.SceneAsset)
                     });
 
                     AddComponent(sceneEntity, new StreamingGO
@@ -57,5 +46,16 @@ namespace jeanf.scenemanagement
             }
         }
     }
-    #endif
+#endif
+
+    public struct LevelInfo : IComponentData
+    {
+        public EntitySceneReference sceneReference;
+        public Entity runtimeEntity;
+    }
+
+    public struct VolumeBuffer : IBufferElementData
+    {
+        public Entity volumeEntity;
+    }
 }
