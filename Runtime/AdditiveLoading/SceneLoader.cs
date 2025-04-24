@@ -20,7 +20,6 @@ namespace jeanf.scenemanagement
         public LoadScene LoadSceneRequest;
         public LoadScene UnLoadSceneRequest;
     
-    // Add method to unload all scenes
     public delegate void UnloadAllScenesDelegate();
     public UnloadAllScenesDelegate UnloadAllScenesRequest;
         

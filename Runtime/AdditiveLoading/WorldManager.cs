@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEngine;
 using jeanf.EventSystem;
 using jeanf.propertyDrawer;
-using jeanf.vrplayer;
+using jeanf.universalplayer;
 
 namespace jeanf.scenemanagement
 {
