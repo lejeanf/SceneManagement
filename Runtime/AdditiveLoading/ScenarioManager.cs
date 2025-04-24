@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using jeanf.EventSystem;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -23,11 +25,14 @@ namespace jeanf.scenemanagement
         public delegate void ScenarioStateChanged(string zoneId);
         public static ScenarioStateChanged OnZoneOverridesChanged;
 
-        public delegate void EndScenarioRequestDelegate(string scenarioId);
-        public static EndScenarioRequestDelegate EndScenarioRequestPrompt;
-        public static EndScenarioRequestDelegate EndScenarioRequest;
-        public static EndScenarioRequestDelegate StartScenarioRequest;
-        public static EndScenarioRequestDelegate RestartScenarioRequest;
+        public delegate void ManageScenarioDelegate(string scenarioId);
+        public static ManageScenarioDelegate EndScenarioRequestPrompt;
+        public static ManageScenarioDelegate EndScenarioRequest;
+        public static ManageScenarioDelegate StartScenarioRequest;
+        public static ManageScenarioDelegate RestartScenarioRequest;
+        
+        public delegate void UpdateScenariosDelegate(List<string> activeScenarios);
+        public static UpdateScenariosDelegate UpdateScenariosList;
 
         [SerializeField] private bool automaticScenarioUnload = true;
         private void Awake()
@@ -115,11 +120,15 @@ namespace jeanf.scenemanagement
             }
 
             _activeScenarios.Add(scenario);
+            List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
+            UpdateScenariosList?.Invoke(scenarioList);
         }
 
         private void OnScenarioEndRequest(string scenarioID)
         {
             _activeScenarios.Remove(UnloadScenario(scenarioID));
+            List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
+            UpdateScenariosList?.Invoke(scenarioList);
         }
 
         private Scenario UnloadScenario(string scenarioID)
