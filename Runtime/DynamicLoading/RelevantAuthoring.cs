@@ -13,7 +13,6 @@ namespace jeanf.scenemanagement
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent<Relevant>(entity);
-                AddComponent<FollowComponent>(entity);
             }
         }
     }

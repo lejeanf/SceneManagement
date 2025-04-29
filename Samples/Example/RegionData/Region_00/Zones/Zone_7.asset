@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d614d892fd5448929fc0477c765a0cec, type: 3}
-  m_Name: Zone_4
+  m_Name: Zone_7
   m_EditorClassIdentifier: 
   id:
-    id: d3215628-4fbd-4c6c-a3e1-9602122bfa8f
-  zoneName: 4
-  zoneNb: 4
+    id: 6b3dc554-ee27-4d95-acd5-0cd069d528fe
+  zoneName: 7
+  zoneNb: 7
   zoneType: 0
-  DefaultAppsInZone: 000000000800000004000000
+  DefaultAppsInZone: 000000000800000003000000

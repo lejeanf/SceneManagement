@@ -1,26 +1,34 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Scenes;
 using Unity.Transforms;
 
 namespace jeanf.scenemanagement
 {
+    [UpdateInGroup(typeof(SimulationSystemGroup))]
     partial struct VolumeSystem : ISystem
     {
-        private NativeHashSet<Entity> _activeVolumes;
+        private NativeList<Entity> _activeVolumes;
         private NativeList<(Entity, LevelInfo)> _toLoadList;
         private NativeList<(Entity, LevelInfo)> _toUnloadList;
+        
+        private EntityQuery _relevantQuery;
+        private EntityQuery _volumeQuery;
         
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Relevant>();
             
-            _activeVolumes = new NativeHashSet<Entity>(100, Allocator.Persistent);
+            _activeVolumes = new NativeList<Entity>(100, Allocator.Persistent);
             _toLoadList = new NativeList<(Entity, LevelInfo)>(10, Allocator.Persistent);
             _toUnloadList = new NativeList<(Entity, LevelInfo)>(10, Allocator.Persistent);
+            
+            _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
+            _volumeQuery = SystemAPI.QueryBuilder().WithAll<Volume, LocalToWorld>().Build();
         }
         
         [BurstCompile]
@@ -38,29 +46,42 @@ namespace jeanf.scenemanagement
             _toLoadList.Clear();
             _toUnloadList.Clear();
 
-            var relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
-            var relevantLocalToWorlds = relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
-
-            foreach (var (transform, volume, volumeEntity) in
-                     SystemAPI.Query<RefRO<LocalToWorld>, RefRO<Volume>>()
-                         .WithEntityAccess())
+            var relevantPositions = _relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
+            var volumeEntities = _volumeQuery.ToEntityArray(Allocator.TempJob);
+            var volumeTransforms = _volumeQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
+            var volumes = _volumeQuery.ToComponentDataArray<Volume>(Allocator.TempJob);
+            var volumeActiveFlags = new NativeArray<int>(volumeEntities.Length, Allocator.TempJob);
+            
+            var detectVolumeJob = new DetectActiveVolumesJob
             {
-                var range = volume.ValueRO.Scale / 2f;
-                var pos = transform.ValueRO.Position;
-
-                foreach (var relevantLocalToWorld in relevantLocalToWorlds)
+                VolumeEntities = volumeEntities,
+                VolumeTransforms = volumeTransforms,
+                VolumeData = volumes,
+                RelevantPositions = relevantPositions,
+                VolumeActiveFlags = volumeActiveFlags
+            };
+            
+            detectVolumeJob.Schedule(volumeEntities.Length, 16).Complete();
+            
+            for (int i = 0; i < volumeActiveFlags.Length; i++)
+            {
+                if (volumeActiveFlags[i] == 1)
                 {
-                    var relevantPosition = relevantLocalToWorld.Position;
-                    var distance = math.abs(relevantPosition - pos);
-                    var insideAxis = (distance < range);
-                    if (insideAxis.x && insideAxis.y && insideAxis.z)
-                    {
-                        _activeVolumes.Add(volumeEntity);
-                        break;
-                    }
+                    _activeVolumes.Add(volumeEntities[i]);
                 }
             }
-
+            
+            ProcessLevelLoadingStates(ref state);
+            
+            relevantPositions.Dispose();
+            volumeEntities.Dispose();
+            volumeTransforms.Dispose();
+            volumes.Dispose();
+            volumeActiveFlags.Dispose();
+        }
+        
+        private void ProcessLevelLoadingStates(ref SystemState state)
+        {
             foreach (var (volumes, levelInfo, entity) in
                      SystemAPI.Query<DynamicBuffer<VolumeBuffer>, RefRW<LevelInfo>>()
                          .WithEntityAccess())
@@ -101,8 +122,40 @@ namespace jeanf.scenemanagement
                 streamingData.runtimeEntity = Entity.Null;
                 state.EntityManager.SetComponentData(entity, streamingData);
             }
+        }
+    }
+    
+    [BurstCompile]
+    struct DetectActiveVolumesJob : IJobParallelFor
+    {
+        [ReadOnly] public NativeArray<Entity> VolumeEntities;
+        [ReadOnly] public NativeArray<LocalToWorld> VolumeTransforms;
+        [ReadOnly] public NativeArray<Volume> VolumeData;
+        [ReadOnly] public NativeArray<LocalToWorld> RelevantPositions;
+        
+        [NativeDisableParallelForRestriction]
+        public NativeArray<int> VolumeActiveFlags;
+        
+        public void Execute(int index)
+        {
+            var volumeTransform = VolumeTransforms[index];
+            var volume = VolumeData[index];
             
-            relevantLocalToWorlds.Dispose();
+            var range = volume.Scale / 2f;
+            var pos = volumeTransform.Position;
+            
+            for (int i = 0; i < RelevantPositions.Length; i++)
+            {
+                var relevantPosition = RelevantPositions[i].Position;
+                var distance = math.abs(relevantPosition - pos);
+                var insideAxis = (distance < range);
+                
+                if (insideAxis.x && insideAxis.y && insideAxis.z)
+                {
+                    VolumeActiveFlags[index] = 1;
+                    break;
+                }
+            }
         }
     }
 }
