@@ -31,6 +31,7 @@
         ApcrPulmonaire,
         AdministrationDirect,
         Civ,
-        Inventory
+        Inventory,
+        Street
     }
 }
