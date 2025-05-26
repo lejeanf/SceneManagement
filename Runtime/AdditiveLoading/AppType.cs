@@ -1,37 +1,12 @@
-﻿namespace jeanf.scenemanagement
+﻿using UnityEngine;
+
+namespace jeanf.scenemanagement
 {
-    public enum AppType
+    [CreateAssetMenu(fileName = "App_", menuName = "LoadingSystem/App")]
+    public class AppType: ScriptableObject
     {
-        Home,
-        Bedroom,
-        Discussions,
-        File,
-        Log,
-        Pharmacy,
-        Printer,
-        Settings,
-        Scenarios,
-        Instructions,
-        OfficeSpace,
-        Cardiotocograph,
-        Monitor,
-        Pump,
-        BedControls,
-        ArteryCannulation,
-        Auscultation,Banding,
-        CapillaryRefill,
-        Debimeter,
-        Vesical,
-        Pvc,
-        Help,
-        Doctor,
-        Hottable,
-        PainIntervention,
-        ApcrCardiaque,
-        ApcrPulmonaire,
-        AdministrationDirect,
-        Civ,
-        Inventory,
-        Street
+        [Header("App Information")]
+        public string name;
+        public Texture2D icon;
     }
 }

@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Zone_1
   m_EditorClassIdentifier: 
   id:
-    id: d3215628-4fbd-4c6c-a3e1-9602122bfa8f
+    id: dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
   zoneName: 1
   zoneNb: 1
   zoneType: 0
-  DefaultAppsInZone: 000000000800000007000000
+  DefaultAppsInZone:
+  - {fileID: 11400000, guid: dd5cacc4f4d8ee142b4b524dc0692f1f, type: 2}

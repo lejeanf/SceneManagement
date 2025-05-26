@@ -72,7 +72,6 @@ namespace jeanf.scenemanagement
             regionChangeRequestChannel.OnEventRaised += OnRegionChange;
             RequestRegionChange += OnRegionChange;
             
-            ZoneContainer.broadcastObject += SetCurrentZoneAndRegion;
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
         }
@@ -82,7 +81,6 @@ namespace jeanf.scenemanagement
             regionChangeRequestChannel.OnEventRaised -= OnRegionChange;
             RequestRegionChange -= OnRegionChange;
             
-            ZoneContainer.broadcastObject -= SetCurrentZoneAndRegion;
             ResetWorld -= Init;
             ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
         }
@@ -119,7 +117,25 @@ namespace jeanf.scenemanagement
             }
         }
         
-        // Add new method to handle zone override changes
+        public static void NotifyZoneChangeFromECS(string zoneId)
+        {
+            if (Instance != null)
+            {
+                Instance.OnZoneChangedFromECS(zoneId);
+            }
+        }
+
+        private void OnZoneChangedFromECS(string zoneId)
+        {
+            if (!_zoneDictionary.TryGetValue(zoneId, out var zone)) return;
+    
+            CurrentPlayerZone = zone;
+            PublishCurrentZoneId?.Invoke(zone.id.id);
+            PublishAppList(zone);
+    
+            var newRegion = _regionDictionaryPerZone[zone.id.id];
+            if(newRegion != CurrentPlayerRegion) OnRegionChange(newRegion);
+        }
         private void OnZoneOverridesChanged(string zoneId)
         {
             // Only update if we're in the affected zone

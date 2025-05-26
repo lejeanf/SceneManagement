@@ -8,23 +8,25 @@ namespace jeanf.scenemanagement
     public class VolumeAuthoring : MonoBehaviour
     {
         public bool isDebug = false;
+        public Zone zone;
+        
         public class Baker : Baker<VolumeAuthoring>
         {
             public override void Bake(VolumeAuthoring authoring)
             {
                 var entity = GetEntity(TransformUsageFlags.Renderable);
 
-                // Add the Volume component
                 AddComponent(entity, new Volume
                 {
-                    Scale = GetComponent<Transform>().localScale
+                    Scale = GetComponent<Transform>().localScale,
+                    ZoneId = authoring.zone != null ? authoring.zone.id.ToString() : ""
                 });
 
-                // Add the StreamingGO component
                 AddComponent(entity, new StreamingGO
                 {
                     InstanceID = authoring.gameObject.GetInstanceID()
                 });
+                
                 if(authoring.isDebug) AddComponent<VolumeDebugTag>(entity);
             }
         }

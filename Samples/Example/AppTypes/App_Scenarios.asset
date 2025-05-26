@@ -9,13 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d614d892fd5448929fc0477c765a0cec, type: 3}
-  m_Name: Zone_8
+  m_Script: {fileID: 11500000, guid: debc4797a97340249fa46d596867c670, type: 3}
+  m_Name: App_Scenarios
   m_EditorClassIdentifier: 
-  id:
-    id: 9f9ed511-f324-428c-9951-ca6512b2dd73
-  zoneName: 8
-  zoneNb: 8
-  zoneType: 0
-  DefaultAppsInZone:
-  - {fileID: 11400000, guid: dd5cacc4f4d8ee142b4b524dc0692f1f, type: 2}
+  name: Settings
+  icon: {fileID: 0}
