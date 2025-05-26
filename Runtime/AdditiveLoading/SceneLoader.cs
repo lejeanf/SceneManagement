@@ -13,6 +13,7 @@ namespace jeanf.scenemanagement
         public bool isDebug = false;
         private CancellationTokenSource _queueCts;
         [SerializeField] private int maxConcurrentLoads = 2; 
+        
         public delegate void IsLoadingDelegate(bool loadingState);
         public static IsLoadingDelegate IsLoading;
         
@@ -20,22 +21,32 @@ namespace jeanf.scenemanagement
         public LoadScene LoadSceneRequest;
         public LoadScene UnLoadSceneRequest;
     
-    public delegate void UnloadAllScenesDelegate();
-    public UnloadAllScenesDelegate UnloadAllScenesRequest;
+        public delegate void UnloadAllScenesDelegate();
+        public UnloadAllScenesDelegate UnloadAllScenesRequest;
         
         public delegate void FlushScenesDelegate();
         public FlushScenesDelegate FlushScenesRequest;
         
-        private record SceneOperation(SceneOperationType Type, string SceneName)
+        private readonly struct SceneOperation
         {
-            public SceneOperationType Type { get; } = Type;
-            public string SceneName { get; } = SceneName;
+            public readonly SceneOperationType Type;
+            public readonly string SceneName;
+            
+            public SceneOperation(SceneOperationType type, string sceneName)
+            {
+                Type = type;
+                SceneName = sceneName;
+            }
         }
 
         private readonly ConcurrentQueue<SceneOperation> _loadQueue = new();
         private readonly ConcurrentQueue<SceneOperation> _unloadQueue = new();
         private readonly HashSet<string> _loadedScenes = new();
         private readonly HashSet<string> _processingScenes = new();
+        
+        private readonly List<UniTask> _operationBuffer = new();
+        private readonly List<string> _scenesToUnload = new();
+        
         private bool _isProcessingLoadQueue = false;
         private bool _isProcessingUnloadQueue = false;
 
@@ -75,11 +86,17 @@ namespace jeanf.scenemanagement
         {
             if (isDebug) Debug.Log("Unloading all scenes");
             
-            _loadQueue.Clear();
+            while (_loadQueue.TryDequeue(out _)) { }
             
-            foreach (var sceneName in new HashSet<string>(_loadedScenes))
+            _scenesToUnload.Clear();
+            foreach (var sceneName in _loadedScenes)
             {
-                _unloadQueue.Enqueue(new SceneOperation(SceneOperationType.Unload, sceneName));
+                _scenesToUnload.Add(sceneName);
+            }
+            
+            for (int i = 0; i < _scenesToUnload.Count; i++)
+            {
+                _unloadQueue.Enqueue(new SceneOperation(SceneOperationType.Unload, _scenesToUnload[i]));
             }
             
             ProcessUnloadQueue().Forget();
@@ -89,7 +106,6 @@ namespace jeanf.scenemanagement
         {
             if (isDebug) Debug.Log("Flushing memory");
             
-            // Force garbage collection to reclaim memory
             await Resources.UnloadUnusedAssets().ToUniTask(cancellationToken: cancellationToken);
             GC.Collect();
             
@@ -113,21 +129,20 @@ namespace jeanf.scenemanagement
             {
                 while (_loadQueue.Count > 0 && !token.IsCancellationRequested)
                 {
-                    var operations = new List<UniTask>();
+                    _operationBuffer.Clear();
                     
-                    while (operations.Count < maxConcurrentLoads && _loadQueue.TryDequeue(out var operation))
+                    while (_operationBuffer.Count < maxConcurrentLoads && _loadQueue.TryDequeue(out var operation))
                     {
                         if (_processingScenes.Contains(operation.SceneName) || _loadedScenes.Contains(operation.SceneName))
                             continue;
                             
                         _processingScenes.Add(operation.SceneName);
-                        
-                        operations.Add(LoadSceneAsync(operation.SceneName, token));
+                        _operationBuffer.Add(LoadSceneAsync(operation.SceneName, token));
                     }
 
-                    if (operations.Count > 0)
+                    if (_operationBuffer.Count > 0)
                     {
-                        await UniTask.WhenAll(operations);
+                        await UniTask.WhenAll(_operationBuffer);
                     }
                     
                     await UniTask.Yield();
@@ -160,20 +175,20 @@ namespace jeanf.scenemanagement
             {
                 while (_unloadQueue.Count > 0 && !token.IsCancellationRequested)
                 {
-                    var operations = new List<UniTask>();
+                    _operationBuffer.Clear();
                     
-                    while (operations.Count < maxConcurrentLoads && _unloadQueue.TryDequeue(out var operation))
+                    while (_operationBuffer.Count < maxConcurrentLoads && _unloadQueue.TryDequeue(out var operation))
                     {
                         if (!_loadedScenes.Contains(operation.SceneName) || _processingScenes.Contains(operation.SceneName))
                             continue;
                             
                         _processingScenes.Add(operation.SceneName);
-                        operations.Add(UnloadSceneAsync(operation.SceneName, token));
+                        _operationBuffer.Add(UnloadSceneAsync(operation.SceneName, token));
                     }
 
-                    if (operations.Count > 0)
+                    if (_operationBuffer.Count > 0)
                     {
-                        await UniTask.WhenAll(operations);
+                        await UniTask.WhenAll(_operationBuffer);
                     }
                     
                     // Small delay to prevent overwhelming the system
