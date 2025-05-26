@@ -37,8 +37,6 @@ namespace jeanf.scenemanagement
             
             _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
             _volumeQuery = SystemAPI.QueryBuilder().WithAll<Volume, LocalToWorld>().Build();
-            
-            Debug.Log("[VolumeSystem] System created");
         }
         
         [BurstCompile]
@@ -97,10 +95,6 @@ namespace jeanf.scenemanagement
                     if (!volume.ZoneId.IsEmpty && newPlayerZone.IsEmpty)
                     {
                         newPlayerZone = volume.ZoneId;
-                        if (shouldDebug)
-                        {
-                            Debug.Log($"[VolumeSystem] Player detected in zone: {newPlayerZone}");
-                        }
                     }
                 }
             }
@@ -118,44 +112,21 @@ namespace jeanf.scenemanagement
         private void CheckForZoneChange(FixedString128Bytes newPlayerZone, bool shouldDebug)
         {
             bool hasChanged = !_currentPlayerZone.Equals(newPlayerZone);
-            
-            if (hasChanged)
-            {
-                var previousZone = _currentPlayerZone.IsEmpty ? "None" : _currentPlayerZone.ToString();
-                var currentZone = newPlayerZone.IsEmpty ? "None" : newPlayerZone.ToString();
+
+            if (!hasChanged) return;
+            _currentPlayerZone = newPlayerZone;
+
+            if (newPlayerZone.IsEmpty) return;
                 
-                Debug.Log($"[VolumeSystem] Player zone changed from '{previousZone}' to '{currentZone}'");
-                
-                _currentPlayerZone = newPlayerZone;
-                
-                if (!newPlayerZone.IsEmpty)
-                {
-                    var zoneString = newPlayerZone.ToString();
-                    Debug.Log($"[VolumeSystem] Notifying WorldManager of zone change to: {zoneString}");
+            var zoneString = newPlayerZone.ToString();
                     
-                    // Force immediate notification
-                    try 
-                    {
-                        WorldManager.NotifyZoneChangeFromECS(zoneString);
-                        Debug.Log($"[VolumeSystem] Successfully notified WorldManager about zone: {zoneString}");
-                    }
-                    catch (System.Exception e)
-                    {
-                        Debug.LogError($"[VolumeSystem] Failed to notify WorldManager: {e.Message}");
-                    }
-                }
-                else
-                {
-                    Debug.Log("[VolumeSystem] Player left all zones - not notifying WorldManager");
-                }
-            }
-            else if (shouldDebug && !newPlayerZone.IsEmpty)
+            try 
             {
-                Debug.Log($"[VolumeSystem] Player still in zone: {newPlayerZone}");
+                WorldManager.NotifyZoneChangeFromECS(zoneString);
             }
-            else if (shouldDebug && newPlayerZone.IsEmpty)
+            catch (System.Exception e)
             {
-                Debug.Log("[VolumeSystem] Player not in any zone");
+                Debug.LogError($"[VolumeSystem] Failed to notify WorldManager: {e.Message}");
             }
         }
         
@@ -237,7 +208,6 @@ namespace jeanf.scenemanagement
                 {
                     VolumeActiveFlags[index] = 1;
                     
-                    // Track which zone this player is in
                     if (!volume.ZoneId.IsEmpty)
                     {
                         PlayerZoneIndices[i] = index;
