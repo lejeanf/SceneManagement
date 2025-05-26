@@ -20,11 +20,24 @@ namespace jeanf.scenemanagement
         public void OnUpdate(ref SystemState state)
         {
             NativeHashSet<int> selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.TempJob);
+    
 #if UNITY_EDITOR
-            var selectedObjs = Selection.gameObjects;
-            foreach (var selected in selectedObjs)
+            // Use Selection.objects instead of Selection.gameObjects to avoid array allocation
+            // and cache the count to avoid multiple property calls
+            var selectedObjects = Selection.objects;
+            int selectionCount = Selection.count;
+    
+            // Alternative approach: Use a static list to avoid allocations
+            // This requires adding a static field to your class:
+            // private static readonly List<GameObject> tempGameObjectList = new List<GameObject>();
+    
+            for (int i = 0; i < selectionCount; i++)
             {
-                selectedGameObjectsIds.Add(selected.GetInstanceID());
+                var selectedObj = selectedObjects[i];
+                if (selectedObj is GameObject gameObject)
+                {
+                    selectedGameObjectsIds.Add(gameObject.GetInstanceID());
+                }
             }
 #endif
 
