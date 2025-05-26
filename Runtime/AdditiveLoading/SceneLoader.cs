@@ -122,7 +122,6 @@ namespace jeanf.scenemanagement
                             
                         _processingScenes.Add(operation.SceneName);
                         
-                        if (isDebug) Debug.Log($"Loading scene: {operation.SceneName}");
                         operations.Add(LoadSceneAsync(operation.SceneName, token));
                     }
 
@@ -131,7 +130,6 @@ namespace jeanf.scenemanagement
                         await UniTask.WhenAll(operations);
                     }
                     
-                    // Small delay to prevent overwhelming the system
                     await UniTask.Yield();
                 }
             }
@@ -170,8 +168,6 @@ namespace jeanf.scenemanagement
                             continue;
                             
                         _processingScenes.Add(operation.SceneName);
-                        
-                        if (isDebug) Debug.Log($"Unloading scene: {operation.SceneName}");
                         operations.Add(UnloadSceneAsync(operation.SceneName, token));
                     }
 
@@ -201,17 +197,14 @@ namespace jeanf.scenemanagement
 
         private async UniTask LoadSceneAsync(string sceneName, CancellationToken cancellationToken)
         {
+            AsyncOperation loadOperation = null;
+    
             try
             {
-                var loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-                loadOperation!.allowSceneActivation = true;
+                loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+                loadOperation.allowSceneActivation = true;
                 await loadOperation.ToUniTask(cancellationToken: cancellationToken);
                 _loadedScenes.Add(sceneName);
-                if (isDebug) Debug.Log($"Scene loaded: {sceneName}");
-            }
-            catch (Exception e)
-            {
-                if (isDebug) Debug.LogError($"Error loading scene {sceneName}: {e}");
             }
             finally
             {
@@ -226,11 +219,6 @@ namespace jeanf.scenemanagement
                 var unloadOperation = SceneManager.UnloadSceneAsync(sceneName);
                 await unloadOperation.ToUniTask(cancellationToken: cancellationToken);
                 _loadedScenes.Remove(sceneName);
-                if (isDebug) Debug.Log($"Scene unloaded: {sceneName}");
-            }
-            catch (Exception e)
-            {
-                if (isDebug) Debug.LogError($"Error unloading scene {sceneName}: {e}");
             }
             finally
             {
