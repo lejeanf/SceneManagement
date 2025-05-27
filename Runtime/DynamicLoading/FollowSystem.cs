@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -9,39 +10,48 @@ namespace jeanf.scenemanagement
     [UpdateInGroup(typeof(InitializationSystemGroup))]
     public partial struct FollowSystem : ISystem
     {
-        private float3 _currentCameraPosition;
         private float3 _lastCameraPosition;
         private const float MIN_POSITION_CHANGE = 0.1f;
+        private const float MIN_POSITION_CHANGE_SQ = MIN_POSITION_CHANGE * MIN_POSITION_CHANGE;
+        private bool _isInitialized;
         
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<FollowComponent>();
             _lastCameraPosition = float3.zero;
+            _isInitialized = false;
         }
         
         public void OnUpdate(ref SystemState state)
         {
             if (Camera.main == null) return;
             
-            _currentCameraPosition = Camera.main.transform.position;
+            var currentCameraPosition = (float3)Camera.main.transform.position;
             
-            bool isFirstUpdate = math.all(math.abs(_lastCameraPosition) < 0.001f);
-            float distanceSq = math.distancesq(_lastCameraPosition, _currentCameraPosition);
-            
-            if (isFirstUpdate || distanceSq >= MIN_POSITION_CHANGE * MIN_POSITION_CHANGE)
+            if (!_isInitialized)
             {
-                _lastCameraPosition = _currentCameraPosition;
+                _lastCameraPosition = currentCameraPosition;
+                _isInitialized = true;
                 
-                new FollowJob
+                state.Dependency = new FollowJob
                 {
-                    CameraPosition = _currentCameraPosition
-                }.ScheduleParallel(state.Dependency).Complete();
+                    CameraPosition = currentCameraPosition
+                }.ScheduleParallel(state.Dependency);
                 
-                if (isFirstUpdate)
+                return;
+            }
+            
+            float distanceSq = math.distancesq(_lastCameraPosition, currentCameraPosition);
+            
+            if (distanceSq >= MIN_POSITION_CHANGE_SQ)
+            {
+                _lastCameraPosition = currentCameraPosition;
+                
+                state.Dependency = new FollowJob
                 {
-                    UnityEngine.Debug.Log($"FollowSystem: Initial position update at {_currentCameraPosition}");
-                }
+                    CameraPosition = currentCameraPosition
+                }.ScheduleParallel(state.Dependency);
             }
         }
         
@@ -51,6 +61,7 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         private partial struct FollowJob : IJobEntity
         {
+            [ReadOnly]
             public float3 CameraPosition;
             
             public void Execute(ref LocalTransform transform, in FollowComponent _)

@@ -16,16 +16,20 @@ namespace jeanf.scenemanagement
         private NativeList<Entity> _activeVolumes;
         private NativeList<(Entity, LevelInfo)> _toLoadList;
         private NativeList<(Entity, LevelInfo)> _toUnloadList;
-        private NativeHashSet<FixedString128Bytes> _relevantZoneIds;
+        private NativeHashSet<FixedString128Bytes> _checkableZoneIds;
         
         private EntityQuery _relevantQuery;
         private EntityQuery _volumeQuery;
         
         private FixedString128Bytes _currentPlayerZone;
-        private FixedString128Bytes _currentRegionId;
+        private FixedString128Bytes _currentPlayerRegion;
+        private FixedString128Bytes _lastNotifiedZone;
+        private FixedString128Bytes _lastNotifiedRegion;
         
-        private int _frameCounter;
-        private const int DEBUG_FREQUENCY = 60;
+        private NativeHashMap<FixedString128Bytes, FixedString128Bytes> _zoneToRegionMap;
+        private NativeHashMap<FixedString128Bytes, NativeList<FixedString128Bytes>> _zoneNeighbors;
+        private NativeHashSet<FixedString128Bytes> _landingZones;
+        private bool _mappingInitialized;
         
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -36,8 +40,16 @@ namespace jeanf.scenemanagement
             _activeVolumes = new NativeList<Entity>(100, Allocator.Persistent);
             _toLoadList = new NativeList<(Entity, LevelInfo)>(10, Allocator.Persistent);
             _toUnloadList = new NativeList<(Entity, LevelInfo)>(10, Allocator.Persistent);
-            _relevantZoneIds = new NativeHashSet<FixedString128Bytes>(50, Allocator.Persistent);
+            _checkableZoneIds = new NativeHashSet<FixedString128Bytes>(50, Allocator.Persistent);
+            _zoneToRegionMap = new NativeHashMap<FixedString128Bytes, FixedString128Bytes>(100, Allocator.Persistent);
+            _zoneNeighbors = new NativeHashMap<FixedString128Bytes, NativeList<FixedString128Bytes>>(100, Allocator.Persistent);
+            _landingZones = new NativeHashSet<FixedString128Bytes>(50, Allocator.Persistent);
+            
             _currentPlayerZone = new FixedString128Bytes();
+            _currentPlayerRegion = new FixedString128Bytes();
+            _lastNotifiedZone = new FixedString128Bytes();
+            _lastNotifiedRegion = new FixedString128Bytes();
+            _mappingInitialized = false;
             
             _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
             _volumeQuery = SystemAPI.QueryBuilder().WithAll<Volume, LocalToWorld>().Build();
@@ -49,14 +61,21 @@ namespace jeanf.scenemanagement
             if (_activeVolumes.IsCreated) _activeVolumes.Dispose();
             if (_toLoadList.IsCreated) _toLoadList.Dispose();
             if (_toUnloadList.IsCreated) _toUnloadList.Dispose();
-            if (_relevantZoneIds.IsCreated) _relevantZoneIds.Dispose();
+            if (_checkableZoneIds.IsCreated) _checkableZoneIds.Dispose();
+            if (_zoneToRegionMap.IsCreated) _zoneToRegionMap.Dispose();
+            if (_landingZones.IsCreated) _landingZones.Dispose();
+            if (_zoneNeighbors.IsCreated)
+            {
+                foreach (var kvp in _zoneNeighbors)
+                {
+                    if (kvp.Value.IsCreated) kvp.Value.Dispose();
+                }
+                _zoneNeighbors.Dispose();
+            }
         }
 
         public void OnUpdate(ref SystemState state)
         {
-            _frameCounter++;
-            bool shouldDebug = _frameCounter % DEBUG_FREQUENCY == 0;
-            
             _activeVolumes.Clear();
             _toLoadList.Clear();
             _toUnloadList.Clear();
@@ -70,99 +89,178 @@ namespace jeanf.scenemanagement
             }
             
             var playerPosition = relevantPositions[0].Position;
+            relevantPositions.Dispose();
             
-            UpdateRelevantZones(ref state);
-            
-            var volumeEntities = _volumeQuery.ToEntityArray(Allocator.TempJob);
-            var volumeTransforms = _volumeQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
-            var volumes = _volumeQuery.ToComponentDataArray<Volume>(Allocator.TempJob);
-            
-            FixedString128Bytes newPlayerZone = new FixedString128Bytes();
-            
-            for (int i = 0; i < volumeEntities.Length; i++)
+            if (!_mappingInitialized)
             {
-                var volume = volumes[i];
-                
-                if (!_relevantZoneIds.Contains(volume.ZoneId) && !volume.ZoneId.IsEmpty)
+                BuildConnectivityMappings(ref state);
+                _mappingInitialized = true;
+            }
+            
+            UpdateCheckableZones();
+            
+            var newPlayerZone = CheckVolumesForPlayerZone(ref state, playerPosition);
+            CheckForZoneAndRegionChange(newPlayerZone);
+            ProcessLevelLoadingStates(ref state);
+        }
+        
+        private FixedString128Bytes CheckVolumesForPlayerZone(ref SystemState state, float3 playerPosition)
+        {
+            var newPlayerZone = new FixedString128Bytes();
+            
+            foreach (var (volume, transform, entity) in 
+                     SystemAPI.Query<RefRO<Volume>, RefRO<LocalToWorld>>().WithEntityAccess())
+            {
+                if (!ShouldCheckVolume(volume.ValueRO.ZoneId))
                     continue;
                 
-                var volumeTransform = volumeTransforms[i];
-                var range = volume.Scale / 2f;
-                var pos = volumeTransform.Position;
+                var range = volume.ValueRO.Scale / 2f;
+                var pos = transform.ValueRO.Position;
                 var distance = math.abs(playerPosition - pos);
                 var insideAxis = (distance < range);
                 
                 if (insideAxis.x && insideAxis.y && insideAxis.z)
                 {
-                    _activeVolumes.Add(volumeEntities[i]);
+                    _activeVolumes.Add(entity);
                     
-                    if (!volume.ZoneId.IsEmpty && newPlayerZone.IsEmpty)
+                    if (!volume.ValueRO.ZoneId.IsEmpty && newPlayerZone.IsEmpty)
                     {
-                        newPlayerZone = volume.ZoneId;
+                        newPlayerZone = volume.ValueRO.ZoneId;
                     }
                 }
             }
             
-            CheckForZoneChange(newPlayerZone, shouldDebug);
-            ProcessLevelLoadingStates(ref state);
-            
-            relevantPositions.Dispose();
-            volumeEntities.Dispose();
-            volumeTransforms.Dispose();
-            volumes.Dispose();
+            return newPlayerZone;
         }
         
-        private void UpdateRelevantZones(ref SystemState state)
+        private void BuildConnectivityMappings(ref SystemState state)
         {
-            _relevantZoneIds.Clear();
+            _zoneToRegionMap.Clear();
+            _landingZones.Clear();
+            
+            foreach (var kvp in _zoneNeighbors)
+            {
+                if (kvp.Value.IsCreated) kvp.Value.Dispose();
+            }
+            _zoneNeighbors.Clear();
             
             foreach (var (regionBuffer, zoneBuffer, landingBuffer) in 
                      SystemAPI.Query<DynamicBuffer<RegionBuffer>, DynamicBuffer<ZoneIdBuffer>, DynamicBuffer<LandingZoneBuffer>>())
             {
-                foreach (var regionData in regionBuffer)
-                {
-                    if (regionData.regionId.Equals(_currentRegionId))
-                    {
-                        for (int i = 0; i < regionData.zoneCount; i++)
-                        {
-                            var zoneIndex = regionData.zoneStartIndex + i;
-                            if (zoneIndex < zoneBuffer.Length)
-                            {
-                                _relevantZoneIds.Add(zoneBuffer[zoneIndex].zoneId);
-                            }
-                        }
-                        break;
-                    }
-                }
-                
                 foreach (var landingData in landingBuffer)
                 {
                     if (!landingData.landingZoneId.IsEmpty)
                     {
-                        _relevantZoneIds.Add(landingData.landingZoneId);
+                        _landingZones.Add(landingData.landingZoneId);
                     }
+                }
+                
+                foreach (var regionData in regionBuffer)
+                {
+                    var regionZones = new NativeList<FixedString128Bytes>(regionData.zoneCount, Allocator.Temp);
+                    
+                    for (int i = 0; i < regionData.zoneCount; i++)
+                    {
+                        var zoneIndex = regionData.zoneStartIndex + i;
+                        if (zoneIndex < zoneBuffer.Length)
+                        {
+                            var zoneId = zoneBuffer[zoneIndex].zoneId;
+                            _zoneToRegionMap.TryAdd(zoneId, regionData.regionId);
+                            regionZones.Add(zoneId);
+                        }
+                    }
+                    
+                    for (int i = 0; i < regionZones.Length; i++)
+                    {
+                        var zoneA = regionZones[i];
+                        if (!_zoneNeighbors.ContainsKey(zoneA))
+                        {
+                            _zoneNeighbors[zoneA] = new NativeList<FixedString128Bytes>(10, Allocator.Persistent);
+                        }
+                        
+                        for (int j = 0; j < regionZones.Length; j++)
+                        {
+                            if (i == j) continue;
+                            var zoneB = regionZones[j];
+                            _zoneNeighbors[zoneA].Add(zoneB);
+                        }
+                    }
+                    
+                    regionZones.Dispose();
                 }
             }
         }
         
-        private void CheckForZoneChange(FixedString128Bytes newPlayerZone, bool shouldDebug)
+        private void UpdateCheckableZones()
         {
-            bool hasChanged = !_currentPlayerZone.Equals(newPlayerZone);
-
-            if (!hasChanged) return;
-            _currentPlayerZone = newPlayerZone;
-
-            if (newPlayerZone.IsEmpty) return;
-                
-            var zoneString = newPlayerZone.ToString();
-                    
-            try 
+            _checkableZoneIds.Clear();
+            
+            if (_currentPlayerZone.IsEmpty)
             {
+                return;
+            }
+            
+            _checkableZoneIds.Add(_currentPlayerZone);
+            
+            if (_zoneNeighbors.TryGetValue(_currentPlayerZone, out var neighbors))
+            {
+                foreach (var neighbor in neighbors)
+                {
+                    _checkableZoneIds.Add(neighbor);
+                }
+            }
+            
+            foreach (var landingZone in _landingZones)
+            {
+                _checkableZoneIds.Add(landingZone);
+            }
+        }
+        
+        private bool ShouldCheckVolume(FixedString128Bytes zoneId)
+        {
+            if (zoneId.IsEmpty) return false;
+            
+            if (_currentPlayerZone.IsEmpty)
+            {
+                return true;
+            }
+            
+            return _checkableZoneIds.Contains(zoneId);
+        }
+        
+        private void CheckForZoneAndRegionChange(FixedString128Bytes newPlayerZone)
+        {
+            bool zoneChanged = !_currentPlayerZone.Equals(newPlayerZone);
+            bool regionChanged = false;
+            FixedString128Bytes newPlayerRegion = new FixedString128Bytes();
+
+            if (!newPlayerZone.IsEmpty && _zoneToRegionMap.TryGetValue(newPlayerZone, out newPlayerRegion))
+            {
+                regionChanged = !_currentPlayerRegion.Equals(newPlayerRegion);
+            }
+
+            if (zoneChanged)
+            {
+                _currentPlayerZone = newPlayerZone;
+            }
+
+            if (regionChanged)
+            {
+                _currentPlayerRegion = newPlayerRegion;
+            }
+
+            if (zoneChanged && !newPlayerZone.IsEmpty && !_lastNotifiedZone.Equals(newPlayerZone))
+            {
+                _lastNotifiedZone = newPlayerZone;
+                var zoneString = newPlayerZone.ToString();
                 WorldManager.NotifyZoneChangeFromECS(zoneString);
             }
-            catch (System.Exception e)
+            
+            if (regionChanged && !newPlayerRegion.IsEmpty && !_lastNotifiedRegion.Equals(newPlayerRegion))
             {
-                Debug.LogError($"[VolumeSystem] Failed to notify WorldManager: {e.Message}");
+                _lastNotifiedRegion = newPlayerRegion;
+                var regionString = newPlayerRegion.ToString();
+                WorldManager.NotifyRegionChangeFromECS(regionString);
             }
         }
         
@@ -208,11 +306,6 @@ namespace jeanf.scenemanagement
                 streamingData.runtimeEntity = Entity.Null;
                 state.EntityManager.SetComponentData(entity, streamingData);
             }
-        }
-        
-        public void SetCurrentRegion(Region region)
-        {
-            _currentRegionId = region != null ? region.id.ToString() : "";
         }
     }
 }

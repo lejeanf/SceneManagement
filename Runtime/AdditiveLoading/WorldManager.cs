@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using jeanf.EventSystem;
 using jeanf.propertyDrawer;
@@ -14,36 +13,57 @@ namespace jeanf.scenemanagement
         public bool isDebug = false;
         private SceneLoader _sceneLoader;
         public List<Region> ListOfRegions;
+        
         private Dictionary<string, Zone> _zoneDictionary = new Dictionary<string, Zone>();
         private Dictionary<string, Region> _regionDictionary = new Dictionary<string, Region>();
         private Dictionary<string, Region> _regionDictionaryPerZone = new Dictionary<string, Region>();
-        private Dictionary<Collider, Region> _regionDictionaryPerCollider = new Dictionary<Collider, Region>();
         private Dictionary<string, List<SceneReference>> _dependenciesPerRegion = new Dictionary<string, List<SceneReference>>();
+        private Dictionary<string, List<string>> _compiledSceneLists = new Dictionary<string, List<string>>();
+        private HashSet<string> _landingZoneIds = new HashSet<string>();
 
         private List<Region> _activeRegions = new List<Region>();
-        private List<GameObject> _activeZones = new List<GameObject>();
+        private bool _mappingInitialized = false;
+        
+        private List<string> _tempSceneNames = new List<string>();
+        private List<Region> _tempRegionsToRemove = new List<Region>();
 
         [SerializeField] private StringEventChannelSO regionChangeRequestChannel;
         [SerializeField] private SendTeleportTarget sendTeleportTarget;
 
         [ReadOnly] [SerializeField] private Zone _currentPlayerZone;
+        [ReadOnly] [SerializeField] private Region _currentPlayerRegion;
+        
         private static WorldManager Instance;
+        private static bool _isRegionTransitioning = false;
+        
         public static Zone CurrentPlayerZone 
         { 
-            get => Instance._currentPlayerZone;
-            private set => Instance._currentPlayerZone = value;
+            get => Instance?._currentPlayerZone;
+            private set 
+            {
+                if (Instance != null)
+                {
+                    Instance._currentPlayerZone = value;
+                }
+            }
         }
         
-        [ReadOnly] [SerializeField] private Region _currentPlayerRegion;
         public static Region CurrentPlayerRegion
         { 
-            get => Instance._currentPlayerRegion;
-            private set => Instance._currentPlayerRegion = value;
+            get => Instance?._currentPlayerRegion;
+            private set 
+            {
+                if (Instance != null)
+                {
+                    Instance._currentPlayerRegion = value;
+                }
+            }
         }
+
+        public static bool IsRegionTransitioning => _isRegionTransitioning;
 
         public delegate void SendId(string newRegionID);
         public static SendId RequestRegionChange;
-        
         public static SendId PublishCurrentRegionId;
         public static SendId PublishCurrentZoneId;
         
@@ -54,7 +74,8 @@ namespace jeanf.scenemanagement
         public static BroadcastAppList _broadcastAppList;
 
         private bool hasGameBeenInitialized = false;
-        
+        private string _lastNotifiedZone = "";
+        private string _lastNotifiedRegion = "";
 
         private void Awake()
         {
@@ -71,7 +92,6 @@ namespace jeanf.scenemanagement
         {
             regionChangeRequestChannel.OnEventRaised += OnRegionChange;
             RequestRegionChange += OnRegionChange;
-            
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
         }
@@ -80,79 +100,151 @@ namespace jeanf.scenemanagement
         {
             regionChangeRequestChannel.OnEventRaised -= OnRegionChange;
             RequestRegionChange -= OnRegionChange;
-            
             ResetWorld -= Init;
             ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
         }
 
-
         private void Init()
         {
-            if(isDebug) Debug.Log($"[WorldManager] World reset.");
             hasGameBeenInitialized = false;
+            _currentPlayerZone = null;
+            _currentPlayerRegion = null;
+            _lastNotifiedZone = "";
+            _lastNotifiedRegion = "";
+            _isRegionTransitioning = false;
+            
+            ClearAllMappings();
+            BuildDataMappings();
+        }
+        
+        private void ClearAllMappings()
+        {
+            _zoneDictionary.Clear();
+            _regionDictionary.Clear();
+            _regionDictionaryPerZone.Clear();
+            _dependenciesPerRegion.Clear();
+            _compiledSceneLists.Clear();
+            _landingZoneIds.Clear();
+            _activeRegions.Clear();
+            _tempSceneNames.Clear();
+            _tempRegionsToRemove.Clear();
+            _mappingInitialized = false;
+        }
+        
+        private void BuildDataMappings()
+        {
+            if (_mappingInitialized) return;
+            
+            var regionCount = ListOfRegions?.Count ?? 0;
+            if (regionCount == 0) return;
+            
             foreach (var region in ListOfRegions)
             {
-                // build region Dictionary
-                if(isDebug) Debug.Log($"[WorldManager] Adding region with id: {region.id.id} to the region dictionary.");
-                _regionDictionary.TryAdd(region.id, region);
+                if (region == null) continue;
+                if (!_regionDictionary.TryAdd(region.id, region)) continue;
                 
-                // build scenario Dictionary
-                foreach (var scenario in region.scenariosInThisRegion)
+                _dependenciesPerRegion.TryAdd(region.id, region.dependenciesInThisRegion);
+                PrecompileSceneList(region);
+                
+                if (region.scenariosInThisRegion != null)
                 {
-                    if(isDebug) Debug.Log($"[WorldManager] Adding scenario with id: {scenario.id.id} to the scenario dictionary.");
-                    ScenarioManager.ScenarioDictionary.TryAdd(scenario.id, scenario);
+                    foreach (var scenario in region.scenariosInThisRegion)
+                    {
+                        if (scenario != null)
+                        {
+                            ScenarioManager.ScenarioDictionary.TryAdd(scenario.id, scenario);
+                        }
+                    }
                 }
 
-                // build zoneData Dictionary
-                foreach (var zone in region.zonesInThisRegion)
+                if (region.zonesInThisRegion != null)
                 {
-                    if(isDebug) Debug.Log($"[WorldManager] Adding zone with id: {zone.id} to the zone dictionary.");
-                    _zoneDictionary.TryAdd(zone.id, zone);
-                    _regionDictionaryPerZone.TryAdd(zone.id, region);
-                }   
-
-                // build dependency Dictionary
-                if(isDebug) Debug.Log($"[WorldManager] Adding list of dependencies for the region with id: {region.id.id} to the dependency dictionary.");
-                _dependenciesPerRegion.TryAdd(region.id, region.dependenciesInThisRegion);
+                    foreach (var zone in region.zonesInThisRegion)
+                    {
+                        if (zone != null)
+                        {
+                            _zoneDictionary.TryAdd(zone.id, zone);
+                            _regionDictionaryPerZone.TryAdd(zone.id, region);
+                        }
+                    }
+                }
+            }
+            
+            BuildLandingZoneCache();
+            _mappingInitialized = true;
+        }
+        
+        private void PrecompileSceneList(Region region)
+        {
+            var sceneNames = new List<string>(region.dependenciesInThisRegion.Count);
+            foreach (var dependency in region.dependenciesInThisRegion)
+            {
+                sceneNames.Add(dependency.SceneName);
+            }
+            _compiledSceneLists[region.id] = sceneNames;
+        }
+        
+        private void BuildLandingZoneCache()
+        {
+            var connectivity = FindObjectOfType<RegionConnectivityAuthoring>();
+            if (connectivity?.regionConnectivity?.landingZones == null) return;
+            
+            foreach (var landing in connectivity.regionConnectivity.landingZones)
+            {
+                if (landing?.landingZone != null)
+                {
+                    _landingZoneIds.Add(landing.landingZone.id);
+                }
             }
         }
         
         public static void NotifyZoneChangeFromECS(string zoneId)
         {
-            if (Instance != null)
+            if (Instance != null && !_isRegionTransitioning)
             {
                 Instance.OnZoneChangedFromECS(zoneId);
+            }
+        }
+        
+        public static void NotifyRegionChangeFromECS(string regionId)
+        {
+            if (Instance != null && !_isRegionTransitioning)
+            {
+                Instance.OnRegionChangedFromECS(regionId);
             }
         }
 
         private void OnZoneChangedFromECS(string zoneId)
         {
+            if (string.IsNullOrEmpty(zoneId) || _lastNotifiedZone == zoneId) return;
+            
             if (!_zoneDictionary.TryGetValue(zoneId, out var zone)) return;
-    
-            CurrentPlayerZone = zone;
-            PublishCurrentZoneId?.Invoke(zone.id.id);
+
+            _lastNotifiedZone = zoneId;
+            _currentPlayerZone = zone;
+            
+            PublishCurrentZoneId?.Invoke(zone.id);
             PublishAppList(zone);
-    
-            var newRegion = _regionDictionaryPerZone[zone.id.id];
-            if(newRegion != CurrentPlayerRegion) OnRegionChange(newRegion);
         }
+        
+        private void OnRegionChangedFromECS(string regionId)
+        {
+            if (string.IsNullOrEmpty(regionId) || _lastNotifiedRegion == regionId) return;
+            
+            if (!_regionDictionary.TryGetValue(regionId, out var region)) return;
+            
+            _lastNotifiedRegion = regionId;
+            _currentPlayerRegion = region;
+            
+            OnRegionChange(region);
+        }
+        
         private void OnZoneOverridesChanged(string zoneId)
         {
-            // Only update if we're in the affected zone
-            if (CurrentPlayerZone.id == zoneId)
+            if (CurrentPlayerZone != null && CurrentPlayerZone.id == zoneId)
             {
                 PublishAppList(CurrentPlayerZone);
             }
-        }
-
-        private void SetCurrentZoneAndRegion(GameObject gameObject, Zone zone)
-        {
-            if (!gameObject.CompareTag("Player")) return;
-            CurrentPlayerZone = zone;
-            PublishCurrentZoneId?.Invoke(zone.id);
-            PublishAppList(zone);
-            var newRegion = _regionDictionaryPerZone[zone.id];
-            if(newRegion != CurrentPlayerRegion) OnRegionChange(newRegion);
         }
 
         private void OnRegionChange(string newRegionID)
@@ -161,31 +253,61 @@ namespace jeanf.scenemanagement
             OnRegionChange(region);
         }
         
-        // ReSharper disable Unity.PerformanceAnalysis
         private void OnRegionChange(Region region)
         {
-            CurrentPlayerRegion = region;
-            PublishCurrentRegionId?.Invoke(CurrentPlayerRegion.id);
+            _isRegionTransitioning = true;
+            
+            _currentPlayerRegion = region;
+            _lastNotifiedRegion = region.id;
+            
+            PublishCurrentRegionId?.Invoke(_currentPlayerRegion.id);
 
-            var currentActiveRegion = _activeRegions;
-            var regionsToRemove = currentActiveRegion.Select(RequestUnLoadForObsoleteRegion).ToList();
+            _tempRegionsToRemove.Clear();
+            foreach (var activeRegion in _activeRegions)
+            {
+                var removedRegion = RequestUnLoadForObsoleteRegion(activeRegion);
+                _tempRegionsToRemove.Add(removedRegion);
+            }
 
-            foreach (var r in regionsToRemove)
+            foreach (var r in _tempRegionsToRemove)
             {
                 _activeRegions.Remove(r);
             }
             
             RequestLoadForRegionDependencies(region);
 
-            // set teleporting position
             var spawnPos = SetTeleportTarget(region, hasGameBeenInitialized);
-            sendTeleportTarget.transform.position = spawnPos.position;
-            sendTeleportTarget.transform.rotation = Quaternion.Euler(spawnPos.rotation);
-            // teleport!
-            sendTeleportTarget.Teleport();
             
-            Debug.Log($"[WorldManager] Current region: {region.levelName}.");
+            if (sendTeleportTarget != null)
+            {
+                sendTeleportTarget.transform.position = spawnPos.position;
+                sendTeleportTarget.transform.rotation = Quaternion.Euler(spawnPos.rotation);
+                sendTeleportTarget.Teleport();
+            }
+            
             _activeRegions.Add(region);
+            
+            StartCoroutine(CompleteRegionTransition());
+        }
+
+        private System.Collections.IEnumerator CompleteRegionTransition()
+        {
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+            
+            _isRegionTransitioning = false;
+            
+            if (_currentPlayerRegion?.zonesInThisRegion != null && _currentPlayerRegion.zonesInThisRegion.Count > 0)
+            {
+                var firstZone = _currentPlayerRegion.zonesInThisRegion[0];
+                if (firstZone != null)
+                {
+                    _currentPlayerZone = firstZone;
+                    _lastNotifiedZone = firstZone.id;
+                    PublishCurrentZoneId?.Invoke(firstZone.id);
+                    PublishAppList(firstZone);
+                }
+            }
         }
 
         private SpawnPos SetTeleportTarget(Region region, bool hasRegionBeenInitialized)
@@ -203,39 +325,59 @@ namespace jeanf.scenemanagement
         private void PublishAppList(Zone zone)
         {
             var listToBroadcast = zone.DefaultAppsInZone;
-            if(isDebug) Debug.Log($"[WorldManager] Default list for zone [{zone.name}] : [{string.Join(", ", listToBroadcast)}]");
-            // check if for this zone there is no override 
             if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone.id, out var value))
             {
-                // if yes, send override list
                 listToBroadcast = value;
-                if(isDebug) Debug.Log($"[WorldManager] List override found for zone [{zone.name}] : [{string.Join(", ", listToBroadcast)}]");
             }
             
-            // broadcast list
             _broadcastAppList?.Invoke(listToBroadcast);
         }
 
         private void RequestLoadForRegionDependencies(Region region)
         {
-            if ( region.dependenciesInThisRegion.Count <= 0 ) return;
-            foreach (var scene in CompileSceneList(region))
+            if (!_compiledSceneLists.TryGetValue(region.id, out var sceneNames) || sceneNames.Count <= 0) return;
+            
+            foreach (var sceneName in sceneNames)
             {
-                _sceneLoader.LoadSceneRequest(scene);
+                _sceneLoader.LoadSceneRequest(sceneName);
             }
         }
+        
         private Region RequestUnLoadForObsoleteRegion(Region region)
         {
-            foreach (var scene in CompileSceneList(region))
+            if (_compiledSceneLists.TryGetValue(region.id, out var sceneNames))
             {
-                _sceneLoader.UnLoadSceneRequest(scene);
+                foreach (var sceneName in sceneNames)
+                {
+                    _sceneLoader.UnLoadSceneRequest(sceneName);
+                }
             }
             return region;
         }
-        
-        private static List<string> CompileSceneList(Region region)
+
+        public bool IsLandingZone(string zoneId)
         {
-            return region.dependenciesInThisRegion.Select(dependency => dependency.SceneName).ToList();
+            return _landingZoneIds.Contains(zoneId);
+        }
+
+        public HashSet<string> GetLandingZoneIds()
+        {
+            return _landingZoneIds;
+        }
+
+        public static Dictionary<string, Zone> GetZoneDictionary()
+        {
+            return Instance?._zoneDictionary;
+        }
+
+        public static Dictionary<string, Region> GetRegionDictionary()
+        {
+            return Instance?._regionDictionary;
+        }
+
+        public static Dictionary<string, Region> GetRegionDictionaryPerZone()
+        {
+            return Instance?._regionDictionaryPerZone;
         }
     }
 }
