@@ -25,12 +25,12 @@ MonoBehaviour:
   zonesInThisRegion:
   - {fileID: 11400000, guid: 162429b5029e6d449840760f4f2bacb7, type: 2}
   - {fileID: 11400000, guid: 878eb5c1ecee49447b88bb89a8530cf8, type: 2}
-  - {fileID: 11400000, guid: 31277bf1125592b41afff901df8ad815, type: 2}
   - {fileID: 11400000, guid: c53d99dee008d44498325c72318d652a, type: 2}
   - {fileID: 11400000, guid: 5159d162c19f82c479c83af0c7fdd5e3, type: 2}
   - {fileID: 11400000, guid: 458b1ac3da5e40943a19ef67fce5098d, type: 2}
   - {fileID: 11400000, guid: 95a8a624673cbe94286bc52a0605e3e8, type: 2}
   - {fileID: 11400000, guid: fd3de7f7da828264ca98885a8145c770, type: 2}
+  - {fileID: 11400000, guid: d97926758bbf9c2428aa7fdd1fa8dbb3, type: 2}
   dependenciesInThisRegion:
   - sceneAsset: {fileID: 102900000, guid: eca06b9066d8efb4fae7239d6bec44d5, type: 3}
     sceneName: World_depedency

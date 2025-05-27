@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using Unity.Scenes;
 using Unity.Transforms;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace jeanf.scenemanagement
 {
@@ -15,24 +16,27 @@ namespace jeanf.scenemanagement
         private NativeList<Entity> _activeVolumes;
         private NativeList<(Entity, LevelInfo)> _toLoadList;
         private NativeList<(Entity, LevelInfo)> _toUnloadList;
+        private NativeHashSet<FixedString128Bytes> _relevantZoneIds;
         
         private EntityQuery _relevantQuery;
         private EntityQuery _volumeQuery;
         
         private FixedString128Bytes _currentPlayerZone;
+        private FixedString128Bytes _currentRegionId;
         
-        // Debug variables
         private int _frameCounter;
-        private const int DEBUG_FREQUENCY = 60; // Log every 60 frames
+        private const int DEBUG_FREQUENCY = 60;
         
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<Relevant>();
+            state.RequireForUpdate<RegionBuffer>();
             
             _activeVolumes = new NativeList<Entity>(100, Allocator.Persistent);
             _toLoadList = new NativeList<(Entity, LevelInfo)>(10, Allocator.Persistent);
             _toUnloadList = new NativeList<(Entity, LevelInfo)>(10, Allocator.Persistent);
+            _relevantZoneIds = new NativeHashSet<FixedString128Bytes>(50, Allocator.Persistent);
             _currentPlayerZone = new FixedString128Bytes();
             
             _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
@@ -45,6 +49,7 @@ namespace jeanf.scenemanagement
             if (_activeVolumes.IsCreated) _activeVolumes.Dispose();
             if (_toLoadList.IsCreated) _toLoadList.Dispose();
             if (_toUnloadList.IsCreated) _toUnloadList.Dispose();
+            if (_relevantZoneIds.IsCreated) _relevantZoneIds.Dispose();
         }
 
         public void OnUpdate(ref SystemState state)
@@ -57,31 +62,31 @@ namespace jeanf.scenemanagement
             _toUnloadList.Clear();
 
             var relevantPositions = _relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
+            
+            if (relevantPositions.Length == 0)
+            {
+                relevantPositions.Dispose();
+                return;
+            }
+            
+            var playerPosition = relevantPositions[0].Position;
+            
+            UpdateRelevantZones(ref state);
+            
             var volumeEntities = _volumeQuery.ToEntityArray(Allocator.TempJob);
             var volumeTransforms = _volumeQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
             var volumes = _volumeQuery.ToComponentDataArray<Volume>(Allocator.TempJob);
             
-            if (relevantPositions.Length == 0)
-            {
-                // No player found, clean up and return
-                relevantPositions.Dispose();
-                volumeEntities.Dispose();
-                volumeTransforms.Dispose();
-                volumes.Dispose();
-                return;
-            }
-            
-            // Get player position (assuming first relevant entity is the player)
-            var playerPosition = relevantPositions[0].Position;
-            
-            // Find which zone the player is currently in
             FixedString128Bytes newPlayerZone = new FixedString128Bytes();
             
             for (int i = 0; i < volumeEntities.Length; i++)
             {
-                var volumeTransform = volumeTransforms[i];
                 var volume = volumes[i];
                 
+                if (!_relevantZoneIds.Contains(volume.ZoneId) && !volume.ZoneId.IsEmpty)
+                    continue;
+                
+                var volumeTransform = volumeTransforms[i];
                 var range = volume.Scale / 2f;
                 var pos = volumeTransform.Position;
                 var distance = math.abs(playerPosition - pos);
@@ -91,7 +96,6 @@ namespace jeanf.scenemanagement
                 {
                     _activeVolumes.Add(volumeEntities[i]);
                     
-                    // If this volume has a zone and we haven't found a player zone yet
                     if (!volume.ZoneId.IsEmpty && newPlayerZone.IsEmpty)
                     {
                         newPlayerZone = volume.ZoneId;
@@ -100,13 +104,45 @@ namespace jeanf.scenemanagement
             }
             
             CheckForZoneChange(newPlayerZone, shouldDebug);
-            
             ProcessLevelLoadingStates(ref state);
             
             relevantPositions.Dispose();
             volumeEntities.Dispose();
             volumeTransforms.Dispose();
             volumes.Dispose();
+        }
+        
+        private void UpdateRelevantZones(ref SystemState state)
+        {
+            _relevantZoneIds.Clear();
+            
+            foreach (var (regionBuffer, zoneBuffer, landingBuffer) in 
+                     SystemAPI.Query<DynamicBuffer<RegionBuffer>, DynamicBuffer<ZoneIdBuffer>, DynamicBuffer<LandingZoneBuffer>>())
+            {
+                foreach (var regionData in regionBuffer)
+                {
+                    if (regionData.regionId.Equals(_currentRegionId))
+                    {
+                        for (int i = 0; i < regionData.zoneCount; i++)
+                        {
+                            var zoneIndex = regionData.zoneStartIndex + i;
+                            if (zoneIndex < zoneBuffer.Length)
+                            {
+                                _relevantZoneIds.Add(zoneBuffer[zoneIndex].zoneId);
+                            }
+                        }
+                        break;
+                    }
+                }
+                
+                foreach (var landingData in landingBuffer)
+                {
+                    if (!landingData.landingZoneId.IsEmpty)
+                    {
+                        _relevantZoneIds.Add(landingData.landingZoneId);
+                    }
+                }
+            }
         }
         
         private void CheckForZoneChange(FixedString128Bytes newPlayerZone, bool shouldDebug)
@@ -173,48 +209,10 @@ namespace jeanf.scenemanagement
                 state.EntityManager.SetComponentData(entity, streamingData);
             }
         }
-    }
-    
-    [BurstCompile]
-    struct DetectActiveVolumesJob : IJobParallelFor
-    {
-        [ReadOnly] public NativeArray<Entity> VolumeEntities;
-        [ReadOnly] public NativeArray<LocalToWorld> VolumeTransforms;
-        [ReadOnly] public NativeArray<Volume> VolumeData;
-        [ReadOnly] public NativeArray<LocalToWorld> RelevantPositions;
-        [ReadOnly] public bool ShouldDebug;
         
-        [NativeDisableParallelForRestriction]
-        public NativeArray<int> VolumeActiveFlags;
-        
-        [NativeDisableParallelForRestriction]
-        public NativeArray<int> PlayerZoneIndices;
-        
-        public void Execute(int index)
+        public void SetCurrentRegion(Region region)
         {
-            var volumeTransform = VolumeTransforms[index];
-            var volume = VolumeData[index];
-            
-            var range = volume.Scale / 2f;
-            var pos = volumeTransform.Position;
-            
-            for (int i = 0; i < RelevantPositions.Length; i++)
-            {
-                var relevantPosition = RelevantPositions[i].Position;
-                var distance = math.abs(relevantPosition - pos);
-                var insideAxis = (distance < range);
-                
-                if (insideAxis.x && insideAxis.y && insideAxis.z)
-                {
-                    VolumeActiveFlags[index] = 1;
-                    
-                    if (!volume.ZoneId.IsEmpty)
-                    {
-                        PlayerZoneIndices[i] = index;
-                    }
-                    break;
-                }
-            }
+            _currentRegionId = region != null ? region.id.ToString() : "";
         }
     }
 }
