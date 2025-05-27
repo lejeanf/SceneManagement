@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c96c6420dc848df48969d92d82fab61f, type: 3}
+  m_Name: Region_01
+  m_EditorClassIdentifier: 
+  id:
+    id: 5bc341eb-447c-4f47-92c3-399166f25b03
+  Coordinate:
+    x: 0
+    y: 0
+  levelName: region_00
+  level: 0
+  scenariosInThisRegion:
+  - {fileID: 11400000, guid: da48d91e553f86f47add3deca44799c2, type: 2}
+  - {fileID: 11400000, guid: 1085c744a096c374dbfdb13da6e13e6f, type: 2}
+  zonesInThisRegion:
+  - {fileID: 11400000, guid: 162429b5029e6d449840760f4f2bacb7, type: 2}
+  - {fileID: 11400000, guid: 878eb5c1ecee49447b88bb89a8530cf8, type: 2}
+  - {fileID: 11400000, guid: 31277bf1125592b41afff901df8ad815, type: 2}
+  - {fileID: 11400000, guid: c53d99dee008d44498325c72318d652a, type: 2}
+  - {fileID: 11400000, guid: 5159d162c19f82c479c83af0c7fdd5e3, type: 2}
+  - {fileID: 11400000, guid: 458b1ac3da5e40943a19ef67fce5098d, type: 2}
+  - {fileID: 11400000, guid: 95a8a624673cbe94286bc52a0605e3e8, type: 2}
+  - {fileID: 11400000, guid: fd3de7f7da828264ca98885a8145c770, type: 2}
+  dependenciesInThisRegion:
+  - sceneAsset: {fileID: 102900000, guid: eca06b9066d8efb4fae7239d6bec44d5, type: 3}
+    sceneName: World_depedency
+  SpawnPosOnRegionChangeRequest:
+    position: {x: 2.5, y: 0, z: 2.5}
+    rotation: {x: 0, y: 0, z: 0}
+  isUsingOnInitSpawnPos: 1
+  SpawnPosOnInit:
+    position: {x: -2.5, y: 0, z: -2.5}
+    rotation: {x: 0, y: 0, z: 0}

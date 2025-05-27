@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bf14c28a2cf4ef4b24f71e8c476611d, type: 3}
+  m_Name: Scenario_2
+  m_EditorClassIdentifier: 
+  id:
+    id: 9676d954-a694-403e-b558-c2e40553fa66
+  scenarioName: Scenario2
+  scene:
+    sceneAsset: {fileID: 102900000, guid: abb5d5e3691e24e4c817ba78e98af5f0, type: 3}
+    sceneName: Scenario_2
+  ZoneOverrides:
+  - {fileID: 11400000, guid: 01b0add3391799c4180d881d7e85004d, type: 2}
+  - {fileID: 11400000, guid: 043f875b76260964c90b25dfdd9f64ec, type: 2}
+  dependenciesInThisScenario: []
+  listOfZonesNeededForThisScenario: []
