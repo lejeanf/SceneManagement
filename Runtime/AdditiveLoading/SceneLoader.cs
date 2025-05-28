@@ -12,7 +12,10 @@ namespace jeanf.scenemanagement
     {
         public bool isDebug = false;
         private CancellationTokenSource _queueCts;
-        [SerializeField] private int maxConcurrentLoads = 2; 
+        [SerializeField] private int maxConcurrentLoads = 2;
+        [SerializeField] private int gcFrameSpread = 5;
+        [SerializeField] private bool enableIncrementalGC = true;
+        [SerializeField] private float memoryFlushDelay = 0.1f;
         
         public delegate void IsLoadingDelegate(bool loadingState);
         public static IsLoadingDelegate IsLoading;
@@ -49,6 +52,7 @@ namespace jeanf.scenemanagement
         
         private bool _isProcessingLoadQueue = false;
         private bool _isProcessingUnloadQueue = false;
+        private bool _isFlushingMemory = false;
 
         private void OnEnable() => Subscribe();
         private void OnDisable() => Unsubscribe();
@@ -59,6 +63,7 @@ namespace jeanf.scenemanagement
             LoadSceneRequest += QueueLoadScene;
             UnLoadSceneRequest += QueueUnloadScene;
             UnloadAllScenesRequest += QueueUnloadAllScenes;
+            FlushScenesRequest += () => IncrementalMemoryFlush().Forget();
         }
 
         private void Unsubscribe()
@@ -66,6 +71,7 @@ namespace jeanf.scenemanagement
             LoadSceneRequest -= QueueLoadScene;
             UnLoadSceneRequest -= QueueUnloadScene;
             UnloadAllScenesRequest -= QueueUnloadAllScenes;
+            FlushScenesRequest = null;
         }
         
         private enum SceneOperationType { Load, Unload }
@@ -84,8 +90,6 @@ namespace jeanf.scenemanagement
         
         private void QueueUnloadAllScenes()
         {
-            if (isDebug) Debug.Log("Unloading all scenes");
-            
             while (_loadQueue.TryDequeue(out _)) { }
             
             _scenesToUnload.Clear();
@@ -102,14 +106,48 @@ namespace jeanf.scenemanagement
             ProcessUnloadQueue().Forget();
         }
         
-        private async UniTask FlushMemoryAsync(CancellationToken cancellationToken)
+        private async UniTaskVoid IncrementalMemoryFlush()
         {
-            if (isDebug) Debug.Log("Flushing memory");
-            
-            await Resources.UnloadUnusedAssets().ToUniTask(cancellationToken: cancellationToken);
-            GC.Collect();
-            
-            if (isDebug) Debug.Log("Memory flush complete");
+            if (_isFlushingMemory) return;
+            _isFlushingMemory = true;
+
+            try
+            {
+                await UniTask.Delay(TimeSpan.FromSeconds(memoryFlushDelay), DelayType.Realtime);
+                
+                var unloadOperation = Resources.UnloadUnusedAssets();
+                await unloadOperation.ToUniTask();
+                
+                if (enableIncrementalGC)
+                {
+                    await IncrementalGarbageCollection();
+                }
+            }
+            finally
+            {
+                _isFlushingMemory = false;
+            }
+        }
+
+        private async UniTask IncrementalGarbageCollection()
+        {
+            if (GC.MaxGeneration >= 2)
+            {
+                for (int generation = 0; generation <= GC.MaxGeneration; generation++)
+                {
+                    GC.Collect(generation, GCCollectionMode.Optimized, false);
+                    
+                    for (int frame = 0; frame < gcFrameSpread; frame++)
+                    {
+                        await UniTask.Yield();
+                    }
+                }
+            }
+            else
+            {
+                GC.Collect(0, GCCollectionMode.Optimized, false);
+                await UniTask.Yield();
+            }
         }
 
         private async UniTaskVoid ProcessLoadQueue()
@@ -191,7 +229,6 @@ namespace jeanf.scenemanagement
                         await UniTask.WhenAll(_operationBuffer);
                     }
                     
-                    // Small delay to prevent overwhelming the system
                     await UniTask.Yield();
                 }
             }
@@ -199,7 +236,7 @@ namespace jeanf.scenemanagement
             {
                 if (_loadedScenes.Count == 0)
                 {
-                    await FlushMemoryAsync(token);
+                    IncrementalMemoryFlush().Forget();
                 }
                 
                 _isProcessingUnloadQueue = false;
@@ -212,11 +249,9 @@ namespace jeanf.scenemanagement
 
         private async UniTask LoadSceneAsync(string sceneName, CancellationToken cancellationToken)
         {
-            AsyncOperation loadOperation = null;
-    
             try
             {
-                loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+                var loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
                 loadOperation.allowSceneActivation = true;
                 await loadOperation.ToUniTask(cancellationToken: cancellationToken);
                 _loadedScenes.Add(sceneName);
@@ -239,6 +274,45 @@ namespace jeanf.scenemanagement
             {
                 _processingScenes.Remove(sceneName);
             }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (!hasFocus && enableIncrementalGC)
+            {
+                IncrementalMemoryFlush().Forget();
+            }
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (pauseStatus && enableIncrementalGC)
+            {
+                IncrementalMemoryFlush().Forget();
+            }
+        }
+
+        public void ForceMemoryFlush()
+        {
+            if (!_isFlushingMemory)
+            {
+                IncrementalMemoryFlush().Forget();
+            }
+        }
+
+        public bool IsCurrentlyLoading()
+        {
+            return _isProcessingLoadQueue || _isProcessingUnloadQueue || _isFlushingMemory;
+        }
+
+        public int GetLoadedSceneCount()
+        {
+            return _loadedScenes.Count;
+        }
+
+        public int GetPendingOperationCount()
+        {
+            return _loadQueue.Count + _unloadQueue.Count;
         }
     }
 }
