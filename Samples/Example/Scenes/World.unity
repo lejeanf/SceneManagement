@@ -528,6 +528,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   regionConnectivity: {fileID: 11400000, guid: b4d79ed633e52054a89068b75d3b93d6, type: 2}
+  precomputedVolumeData: {fileID: 11400000, guid: 0863e02f23b96f84780562f5069ef304,
+    type: 2}
 --- !u!4 &395811283
 Transform:
   m_ObjectHideFlags: 0

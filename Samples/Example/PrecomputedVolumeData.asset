@@ -1,0 +1,360 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be367183df17c9841aa12aaf3830317d, type: 3}
+  m_Name: PrecomputedVolumeData
+  m_EditorClassIdentifier: 
+  zoneCheckableSets:
+  - primaryZoneId: dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    checkableZoneIds:
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: eb8d1349-7a26-48ae-9c12-96947b9bf237
+    checkableZoneIds:
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 1b96e3e9-8f70-4239-9917-9ff492516f35
+    checkableZoneIds:
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    checkableZoneIds:
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: fc255277-0978-4c49-95a0-2c369fdffe21
+    checkableZoneIds:
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    checkableZoneIds:
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 9f9ed511-f324-428c-9951-ca6512b2dd73
+    checkableZoneIds:
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: e605efcf-664d-48af-81e6-76d41c90f634
+    checkableZoneIds:
+    - e605efcf-664d-48af-81e6-76d41c90f634
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - eb8d1349-7a26-48ae-9c12-96947b9bf237
+    - 1b96e3e9-8f70-4239-9917-9ff492516f35
+    - b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    - fc255277-0978-4c49-95a0-2c369fdffe21
+    - 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    - 9f9ed511-f324-428c-9951-ca6512b2dd73
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    checkableZoneIds:
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    checkableZoneIds:
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    checkableZoneIds:
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    checkableZoneIds:
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 8e7c490d-31dd-41a6-a6b6-66f799618565
+    checkableZoneIds:
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    checkableZoneIds:
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 1d3578f6-9617-495b-a47c-4fce263165fe
+    checkableZoneIds:
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    checkableZoneIds:
+    - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    - cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    - 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    - 8e7c490d-31dd-41a6-a6b6-66f799618565
+    - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    - 1d3578f6-9617-495b-a47c-4fce263165fe
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  - primaryZoneId: 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    checkableZoneIds:
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    checkableZoneIds:
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    checkableZoneIds:
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    checkableZoneIds:
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    checkableZoneIds:
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    checkableZoneIds:
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    checkableZoneIds:
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - primaryZoneId: 7ae31390-180a-4bc4-ac71-7369452b3075
+    checkableZoneIds:
+    - 7ae31390-180a-4bc4-ac71-7369452b3075
+    - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    - 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    - 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    - 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    - 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    - 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    - 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  landingZoneIds:
+  - dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+  - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+  - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+  zoneRegionMappings:
+  - zoneId: dfcdf12b-b1e7-4bb0-9cc9-31e3217f483d
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: eb8d1349-7a26-48ae-9c12-96947b9bf237
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: 1b96e3e9-8f70-4239-9917-9ff492516f35
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: b99b2c20-3b59-4374-9cbe-41ad123bc3e1
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: fc255277-0978-4c49-95a0-2c369fdffe21
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: 7ded9e1e-53ae-449d-9659-4f6754151c8c
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: 9f9ed511-f324-428c-9951-ca6512b2dd73
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: e605efcf-664d-48af-81e6-76d41c90f634
+    regionId: d9233b0a-3c2a-4728-a997-e89055537269
+  - zoneId: cc436b1c-c13d-46b0-8928-1d48ac8de2c2
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: cf42b844-e38e-43f9-b7f2-eb03e8a6a8e7
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: efb37b94-4cdd-4313-9b66-3368a18a4eaf
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: 8e7c490d-31dd-41a6-a6b6-66f799618565
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: f3f3fc1c-0242-48d4-8ba7-cc3f83523894
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: 1d3578f6-9617-495b-a47c-4fce263165fe
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    regionId: 05887829-c6fb-4cd5-9a35-ef4ab431c7fe
+  - zoneId: 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 2fe1cc83-e1d7-495b-8c62-f1700a1d1262
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 807cc93f-4673-4c0a-bf67-37d95e5b62e3
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 8c4d1bfb-b91e-4a76-ab5a-0b6801bf4278
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 075bb4ff-4d00-43e5-8d8e-109dba6444d1
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 6e8b1d72-370d-4821-89c0-2c6fcf25ba91
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 3198ecb4-00ce-4eea-9f2d-cd463dd5769f
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  - zoneId: 7ae31390-180a-4bc4-ac71-7369452b3075
+    regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
+  sourceRegionConnectivityAsset: Assets/SceneManagement/Samples/Example/RegionConnectivity.asset
+  generatedDateTime: 2025-05-30 12:30:12
+  totalZones: 24
+  totalRegions: 3
