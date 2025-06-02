@@ -36,8 +36,6 @@ namespace jeanf.scenemanagement
         {
             return id?.id;
         }
-        
-        
     }
 
     #if UNITY_EDITOR
@@ -64,19 +62,62 @@ namespace jeanf.scenemanagement
             // Access the "id" field within the "Id" class
             SerializedProperty idProperty = property.FindPropertyRelative("id");
 
+            // Show mixed value indicator if multiple objects have different values
+            EditorGUI.showMixedValue = idProperty.hasMultipleDifferentValues;
+            
             // Draw the text field for the "id" string
-            idProperty.stringValue = EditorGUI.TextField(fieldRect, idProperty.stringValue);
+            EditorGUI.BeginChangeCheck();
+            string newValue = EditorGUI.TextField(fieldRect, idProperty.stringValue);
+            if (EditorGUI.EndChangeCheck())
+            {
+                idProperty.stringValue = newValue;
+            }
+
+            // Reset mixed value display
+            EditorGUI.showMixedValue = false;
 
             // Draw the "Generate" button
             if (GUI.Button(buttonRect, "Generate"))
             {
-                idProperty.stringValue = System.Guid.NewGuid().ToString();
+                // Handle multi-object selection properly
+                GenerateUniqueIdsForAllTargets(property);
             }
 
             // End property drawing
             EditorGUI.EndProperty();
         }
-    }
 
+        private void GenerateUniqueIdsForAllTargets(SerializedProperty property)
+        {
+            // Get all target objects (handles multi-selection)
+            UnityEngine.Object[] targets = property.serializedObject.targetObjects;
+            
+            // Record undo for all targets
+            Undo.RecordObjects(targets, "Generate Unique IDs");
+            
+            // Generate unique ID for each target
+            foreach (UnityEngine.Object target in targets)
+            {
+                SerializedObject targetSerializedObject = new SerializedObject(target);
+                SerializedProperty targetProperty = targetSerializedObject.FindProperty(property.propertyPath);
+                SerializedProperty targetIdProperty = targetProperty.FindPropertyRelative("id");
+                
+                // Generate unique GUID for each object
+                targetIdProperty.stringValue = System.Guid.NewGuid().ToString();
+                
+                // Apply changes to this specific target
+                targetSerializedObject.ApplyModifiedProperties();
+                
+                // Mark the asset as dirty to ensure it saves
+                EditorUtility.SetDirty(target);
+            }
+            
+            // Save all modified assets
+            AssetDatabase.SaveAssets();
+            
+            // Refresh the inspector to show updated values
+            property.serializedObject.Update();
+        }
+    }
     #endif
 }
