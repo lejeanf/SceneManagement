@@ -107,12 +107,13 @@ namespace jeanf.scenemanagement
                 {
                     if (zone == null) continue;
                     
+                    // CHANGED: Collect ALL volumes for this zone, not just the first one
                     foreach (var volumeAuth in volumeAuthorings)
                     {
                         if (volumeAuth.zone != null && volumeAuth.zone.id.Equals(zone.id))
                         {
                             regionVolumeMap[region].Add(volumeAuth);
-                            break; // Only add one volume per zone
+                            // REMOVED: break statement - now collects all volumes for the zone
                         }
                     }
                 }
@@ -125,35 +126,45 @@ namespace jeanf.scenemanagement
                 var volumes = kvp.Value;
                 var color = _regionColors[region];
                 
-                // Draw volumes (actual size, no labels)
-                for (int i = 0; i < volumes.Count; i++)
+                // Draw all volumes for this region
+                foreach (var volume in volumes)
                 {
-                    var currentVolume = volumes[i];
-                    if (currentVolume == null) continue;
+                    if (volume == null) continue;
                     
-                    var currentPos = currentVolume.transform.position;
-                    var currentScale = currentVolume.transform.localScale;
+                    var pos = volume.transform.position;
+                    var scale = volume.transform.localScale;
                     
                     Handles.color = color;
-                    Handles.DrawWireCube(currentPos, currentScale);
+                    Handles.DrawWireCube(pos, scale);
                 }
                 
-                // Draw connections between volumes in the same region (red dotted lines)
-                for (int i = 0; i < volumes.Count; i++)
+                // CHANGED: Draw connections between zone centers, not individual volumes
+                var zoneVolumeGroups = new Dictionary<string, List<VolumeAuthoring>>();
+                foreach (var volume in volumes)
                 {
-                    var currentVolume = volumes[i];
-                    if (currentVolume == null) continue;
+                    if (volume?.zone == null) continue;
                     
-                    var currentPos = currentVolume.transform.position;
+                    var zoneId = volume.zone.id.ToString();
+                    if (!zoneVolumeGroups.ContainsKey(zoneId))
+                        zoneVolumeGroups[zoneId] = new List<VolumeAuthoring>();
                     
-                    for (int j = i + 1; j < volumes.Count; j++)
+                    zoneVolumeGroups[zoneId].Add(volume);
+                }
+                
+                // Draw connections between zone centers (red dotted lines)
+                var zoneIds = zoneVolumeGroups.Keys.ToList();
+                for (int i = 0; i < zoneIds.Count; i++)
+                {
+                    for (int j = i + 1; j < zoneIds.Count; j++)
                     {
-                        var otherVolume = volumes[j];
-                        if (otherVolume == null) continue;
+                        var zoneA = zoneVolumeGroups[zoneIds[i]];
+                        var zoneB = zoneVolumeGroups[zoneIds[j]];
                         
-                        var otherPos = otherVolume.transform.position;
+                        var centerA = CalculateZoneCenter(zoneA);
+                        var centerB = CalculateZoneCenter(zoneB);
+                        
                         Handles.color = Color.red;
-                        Handles.DrawDottedLine(currentPos, otherPos, 5f);
+                        Handles.DrawDottedLine(centerA, centerB, 5f);
                     }
                 }
             }
@@ -163,14 +174,15 @@ namespace jeanf.scenemanagement
             {
                 if (landing.landingZone == null || landing.region == null) continue;
                 
-                var landingVolume = System.Array.Find(volumeAuthorings, 
-                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id));
+                // CHANGED: Find ALL volumes for the landing zone
+                var landingVolumes = System.Array.FindAll(volumeAuthorings, 
+                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id)).ToList();
                 
-                if (landingVolume == null) continue;
+                if (landingVolumes.Count == 0) continue;
                 
-                var landingPos = landingVolume.transform.position;
+                var landingCenter = CalculateZoneCenter(landingVolumes);
                 
-                // Connect landing zone to volumes in OTHER regions only
+                // Connect landing zone center to volumes in OTHER regions only
                 foreach (var kvp in regionVolumeMap)
                 {
                     var region = kvp.Key;
@@ -178,13 +190,16 @@ namespace jeanf.scenemanagement
                     
                     if (region.id.Equals(landing.region.id)) continue; // Skip same region
                     
-                    foreach (var regionVolume in volumes)
+                    // Group volumes by zone and connect to zone centers
+                    var zoneGroups = volumes.GroupBy(v => v.zone?.id.ToString()).Where(g => !string.IsNullOrEmpty(g.Key));
+                    
+                    foreach (var zoneGroup in zoneGroups)
                     {
-                        if (regionVolume != null)
-                        {
-                            Handles.color = Color.yellow;
-                            Handles.DrawLine(landingPos, regionVolume.transform.position);
-                        }
+                        var zoneVolumes = zoneGroup.ToList();
+                        var zoneCenter = CalculateZoneCenter(zoneVolumes);
+                        
+                        Handles.color = Color.yellow;
+                        Handles.DrawLine(landingCenter, zoneCenter);
                     }
                 }
             }
@@ -194,18 +209,36 @@ namespace jeanf.scenemanagement
             {
                 if (landing.landingZone == null || landing.region == null) continue;
                 
-                var landingVolume = System.Array.Find(volumeAuthorings, 
-                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id));
+                // CHANGED: Find ALL volumes for the landing zone
+                var landingVolumes = System.Array.FindAll(volumeAuthorings, 
+                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id)).ToList();
                 
-                if (landingVolume == null) continue;
+                if (landingVolumes.Count == 0) continue;
                 
-                var landingPos = landingVolume.transform.position;
-                var landingScale = landingVolume.transform.localScale;
-                
-                // Draw landing zone in blue, actual size
-                Handles.color = Color.blue;
-                Handles.DrawWireCube(landingPos, landingScale);
+                // Draw all landing zone volumes in blue, actual size
+                foreach (var landingVolume in landingVolumes)
+                {
+                    var landingPos = landingVolume.transform.position;
+                    var landingScale = landingVolume.transform.localScale;
+                    
+                    Handles.color = Color.blue;
+                    Handles.DrawWireCube(landingPos, landingScale);
+                }
             }
+        }
+        
+        // Helper method to calculate the center point of a multi-volume zone
+        private Vector3 CalculateZoneCenter(List<VolumeAuthoring> volumes)
+        {
+            if (volumes.Count == 0) return Vector3.zero;
+            if (volumes.Count == 1) return volumes[0].transform.position;
+            
+            Vector3 sum = Vector3.zero;
+            foreach (var volume in volumes)
+            {
+                sum += volume.transform.position;
+            }
+            return sum / volumes.Count;
         }
         
         private void DrawLandingZoneConnections(RegionConnectivity connectivity, VolumeAuthoring[] volumeAuthorings, Dictionary<Region, List<VolumeAuthoring>> regionVolumeMap)
@@ -214,18 +247,26 @@ namespace jeanf.scenemanagement
             {
                 if (landing.landingZone == null || landing.region == null) continue;
                 
-                var landingVolume = System.Array.Find(volumeAuthorings, 
-                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id));
+                // CHANGED: Find ALL volumes for the landing zone
+                var landingVolumes = System.Array.FindAll(volumeAuthorings, 
+                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id)).ToList();
                 
-                if (landingVolume == null) continue;
+                if (landingVolumes.Count == 0) continue;
                 
-                var landingPos = landingVolume.transform.position;
-                var landingScale = landingVolume.transform.localScale;
+                var landingCenter = CalculateZoneCenter(landingVolumes);
                 
-                Handles.color = Color.white;
-                Handles.DrawWireCube(landingPos, landingScale * 1.2f);
-                Handles.Label(landingPos + Vector3.up * (landingScale.y * 0.8f), 
-                    $"LANDING\n{landing.landingZone.zoneName}", 
+                // Draw all landing zone volumes
+                foreach (var landingVolume in landingVolumes)
+                {
+                    var landingPos = landingVolume.transform.position;
+                    var landingScale = landingVolume.transform.localScale;
+                    
+                    Handles.color = Color.white;
+                    Handles.DrawWireCube(landingPos, landingScale * 1.2f);
+                }
+                
+                Handles.Label(landingCenter + Vector3.up * 2f, 
+                    $"LANDING\n{landing.landingZone.zoneName}\n({landingVolumes.Count} volumes)", 
                     new GUIStyle(GUI.skin.label) { 
                         normal = { textColor = Color.white },
                         fontStyle = FontStyle.Bold
@@ -238,13 +279,16 @@ namespace jeanf.scenemanagement
                     
                     if (region.id.Equals(landing.region.id)) continue;
                     
-                    foreach (var regionVolume in volumes)
+                    // Group volumes by zone and connect to zone centers
+                    var zoneGroups = volumes.GroupBy(v => v.zone?.id.ToString()).Where(g => !string.IsNullOrEmpty(g.Key));
+                    
+                    foreach (var zoneGroup in zoneGroups)
                     {
-                        if (regionVolume != null)
-                        {
-                            Handles.color = Color.yellow;
-                            Handles.DrawLine(landingPos, regionVolume.transform.position);
-                        }
+                        var zoneVolumes = zoneGroup.ToList();
+                        var zoneCenter = CalculateZoneCenter(zoneVolumes);
+                        
+                        Handles.color = Color.yellow;
+                        Handles.DrawLine(landingCenter, zoneCenter);
                     }
                 }
             }
@@ -344,11 +388,13 @@ namespace jeanf.scenemanagement
                 {
                     if (zone == null) continue;
                     
+                    // CHANGED: Collect ALL volumes for this zone
                     foreach (var volumeAuth in volumeAuthorings)
                     {
                         if (volumeAuth.zone != null && volumeAuth.zone.id.Equals(zone.id))
                         {
                             regionVolumeMap[region].Add(volumeAuth);
+                            // REMOVED: break statement
                         }
                     }
                 }
@@ -362,31 +408,69 @@ namespace jeanf.scenemanagement
                 
                 Handles.color = color;
                 
-                for (int i = 0; i < volumes.Count; i++)
+                // Draw all volumes in this region
+                foreach (var volume in volumes)
                 {
-                    var currentVolume = volumes[i];
-                    if (currentVolume == null) continue;
+                    if (volume == null) continue;
                     
-                    var currentPos = currentVolume.transform.position;
-                    var currentScale = currentVolume.transform.localScale;
+                    var currentPos = volume.transform.position;
+                    var currentScale = volume.transform.localScale;
                     
                     Handles.DrawWireCube(currentPos, currentScale);
-                    Handles.Label(currentPos + Vector3.up * (currentScale.y * 0.6f), 
-                        $"{region.levelName}\n{currentVolume.zone.zoneName}", 
-                        new GUIStyle(GUI.skin.label) { normal = { textColor = color } });
                     
-                    for (int j = i + 1; j < volumes.Count; j++)
+                    // Only show label for first volume of each zone to avoid clutter
+                    var isFirstVolumeOfZone = volumes.Where(v => v?.zone?.id == volume.zone?.id).First() == volume;
+                    if (isFirstVolumeOfZone)
                     {
-                        var otherVolume = volumes[j];
-                        if (otherVolume == null) continue;
+                        Handles.Label(currentPos + Vector3.up * (currentScale.y * 0.6f), 
+                            $"{region.levelName}\n{volume.zone.zoneName}", 
+                            new GUIStyle(GUI.skin.label) { normal = { textColor = color } });
+                    }
+                }
+                
+                // CHANGED: Draw connections between zone centers
+                var zoneVolumeGroups = new Dictionary<string, List<VolumeAuthoring>>();
+                foreach (var volume in volumes)
+                {
+                    if (volume?.zone == null) continue;
+                    
+                    var zoneId = volume.zone.id.ToString();
+                    if (!zoneVolumeGroups.ContainsKey(zoneId))
+                        zoneVolumeGroups[zoneId] = new List<VolumeAuthoring>();
+                    
+                    zoneVolumeGroups[zoneId].Add(volume);
+                }
+                
+                var zoneIds = zoneVolumeGroups.Keys.ToList();
+                for (int i = 0; i < zoneIds.Count; i++)
+                {
+                    for (int j = i + 1; j < zoneIds.Count; j++)
+                    {
+                        var zoneA = zoneVolumeGroups[zoneIds[i]];
+                        var zoneB = zoneVolumeGroups[zoneIds[j]];
                         
-                        var otherPos = otherVolume.transform.position;
-                        Handles.DrawDottedLine(currentPos, otherPos, 5f);
+                        var centerA = CalculateZoneCenter(zoneA);
+                        var centerB = CalculateZoneCenter(zoneB);
+                        
+                        Handles.DrawDottedLine(centerA, centerB, 5f);
                     }
                 }
             }
             
             DrawLandingZoneConnections(connectivity, volumeAuthorings, regionVolumeMap);
+        }
+        
+        private Vector3 CalculateZoneCenter(List<VolumeAuthoring> volumes)
+        {
+            if (volumes.Count == 0) return Vector3.zero;
+            if (volumes.Count == 1) return volumes[0].transform.position;
+            
+            Vector3 sum = Vector3.zero;
+            foreach (var volume in volumes)
+            {
+                sum += volume.transform.position;
+            }
+            return sum / volumes.Count;
         }
         
         private void DrawLandingZoneConnections(RegionConnectivity connectivity, VolumeAuthoring[] volumeAuthorings, Dictionary<Region, List<VolumeAuthoring>> regionVolumeMap)
@@ -395,18 +479,26 @@ namespace jeanf.scenemanagement
             {
                 if (landing.landingZone == null || landing.region == null) continue;
                 
-                var landingVolume = System.Array.Find(volumeAuthorings, 
-                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id));
+                // CHANGED: Find ALL volumes for the landing zone
+                var landingVolumes = System.Array.FindAll(volumeAuthorings, 
+                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id)).ToList();
                 
-                if (landingVolume == null) continue;
+                if (landingVolumes.Count == 0) continue;
                 
-                var landingPos = landingVolume.transform.position;
-                var landingScale = landingVolume.transform.localScale;
+                var landingCenter = CalculateZoneCenter(landingVolumes);
                 
-                Handles.color = Color.white;
-                Handles.DrawWireCube(landingPos, landingScale * 1.2f);
-                Handles.Label(landingPos + Vector3.up * (landingScale.y * 0.8f), 
-                    $"LANDING\n{landing.landingZone.zoneName}", 
+                // Draw all landing zone volumes
+                foreach (var landingVolume in landingVolumes)
+                {
+                    var landingPos = landingVolume.transform.position;
+                    var landingScale = landingVolume.transform.localScale;
+                    
+                    Handles.color = Color.white;
+                    Handles.DrawWireCube(landingPos, landingScale * 1.2f);
+                }
+                
+                Handles.Label(landingCenter + Vector3.up * 2f, 
+                    $"LANDING\n{landing.landingZone.zoneName}\n({landingVolumes.Count} volumes)", 
                     new GUIStyle(GUI.skin.label) { 
                         normal = { textColor = Color.white },
                         fontStyle = FontStyle.Bold
@@ -419,13 +511,16 @@ namespace jeanf.scenemanagement
                     
                     if (region.id.Equals(landing.region.id)) continue;
                     
-                    foreach (var regionVolume in volumes)
+                    // Group by zone and connect to zone centers
+                    var zoneGroups = volumes.GroupBy(v => v.zone?.id.ToString()).Where(g => !string.IsNullOrEmpty(g.Key));
+                    
+                    foreach (var zoneGroup in zoneGroups)
                     {
-                        if (regionVolume != null)
-                        {
-                            Handles.color = Color.yellow;
-                            Handles.DrawLine(landingPos, regionVolume.transform.position);
-                        }
+                        var zoneVolumes = zoneGroup.ToList();
+                        var zoneCenter = CalculateZoneCenter(zoneVolumes);
+                        
+                        Handles.color = Color.yellow;
+                        Handles.DrawLine(landingCenter, zoneCenter);
                     }
                 }
             }
@@ -623,99 +718,100 @@ namespace jeanf.scenemanagement
             }
             
             var regionColor = _regionColors[currentRegion];
-            var selectedPos = selectedVolume.transform.position;
-            var selectedScale = selectedVolume.transform.localScale;
+            
+            // CHANGED: Calculate center of the selected zone (which may have multiple volumes)
+            var selectedZoneVolumes = System.Array.FindAll(allVolumeAuthorings,
+                v => v.zone != null && v.zone.id.Equals(currentZone.id)).ToList();
+            var selectedZoneCenter = CalculateZoneCenter(selectedZoneVolumes);
             
             // Priority 3: Draw other connections first (same region) - red dotted lines
             foreach (var zone in currentRegion.zonesInThisRegion)
             {
                 if (zone == null || zone == currentZone) continue;
                 
-                foreach (var volumeAuth in allVolumeAuthorings)
+                // CHANGED: Find ALL volumes for this zone and draw connections to zone center
+                var zoneVolumes = System.Array.FindAll(allVolumeAuthorings,
+                    v => v.zone != null && v.zone.id.Equals(zone.id)).ToList();
+                
+                if (zoneVolumes.Count == 0) continue;
+                
+                var zoneCenter = CalculateZoneCenter(zoneVolumes);
+                
+                // Draw all volumes in this zone
+                foreach (var volume in zoneVolumes)
                 {
-                    if (volumeAuth == null || volumeAuth.zone == null) continue;
-                    
-                    if (volumeAuth.zone.id.Equals(zone.id))
-                    {
-                        var otherPos = volumeAuth.transform.position;
-                        var otherScale = volumeAuth.transform.localScale;
-                        
-                        // Draw the volume
-                        Handles.color = regionColor;
-                        Handles.DrawWireCube(otherPos, otherScale);
-                        
-                        // Draw potential connection (red dotted line)
-                        Handles.color = Color.red;
-                        Handles.DrawDottedLine(selectedPos, otherPos, 5f);
-                        break; // Only draw one volume per zone
-                    }
+                    Handles.color = regionColor;
+                    Handles.DrawWireCube(volume.transform.position, volume.transform.localScale);
                 }
+                
+                // Draw connection line between zone centers
+                Handles.color = Color.red;
+                Handles.DrawDottedLine(selectedZoneCenter, zoneCenter, 5f);
             }
             
-            // Show actual landing zone connectivity - yellow solid lines
+            // Handle landing zone connections
             var landingConnection = _foundConnectivity.landingZones.FirstOrDefault(l => l.landingZone == currentZone);
             if (landingConnection != null)
             {
-                // This volume IS a landing zone - show connections to OTHER regions
+                // This zone IS a landing zone - show connections to OTHER regions
                 foreach (var region in _foundConnectivity.activeRegions)
                 {
-                    if (region == null || region.id.Equals(currentRegion.id)) continue; // Skip same region
-                    
-                    if (!_regionColors.ContainsKey(region))
-                    {
-                        var colorIndex = _regionColors.Count % _predefinedColors.Length;
-                        _regionColors[region] = _predefinedColors[colorIndex];
-                    }
+                    if (region == null || region.id.Equals(currentRegion.id)) continue;
                     
                     foreach (var zone in region.zonesInThisRegion)
                     {
                         if (zone == null) continue;
                         
-                        foreach (var volumeAuth in allVolumeAuthorings)
+                        var zoneVolumes = System.Array.FindAll(allVolumeAuthorings,
+                            v => v.zone != null && v.zone.id.Equals(zone.id)).ToList();
+                        
+                        if (zoneVolumes.Count == 0) continue;
+                        
+                        var zoneCenter = CalculateZoneCenter(zoneVolumes);
+                        
+                        // Draw zone volumes
+                        foreach (var volume in zoneVolumes)
                         {
-                            if (volumeAuth == null || volumeAuth.zone == null) continue;
-                            
-                            if (volumeAuth.zone.id.Equals(zone.id))
+                            if (!_regionColors.ContainsKey(region))
                             {
-                                var otherPos = volumeAuth.transform.position;
-                                var otherScale = volumeAuth.transform.localScale;
-                                
-                                // Draw the target volume
-                                Handles.color = _regionColors[region];
-                                Handles.DrawWireCube(otherPos, otherScale);
-                                
-                                // Draw ACTUAL landing zone connection (yellow solid line)
-                                Handles.color = Color.yellow;
-                                Handles.DrawLine(selectedPos, otherPos);
-                                break; // Only draw one volume per zone
+                                var colorIndex = _regionColors.Count % _predefinedColors.Length;
+                                _regionColors[region] = _predefinedColors[colorIndex];
                             }
+                            
+                            Handles.color = _regionColors[region];
+                            Handles.DrawWireCube(volume.transform.position, volume.transform.localScale);
                         }
+                        
+                        // Draw landing connection
+                        Handles.color = Color.yellow;
+                        Handles.DrawLine(selectedZoneCenter, zoneCenter);
                     }
                 }
             }
             
-            // Show connections FROM other landing zones TO this volume
+            // Draw connections FROM other landing zones TO this zone
             foreach (var landing in _foundConnectivity.landingZones)
             {
                 if (landing.landingZone == null || landing.region == null) continue;
-                if (landing.landingZone == currentZone) continue; // Skip self
+                if (landing.landingZone == currentZone) continue;
                 
-                // Find the landing zone volume
-                foreach (var volumeAuth in allVolumeAuthorings)
+                var landingVolumes = System.Array.FindAll(allVolumeAuthorings,
+                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id)).ToList();
+                
+                if (landingVolumes.Count == 0) continue;
+                
+                var landingCenter = CalculateZoneCenter(landingVolumes);
+                
+                // Draw landing zone volumes in blue
+                foreach (var volume in landingVolumes)
                 {
-                    if (volumeAuth == null || volumeAuth.zone == null) continue;
-                    
-                    if (volumeAuth.zone.id.Equals(landing.landingZone.id))
-                    {
-                        var landingPos = volumeAuth.transform.position;
-                        var landingScale = volumeAuth.transform.localScale;
-                        
-                        // Draw ACTUAL connection from landing zone to current volume (yellow solid line)
-                        Handles.color = Color.yellow;
-                        Handles.DrawLine(landingPos, selectedPos);
-                        break;
-                    }
+                    Handles.color = Color.blue;
+                    Handles.DrawWireCube(volume.transform.position, volume.transform.localScale);
                 }
+                
+                // Draw connection
+                Handles.color = Color.yellow;
+                Handles.DrawLine(landingCenter, selectedZoneCenter);
             }
             
             // Priority 2: Draw landing zones - blue boxes, same size as volume
@@ -724,33 +820,50 @@ namespace jeanf.scenemanagement
                 if (landing.landingZone == null || landing.region == null) continue;
                 if (landing.landingZone == currentZone) continue; // Skip self (will be drawn as selected)
                 
-                // Find the landing zone volume
-                foreach (var volumeAuth in allVolumeAuthorings)
+                // Find all landing zone volumes
+                var landingVolumes = System.Array.FindAll(allVolumeAuthorings,
+                    v => v.zone != null && v.zone.id.Equals(landing.landingZone.id)).ToList();
+                
+                if (landingVolumes.Count == 0) continue;
+                
+                // Draw landing zone volumes in blue, same size as volume
+                foreach (var landingVolume in landingVolumes)
                 {
-                    if (volumeAuth == null || volumeAuth.zone == null) continue;
+                    var landingPos = landingVolume.transform.position;
+                    var landingScale = landingVolume.transform.localScale;
                     
-                    if (volumeAuth.zone.id.Equals(landing.landingZone.id))
-                    {
-                        var landingPos = volumeAuth.transform.position;
-                        var landingScale = volumeAuth.transform.localScale;
-                        
-                        // Draw landing zone in blue, same size as volume
-                        Handles.color = Color.blue;
-                        Handles.DrawWireCube(landingPos, landingScale);
-                        break;
-                    }
+                    Handles.color = Color.blue;
+                    Handles.DrawWireCube(landingPos, landingScale);
                 }
             }
             
-            // Priority 1: Draw selected volume last - yellow box, actual size
-            Handles.color = Color.yellow;
-            Handles.DrawWireCube(selectedPos, selectedScale);
-            Handles.Label(selectedPos + Vector3.up * (selectedScale.y * 0.7f), 
-                $"SELECTED\n{currentZone.zoneName}", 
+            // Priority 1: Draw selected zone volumes last - yellow boxes, actual size
+            foreach (var selectedVol in selectedZoneVolumes)
+            {
+                Handles.color = Color.yellow;
+                Handles.DrawWireCube(selectedVol.transform.position, selectedVol.transform.localScale);
+            }
+            
+            // Add label for the selected zone at the zone center
+            Handles.Label(selectedZoneCenter + Vector3.up * 2f, 
+                $"SELECTED ZONE\n{currentZone.zoneName}\n({selectedZoneVolumes.Count} volumes)", 
                 new GUIStyle(GUI.skin.label) { 
                     normal = { textColor = Color.yellow },
                     fontStyle = FontStyle.Bold
                 });
+        }
+        
+        private Vector3 CalculateZoneCenter(List<VolumeAuthoring> volumes)
+        {
+            if (volumes.Count == 0) return Vector3.zero;
+            if (volumes.Count == 1) return volumes[0].transform.position;
+            
+            Vector3 sum = Vector3.zero;
+            foreach (var volume in volumes)
+            {
+                sum += volume.transform.position;
+            }
+            return sum / volumes.Count;
         }
     }
     

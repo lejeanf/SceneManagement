@@ -79,7 +79,6 @@ namespace jeanf.scenemanagement
             _toLoadList.Clear();
             _toUnloadList.Clear();
 
-            // GC ALLOCATION FIX: Use try-finally for guaranteed disposal
             var relevantPositions = _relevantQuery.ToComponentDataArray<LocalToWorld>(Allocator.TempJob);
             try
             {
