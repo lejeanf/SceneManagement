@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using jeanf.EventSystem;
-using jeanf.propertyDrawer;
 using jeanf.universalplayer;
+using Unity.Collections;
 
 namespace jeanf.scenemanagement
 {
@@ -31,8 +31,8 @@ namespace jeanf.scenemanagement
         [SerializeField] private StringEventChannelSO regionChangeRequestChannel;
         [SerializeField] private SendTeleportTarget sendTeleportTarget;
 
-        [ReadOnly] [SerializeField] private Zone _currentPlayerZone;
-        [ReadOnly] [SerializeField] private Region _currentPlayerRegion;
+        [propertyDrawer.ReadOnly] [SerializeField] private Zone _currentPlayerZone;
+        [propertyDrawer.ReadOnly] [SerializeField] private Region _currentPlayerRegion;
         
         private static WorldManager Instance;
         private static bool _isRegionTransitioning = false;
@@ -212,15 +212,15 @@ namespace jeanf.scenemanagement
             }
         }
         
-        public static void NotifyZoneChangeFromECS(string zoneId)
+        public static void NotifyZoneChangeFromECS(FixedString128Bytes zoneId)
         {
             if (Instance != null && !_isRegionTransitioning)
             {
-                Instance.OnZoneChangedFromECS(zoneId);
+                Instance.OnZoneChangedFromECS(zoneId.ToString());
             }
         }
         
-        public static void NotifyRegionChangeFromECS(string regionId)
+        public static void NotifyRegionChangeFromECS(FixedString128Bytes regionId)
         {
             if (Instance != null && !_isRegionTransitioning)
             {
@@ -230,7 +230,6 @@ namespace jeanf.scenemanagement
 
         private void OnZoneChangedFromECS(string zoneId)
         {
-            // GC ALLOCATION FIX: Early exit to avoid string operations
             if (string.IsNullOrEmpty(zoneId) || _lastNotifiedZone == zoneId) return;
             
             if (!_zoneDictionary.TryGetValue(zoneId, out var zone)) return;
@@ -238,19 +237,18 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = zoneId;
             _currentPlayerZone = zone;
             
-            // GC ALLOCATION FIX: Only invoke if delegates are not null
             PublishCurrentZoneId?.Invoke(zone.id);
             PublishAppList(zone);
         }
         
-        private void OnRegionChangedFromECS(string regionId)
+        private void OnRegionChangedFromECS(FixedString128Bytes regionId)
         {
-            // GC ALLOCATION FIX: Early exit to avoid unnecessary operations
-            if (string.IsNullOrEmpty(regionId) || _lastNotifiedRegion == regionId) return;
+            var id = regionId.ToString();
+            if (string.IsNullOrEmpty(id) || _lastNotifiedRegion == regionId) return;
             
-            if (!_regionDictionary.TryGetValue(regionId, out var region)) return;
+            if (!_regionDictionary.TryGetValue(id, out var region)) return;
             
-            _lastNotifiedRegion = regionId;
+            _lastNotifiedRegion = id;
             _currentPlayerRegion = region;
             
             OnRegionChange(region);

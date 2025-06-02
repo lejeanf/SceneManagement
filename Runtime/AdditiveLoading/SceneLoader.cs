@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -63,7 +62,6 @@ namespace jeanf.scenemanagement
             LoadSceneRequest += QueueLoadScene;
             UnLoadSceneRequest += QueueUnloadScene;
             UnloadAllScenesRequest += QueueUnloadAllScenes;
-            FlushScenesRequest += () => IncrementalMemoryFlush().Forget();
         }
 
         private void Unsubscribe()
@@ -105,51 +103,6 @@ namespace jeanf.scenemanagement
             
             ProcessUnloadQueue().Forget();
         }
-        
-        private async UniTaskVoid IncrementalMemoryFlush()
-        {
-            if (_isFlushingMemory) return;
-            _isFlushingMemory = true;
-
-            try
-            {
-                await UniTask.Delay(TimeSpan.FromSeconds(memoryFlushDelay), DelayType.Realtime);
-                
-                var unloadOperation = Resources.UnloadUnusedAssets();
-                await unloadOperation.ToUniTask();
-                
-                if (enableIncrementalGC)
-                {
-                    await IncrementalGarbageCollection();
-                }
-            }
-            finally
-            {
-                _isFlushingMemory = false;
-            }
-        }
-
-        private async UniTask IncrementalGarbageCollection()
-        {
-            if (GC.MaxGeneration >= 2)
-            {
-                for (int generation = 0; generation <= GC.MaxGeneration; generation++)
-                {
-                    GC.Collect(generation, GCCollectionMode.Optimized, false);
-                    
-                    for (int frame = 0; frame < gcFrameSpread; frame++)
-                    {
-                        await UniTask.Yield();
-                    }
-                }
-            }
-            else
-            {
-                GC.Collect(0, GCCollectionMode.Optimized, false);
-                await UniTask.Yield();
-            }
-        }
-
         private async UniTaskVoid ProcessLoadQueue()
         {
             if (_isProcessingLoadQueue) return;
@@ -234,11 +187,6 @@ namespace jeanf.scenemanagement
             }
             finally
             {
-                if (_loadedScenes.Count == 0)
-                {
-                    IncrementalMemoryFlush().Forget();
-                }
-                
                 _isProcessingUnloadQueue = false;
                 if (!_isProcessingLoadQueue && _loadQueue.Count == 0)
                 {
@@ -273,30 +221,6 @@ namespace jeanf.scenemanagement
             finally
             {
                 _processingScenes.Remove(sceneName);
-            }
-        }
-
-        private void OnApplicationFocus(bool hasFocus)
-        {
-            if (!hasFocus && enableIncrementalGC)
-            {
-                IncrementalMemoryFlush().Forget();
-            }
-        }
-
-        private void OnApplicationPause(bool pauseStatus)
-        {
-            if (pauseStatus && enableIncrementalGC)
-            {
-                IncrementalMemoryFlush().Forget();
-            }
-        }
-
-        public void ForceMemoryFlush()
-        {
-            if (!_isFlushingMemory)
-            {
-                IncrementalMemoryFlush().Forget();
             }
         }
 
