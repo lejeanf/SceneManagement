@@ -191,7 +191,7 @@ namespace jeanf.scenemanagement
         
         private void BuildLandingZoneCache()
         {
-            var connectivity = FindObjectOfType<RegionConnectivityAuthoring>();
+            var connectivity = FindFirstObjectByType<RegionConnectivityAuthoring>();
             if (connectivity?.regionConnectivity?.landingZones == null) return;
             
             for (int i = 0; i < connectivity.regionConnectivity.landingZones.Count; i++)
@@ -208,7 +208,6 @@ namespace jeanf.scenemanagement
         {
             if (Instance != null && !_isRegionTransitioning)
             {
-                // FIXED: Reliable string conversion
                 var zoneIdString = zoneId.ToString();
                 Instance.OnZoneChangedFromECS(zoneIdString);
             }
@@ -218,7 +217,6 @@ namespace jeanf.scenemanagement
         {
             if (Instance != null && !_isRegionTransitioning)
             {
-                // FIXED: Reliable string conversion
                 var regionIdString = regionId.ToString();
                 Instance.OnRegionChangedFromECS(regionIdString);
             }
@@ -226,7 +224,6 @@ namespace jeanf.scenemanagement
 
         private void OnZoneChangedFromECS(string zoneId)
         {
-            // FIXED: Handle empty zones properly
             if (zoneId == _lastNotifiedZone) return;
             
             if (string.IsNullOrEmpty(zoneId))
@@ -249,7 +246,6 @@ namespace jeanf.scenemanagement
         
         private void OnRegionChangedFromECS(string regionId)
         {
-            // FIXED: Handle empty regions properly and fix comparison
             if (regionId == _lastNotifiedRegion) return;
             
             if (string.IsNullOrEmpty(regionId))

@@ -1,12 +1,13 @@
 ﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace jeanf.scenemanagement
 {
     [CreateAssetMenu(fileName = "App_", menuName = "LoadingSystem/App")]
     public class AppType: ScriptableObject
     {
-        [Header("App Information")]
-        public string name;
+        [FormerlySerializedAs("name")] [Header("App Information")]
+        public string appName;
         public Texture2D icon;
     }
 }
