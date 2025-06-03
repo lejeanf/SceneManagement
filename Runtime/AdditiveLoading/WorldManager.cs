@@ -24,7 +24,6 @@ namespace jeanf.scenemanagement
         private List<Region> _activeRegions = new List<Region>();
         private bool _mappingInitialized = false;
         
-        // GC ALLOCATION FIX: Pre-allocate reusable collections
         private readonly List<string> _tempSceneNames = new List<string>();
         private readonly List<Region> _tempRegionsToRemove = new List<Region>();
 
@@ -128,7 +127,6 @@ namespace jeanf.scenemanagement
             _landingZoneIds.Clear();
             _activeRegions.Clear();
             
-            // GC ALLOCATION FIX: Clear reusable collections instead of creating new ones
             _tempSceneNames.Clear();
             _tempRegionsToRemove.Clear();
             _mappingInitialized = false;
@@ -141,7 +139,6 @@ namespace jeanf.scenemanagement
             var regionCount = ListOfRegions?.Count ?? 0;
             if (regionCount == 0) return;
             
-            // GC ALLOCATION FIX: Use for loop instead of foreach to avoid enumerator allocation
             for (int i = 0; i < ListOfRegions.Count; i++)
             {
                 var region = ListOfRegions[i];
@@ -153,7 +150,6 @@ namespace jeanf.scenemanagement
                 
                 if (region.scenariosInThisRegion != null)
                 {
-                    // GC ALLOCATION FIX: Use for loop instead of foreach
                     for (int j = 0; j < region.scenariosInThisRegion.Count; j++)
                     {
                         var scenario = region.scenariosInThisRegion[j];
@@ -166,7 +162,6 @@ namespace jeanf.scenemanagement
 
                 if (region.zonesInThisRegion != null)
                 {
-                    // GC ALLOCATION FIX: Use for loop instead of foreach
                     for (int j = 0; j < region.zonesInThisRegion.Count; j++)
                     {
                         var zone = region.zonesInThisRegion[j];
@@ -185,10 +180,8 @@ namespace jeanf.scenemanagement
         
         private void PrecompileSceneList(Region region)
         {
-            // GC ALLOCATION FIX: Use capacity to avoid List resizing
             var sceneNames = new List<string>(region.dependenciesInThisRegion.Count);
             
-            // GC ALLOCATION FIX: Use for loop instead of foreach
             for (int i = 0; i < region.dependenciesInThisRegion.Count; i++)
             {
                 sceneNames.Add(region.dependenciesInThisRegion[i].SceneName);
@@ -201,7 +194,6 @@ namespace jeanf.scenemanagement
             var connectivity = FindObjectOfType<RegionConnectivityAuthoring>();
             if (connectivity?.regionConnectivity?.landingZones == null) return;
             
-            // GC ALLOCATION FIX: Use for loop instead of foreach
             for (int i = 0; i < connectivity.regionConnectivity.landingZones.Count; i++)
             {
                 var landing = connectivity.regionConnectivity.landingZones[i];
@@ -216,7 +208,9 @@ namespace jeanf.scenemanagement
         {
             if (Instance != null && !_isRegionTransitioning)
             {
-                Instance.OnZoneChangedFromECS(zoneId.ToString());
+                // FIXED: Reliable string conversion
+                var zoneIdString = zoneId.ToString();
+                Instance.OnZoneChangedFromECS(zoneIdString);
             }
         }
         
@@ -224,14 +218,26 @@ namespace jeanf.scenemanagement
         {
             if (Instance != null && !_isRegionTransitioning)
             {
-                Instance.OnRegionChangedFromECS(regionId);
+                // FIXED: Reliable string conversion
+                var regionIdString = regionId.ToString();
+                Instance.OnRegionChangedFromECS(regionIdString);
             }
         }
 
         private void OnZoneChangedFromECS(string zoneId)
         {
-            if (string.IsNullOrEmpty(zoneId) || _lastNotifiedZone == zoneId) return;
+            // FIXED: Handle empty zones properly
+            if (zoneId == _lastNotifiedZone) return;
             
+            if (string.IsNullOrEmpty(zoneId))
+            {
+                _lastNotifiedZone = "";
+                _currentPlayerZone = null;
+                PublishCurrentZoneId?.Invoke("");
+                PublishAppList(null);
+                return;
+            }
+
             if (!_zoneDictionary.TryGetValue(zoneId, out var zone)) return;
 
             _lastNotifiedZone = zoneId;
@@ -241,14 +247,22 @@ namespace jeanf.scenemanagement
             PublishAppList(zone);
         }
         
-        private void OnRegionChangedFromECS(FixedString128Bytes regionId)
+        private void OnRegionChangedFromECS(string regionId)
         {
-            var id = regionId.ToString();
-            if (string.IsNullOrEmpty(id) || _lastNotifiedRegion == regionId) return;
+            // FIXED: Handle empty regions properly and fix comparison
+            if (regionId == _lastNotifiedRegion) return;
             
-            if (!_regionDictionary.TryGetValue(id, out var region)) return;
+            if (string.IsNullOrEmpty(regionId))
+            {
+                _lastNotifiedRegion = "";
+                _currentPlayerRegion = null;
+                PublishCurrentRegionId?.Invoke("");
+                return;
+            }
             
-            _lastNotifiedRegion = id;
+            if (!_regionDictionary.TryGetValue(regionId, out var region)) return;
+            
+            _lastNotifiedRegion = regionId;
             _currentPlayerRegion = region;
             
             OnRegionChange(region);
@@ -275,20 +289,16 @@ namespace jeanf.scenemanagement
             _currentPlayerRegion = region;
             _lastNotifiedRegion = region.id;
             
-            // GC ALLOCATION FIX: Only invoke if delegate is not null
             PublishCurrentRegionId?.Invoke(_currentPlayerRegion.id);
 
-            // GC ALLOCATION FIX: Clear and reuse collection instead of creating new
             _tempRegionsToRemove.Clear();
             
-            // GC ALLOCATION FIX: Use for loop instead of foreach
             for (int i = 0; i < _activeRegions.Count; i++)
             {
                 var removedRegion = RequestUnLoadForObsoleteRegion(_activeRegions[i]);
                 _tempRegionsToRemove.Add(removedRegion);
             }
 
-            // GC ALLOCATION FIX: Use for loop instead of foreach
             for (int i = 0; i < _tempRegionsToRemove.Count; i++)
             {
                 _activeRegions.Remove(_tempRegionsToRemove[i]);
@@ -325,7 +335,6 @@ namespace jeanf.scenemanagement
                     _currentPlayerZone = firstZone;
                     _lastNotifiedZone = firstZone.id;
                     
-                    // GC ALLOCATION FIX: Only invoke if delegates are not null
                     PublishCurrentZoneId?.Invoke(firstZone.id);
                     PublishAppList(firstZone);
                 }
@@ -346,13 +355,18 @@ namespace jeanf.scenemanagement
 
         private void PublishAppList(Zone zone)
         {
+            if (zone == null)
+            {
+                _broadcastAppList?.Invoke(new List<AppType>());
+                return;
+            }
+
             var listToBroadcast = zone.DefaultAppsInZone;
             if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone.id, out var value))
             {
                 listToBroadcast = value;
             }
             
-            // GC ALLOCATION FIX: Only invoke if delegate is not null
             _broadcastAppList?.Invoke(listToBroadcast);
         }
 
@@ -360,7 +374,6 @@ namespace jeanf.scenemanagement
         {
             if (!_compiledSceneLists.TryGetValue(region.id, out var sceneNames) || sceneNames.Count <= 0) return;
             
-            // GC ALLOCATION FIX: Use for loop instead of foreach
             for (int i = 0; i < sceneNames.Count; i++)
             {
                 _sceneLoader.LoadSceneRequest(sceneNames[i]);
@@ -371,7 +384,6 @@ namespace jeanf.scenemanagement
         {
             if (_compiledSceneLists.TryGetValue(region.id, out var sceneNames))
             {
-                // GC ALLOCATION FIX: Use for loop instead of foreach
                 for (int i = 0; i < sceneNames.Count; i++)
                 {
                     _sceneLoader.UnLoadSceneRequest(sceneNames[i]);

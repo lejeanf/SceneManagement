@@ -29,6 +29,7 @@ namespace jeanf.scenemanagement
         private NativeHashSet<FixedString128Bytes> _landingZones;
         private NativeArray<FixedString128Bytes> _allZones;
         private bool _precomputedDataInitialized;
+        private bool _initialRegionDetected;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
@@ -49,6 +50,7 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = new FixedString128Bytes();
             _lastNotifiedRegion = new FixedString128Bytes();
             _precomputedDataInitialized = false;
+            _initialRegionDetected = false;
 
             _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
             _volumeQuery = SystemAPI.QueryBuilder().WithAll<Volume, LocalToWorld>().Build();
@@ -251,14 +253,26 @@ namespace jeanf.scenemanagement
         private void CheckForZoneAndRegionChange(FixedString128Bytes newPlayerZone)
         {
             var zoneChanged = !_currentPlayerZone.Equals(newPlayerZone);
-            var regionChanged = false;
             var newPlayerRegion = new FixedString128Bytes();
+            var regionChanged = false;
 
-            if (!newPlayerZone.IsEmpty && _zoneToRegionMap.TryGetValue(newPlayerZone, out newPlayerRegion))
+            // Always attempt to get region, regardless of zone change
+            if (!newPlayerZone.IsEmpty)
             {
-                regionChanged = !_currentPlayerRegion.Equals(newPlayerRegion);
+                if (_zoneToRegionMap.TryGetValue(newPlayerZone, out newPlayerRegion))
+                {
+                    // FIXED: Detect initial region setup OR actual region change
+                    regionChanged = !_currentPlayerRegion.Equals(newPlayerRegion) || !_initialRegionDetected;
+                }
+            }
+            else
+            {
+                // Handle empty zone case - clear region if zone is empty
+                regionChanged = !_currentPlayerRegion.IsEmpty;
+                newPlayerRegion = new FixedString128Bytes(); // Empty region
             }
 
+            // Update internal state FIRST
             if (zoneChanged)
             {
                 _currentPlayerZone = newPlayerZone;
@@ -267,18 +281,27 @@ namespace jeanf.scenemanagement
             if (regionChanged)
             {
                 _currentPlayerRegion = newPlayerRegion;
+                _initialRegionDetected = true; // Mark that we've detected initial region
             }
 
-            if (zoneChanged && !newPlayerZone.IsEmpty && !_lastNotifiedZone.Equals(newPlayerZone))
+            // Always notify on first detection (bootstrap) or when values actually change
+            if (zoneChanged && !newPlayerZone.IsEmpty)
             {
-                _lastNotifiedZone = newPlayerZone;
-                WorldManager.NotifyZoneChangeFromECS(newPlayerZone);
+                if (!_lastNotifiedZone.Equals(newPlayerZone))
+                {
+                    _lastNotifiedZone = newPlayerZone;
+                    WorldManager.NotifyZoneChangeFromECS(newPlayerZone);
+                }
             }
 
-            if (regionChanged && !newPlayerRegion.IsEmpty && !_lastNotifiedRegion.Equals(newPlayerRegion))
+            // Notify region change including initial detection
+            if (regionChanged)
             {
-                _lastNotifiedRegion = newPlayerRegion;
-                WorldManager.NotifyRegionChangeFromECS(newPlayerRegion);
+                if (!_lastNotifiedRegion.Equals(newPlayerRegion))
+                {
+                    _lastNotifiedRegion = newPlayerRegion;
+                    WorldManager.NotifyRegionChangeFromECS(newPlayerRegion);
+                }
             }
         }
 

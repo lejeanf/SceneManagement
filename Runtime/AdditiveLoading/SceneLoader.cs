@@ -12,10 +12,6 @@ namespace jeanf.scenemanagement
         public bool isDebug = false;
         private CancellationTokenSource _queueCts;
         [SerializeField] private int maxConcurrentLoads = 2;
-        [SerializeField] private int gcFrameSpread = 5;
-        [SerializeField] private bool enableIncrementalGC = true;
-        [SerializeField] private float memoryFlushDelay = 0.1f;
-        
         public delegate void IsLoadingDelegate(bool loadingState);
         public static IsLoadingDelegate IsLoading;
         
