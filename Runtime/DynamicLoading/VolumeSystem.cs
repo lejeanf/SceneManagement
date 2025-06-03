@@ -111,9 +111,13 @@ namespace jeanf.scenemanagement
                 _precomputedDataInitialized = true;
             }
 
-            SetCheckableZones();
-            var newPlayerZone = CheckVolumesForPlayerZone(ref state, playerPosition);
-            CheckForZoneAndRegionChange(newPlayerZone);
+            CheckForZoneAndRegionChange(
+                CheckVolumesForPlayerZone(
+                    ref state, playerPosition, 
+                    ref _currentPlayerZone, 
+                    SetCheckableZones(_currentPlayerZone))
+                );
+            
             ProcessLevelLoadingStates(ref state);
             
             ProcessPendingNotifications();
@@ -121,35 +125,7 @@ namespace jeanf.scenemanagement
             if (relevantPositions.IsCreated) relevantPositions.Dispose();
         }
 
-        [BurstCompile]
-        private FixedString128Bytes CheckVolumesForPlayerZone(ref SystemState state, float3 playerPosition)
-        {
-            var newPlayerZone = new FixedString128Bytes();
-
-            foreach (var (volume, transform, entity) in
-                     SystemAPI.Query<RefRO<Volume>, RefRO<LocalToWorld>>().WithEntityAccess())
-            {
-                if (!ShouldCheckVolume(volume.ValueRO.ZoneId))
-                    continue;
-
-                var range = volume.ValueRO.Scale * 0.5f;
-                var pos = transform.ValueRO.Position;
-                var distance = math.abs(playerPosition - pos);
-                var insideAxis = distance < range;
-
-                if (insideAxis.x && insideAxis.y && insideAxis.z)
-                {
-                    _activeVolumes.Add(entity);
-
-                    if (!volume.ValueRO.ZoneId.IsEmpty && newPlayerZone.IsEmpty)
-                    {
-                        newPlayerZone = volume.ValueRO.ZoneId;
-                    }
-                }
-            }
-
-            return newPlayerZone;
-        }
+        
 
         [BurstCompile]
         private void LoadPrecomputedData(ref SystemState state)
@@ -229,36 +205,65 @@ namespace jeanf.scenemanagement
         }
 
         [BurstCompile]
-        private void SetCheckableZones()
+        private NativeHashSet<FixedString128Bytes> SetCheckableZones(FixedString128Bytes currentZone)
         {
             _checkableZoneIds.Clear();
 
-            if (_currentPlayerZone.IsEmpty)
+            if (currentZone.IsEmpty)
             {
                 for (int i = 0; i < _allZones.Length; i++)
                 {
                     _checkableZoneIds.Add(_allZones[i]);
                 }
-                return;
+                return _checkableZoneIds;
             }
 
-            if (_precomputedCheckableZones.TryGetValue(_currentPlayerZone, out var checkableArray))
+            if (_precomputedCheckableZones.TryGetValue(currentZone, out var checkableArray))
             {
                 for (int i = 0; i < checkableArray.Length; i++)
                 {
                     _checkableZoneIds.Add(checkableArray[i]);
                 }
             }
+
+            return _checkableZoneIds;
         }
 
         [BurstCompile]
-        private bool ShouldCheckVolume(FixedString128Bytes zoneId)
+        private bool ShouldCheckVolume(NativeHashSet<FixedString128Bytes> checkableZones, FixedString128Bytes zoneId)
         {
-            if (zoneId.IsEmpty) return false;
-            if (_currentPlayerZone.IsEmpty) return true;
-            return _checkableZoneIds.Contains(zoneId);
+            return !zoneId.IsEmpty && checkableZones.Contains(zoneId);
         }
+        
+        [BurstCompile]
+        private FixedString128Bytes CheckVolumesForPlayerZone(ref SystemState state, float3 playerPosition, ref FixedString128Bytes currentZone, NativeHashSet<FixedString128Bytes> checkableZones)
+        {
+            var newPlayerZone = currentZone;
 
+            foreach (var (volume, transform, entity) in
+                     SystemAPI.Query<RefRO<Volume>, RefRO<LocalToWorld>>().WithEntityAccess())
+            {
+                if (!ShouldCheckVolume(checkableZones, volume.ValueRO.ZoneId))
+                    continue;
+
+                var range = volume.ValueRO.Scale * 0.5f;
+                var pos = transform.ValueRO.Position;
+                var distance = math.abs(playerPosition - pos);
+                var insideAxis = distance < range;
+
+                if (insideAxis.x && insideAxis.y && insideAxis.z)
+                {
+                    _activeVolumes.Add(entity);
+
+                    if (!volume.ValueRO.ZoneId.IsEmpty)
+                    {
+                        newPlayerZone = volume.ValueRO.ZoneId;
+                    }
+                }
+            }
+
+            return newPlayerZone;
+        }
         [BurstCompile]
         private void CheckForZoneAndRegionChange(FixedString128Bytes newPlayerZone)
         {
@@ -275,24 +280,16 @@ namespace jeanf.scenemanagement
             {
                 _currentPlayerZone = newPlayerZone;
                 
-                if (!newPlayerZone.IsEmpty)
-                {
-                    _lastNotifiedZone = newPlayerZone;
-                    _zoneChangeNotificationPending = true;
-                    _pendingZoneNotification = newPlayerZone;
-                }
+                _zoneChangeNotificationPending = true;
+                _pendingZoneNotification = _currentPlayerZone;
             }
 
             if (regionChanged)
             {
                 _currentPlayerRegion = newPlayerRegion;
                 
-                if (!newPlayerRegion.IsEmpty)
-                {
-                    _lastNotifiedRegion = newPlayerRegion;
-                    _regionChangeNotificationPending = true;
-                    _pendingRegionNotification = newPlayerRegion;
-                }
+                _regionChangeNotificationPending = true;
+                _pendingRegionNotification = newPlayerRegion;
             }
         }
 
@@ -300,15 +297,17 @@ namespace jeanf.scenemanagement
         {
             if (_zoneChangeNotificationPending)
             {
-                var zoneString = _pendingZoneNotification.ToString();
-                WorldManager.NotifyZoneChangeFromECS(zoneString);
+                WorldManager.NotifyZoneChangeFromECS(_pendingRegionNotification);
+                
+                _lastNotifiedZone = _pendingRegionNotification;
                 _zoneChangeNotificationPending = false;
             }
 
             if (_regionChangeNotificationPending)
             {
-                var regionString = _pendingRegionNotification.ToString();
-                WorldManager.NotifyRegionChangeFromECS(regionString);
+                WorldManager.NotifyRegionChangeFromECS(_pendingRegionNotification);
+                
+                _lastNotifiedRegion = _pendingRegionNotification;
                 _regionChangeNotificationPending = false;
             }
         }

@@ -206,7 +206,7 @@ namespace jeanf.scenemanagement
         
         public static void NotifyZoneChangeFromECS(FixedString128Bytes zoneId)
         {
-            if (Instance != null && !_isRegionTransitioning)
+            if (Instance != null && !_isRegionTransitioning && !zoneId.IsEmpty)
             {
                 var zoneIdString = zoneId.ToString();
                 Instance.OnZoneChangedFromECS(zoneIdString);
@@ -215,26 +215,18 @@ namespace jeanf.scenemanagement
         
         public static void NotifyRegionChangeFromECS(FixedString128Bytes regionId)
         {
-            if (Instance != null && !_isRegionTransitioning)
+            if (Instance != null && !_isRegionTransitioning&& !regionId.IsEmpty)
             {
                 var regionIdString = regionId.ToString();
                 Instance.OnRegionChangedFromECS(regionIdString);
             }
         }
 
-        private void OnZoneChangedFromECS(string zoneId)
+        private void OnZoneChangedFromECS(FixedString128Bytes id)
         {
+            var zoneId = id.ToString();
             if (zoneId == _lastNotifiedZone) return;
-            
-            if (string.IsNullOrEmpty(zoneId))
-            {
-                _lastNotifiedZone = "";
-                _currentPlayerZone = null;
-                PublishCurrentZoneId?.Invoke("");
-                PublishAppList(null);
-                return;
-            }
-
+            if (string.IsNullOrEmpty(zoneId)) return;
             if (!_zoneDictionary.TryGetValue(zoneId, out var zone)) return;
 
             _lastNotifiedZone = zoneId;
@@ -244,18 +236,11 @@ namespace jeanf.scenemanagement
             PublishAppList(zone);
         }
         
-        private void OnRegionChangedFromECS(string regionId)
+        private void OnRegionChangedFromECS(FixedString128Bytes id)
         {
+            var regionId = id.ToString();
             if (regionId == _lastNotifiedRegion) return;
-            
-            if (string.IsNullOrEmpty(regionId))
-            {
-                _lastNotifiedRegion = "";
-                _currentPlayerRegion = null;
-                PublishCurrentRegionId?.Invoke("");
-                return;
-            }
-            
+            if (string.IsNullOrEmpty(regionId)) return;
             if (!_regionDictionary.TryGetValue(regionId, out var region)) return;
             
             _lastNotifiedRegion = regionId;
