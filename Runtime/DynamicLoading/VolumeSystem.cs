@@ -297,7 +297,7 @@ namespace jeanf.scenemanagement
         {
             if (_zoneChangeNotificationPending)
             {
-                WorldManager.NotifyZoneChangeFromECS(_pendingRegionNotification);
+                WorldManager.NotifyZoneChangeFromECS(_pendingZoneNotification);
                 
                 _lastNotifiedZone = _pendingRegionNotification;
                 _zoneChangeNotificationPending = false;
