@@ -351,11 +351,7 @@ namespace jeanf.scenemanagement
 
         private void PublishAppList(Zone zone)
         {
-            if (zone == null)
-            {
-                _broadcastAppList?.Invoke(new List<AppType>());
-                return;
-            }
+            if (!zone) return;
 
             var listToBroadcast = zone.DefaultAppsInZone;
             if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone.id, out var value))
