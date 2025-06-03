@@ -206,20 +206,16 @@ namespace jeanf.scenemanagement
         
         public static void NotifyZoneChangeFromECS(FixedString128Bytes zoneId)
         {
-            if (Instance != null && !_isRegionTransitioning && !zoneId.IsEmpty)
-            {
-                var zoneIdString = zoneId.ToString();
-                Instance.OnZoneChangedFromECS(zoneIdString);
-            }
+            if (Instance == null || _isRegionTransitioning || zoneId.IsEmpty) return;
+            var zoneIdString = zoneId.ToString();
+            Instance.OnZoneChangedFromECS(zoneIdString);
         }
         
         public static void NotifyRegionChangeFromECS(FixedString128Bytes regionId)
         {
-            if (Instance != null && !_isRegionTransitioning&& !regionId.IsEmpty)
-            {
-                var regionIdString = regionId.ToString();
-                Instance.OnRegionChangedFromECS(regionIdString);
-            }
+            if (Instance == null || _isRegionTransitioning || regionId.IsEmpty) return;
+            var regionIdString = regionId.ToString();
+            Instance.OnRegionChangedFromECS(regionIdString);
         }
 
         private void OnZoneChangedFromECS(FixedString128Bytes id)
@@ -343,7 +339,13 @@ namespace jeanf.scenemanagement
             {
                 listToBroadcast = value;
             }
-            
+
+            if (listToBroadcast.Count == 0)
+            {
+                Debug.Log($"[WorldManager] listToBroadcast (apps) is empty.");
+                return;
+            }
+
             _broadcastAppList?.Invoke(listToBroadcast);
         }
 

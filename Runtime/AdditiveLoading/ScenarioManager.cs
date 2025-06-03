@@ -110,7 +110,7 @@ namespace jeanf.scenemanagement
             foreach (var zoneOverride in ScenarioDictionary[scenarioId].ZoneOverrides)
             {
                 if (activeOverridesPerZone.ContainsKey(zoneOverride.zone.id)) continue;
-                activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
+                if (zoneOverride.AppsForThisZone_Override.Count > 0 ) activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
                 OnZoneOverridesChanged?.Invoke(zoneOverride.zone.id);
             }
 
