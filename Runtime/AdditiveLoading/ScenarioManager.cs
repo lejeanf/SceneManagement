@@ -151,7 +151,7 @@ namespace jeanf.scenemanagement
                 _sceneLoader.UnLoadSceneRequest(scene);
             }
 
-            WorldManager.ResetWorld.Invoke();
+            WorldManager.RequestRegionChange(WorldManager.CurrentPlayerRegion.id);
             return scenario;
         }
 
