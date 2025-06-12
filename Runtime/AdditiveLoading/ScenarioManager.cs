@@ -129,7 +129,6 @@ namespace jeanf.scenemanagement
             _activeScenarios.Remove(UnloadScenario(scenarioID));
             List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
             UpdateScenariosList?.Invoke(scenarioList);
-            WorldManager.ResetWorld.Invoke();
         }
 
         private Scenario UnloadScenario(string scenarioID)
@@ -152,6 +151,7 @@ namespace jeanf.scenemanagement
                 _sceneLoader.UnLoadSceneRequest(scene);
             }
 
+            WorldManager.ResetWorld.Invoke();
             return scenario;
         }
 
