@@ -4,8 +4,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Debug = System.Diagnostics.Debug;
-
 namespace jeanf.scenemanagement
 {
     public class SceneLoader : MonoBehaviour
@@ -15,6 +13,10 @@ namespace jeanf.scenemanagement
         [SerializeField] private int maxConcurrentLoads = 2;
         public delegate void IsLoadingDelegate(bool loadingState);
         public static IsLoadingDelegate IsLoading;
+
+        private bool _isInitialLoadComplete = false;
+        public delegate void IsInitialDepedencyLoadCompleteDelegate(bool loadingState);
+        public static IsInitialDepedencyLoadCompleteDelegate IsInitialLoadComplete;
         
         public delegate void LoadScene(string sceneName);
         public LoadScene LoadSceneRequest;
@@ -126,11 +128,22 @@ namespace jeanf.scenemanagement
                             
                         _processingScenes.Add(operation.SceneName);
                         _operationBuffer.Add(LoadSceneAsync(operation.SceneName, token));
+                        LoadingInformation.LoadingStatus($"Loading: {operation.SceneName}");
                     }
 
                     if (_operationBuffer.Count > 0)
                     {
                         await UniTask.WhenAll(_operationBuffer);
+                        if (!_isInitialLoadComplete)
+                        {
+                            LoadingInformation.LoadingStatus($"All dependencies were successfully loaded.");
+                            _isInitialLoadComplete = true;
+                            IsInitialLoadComplete?.Invoke(_isInitialLoadComplete);
+                        }
+                        else
+                        {
+                            LoadingInformation.LoadingStatus($"");
+                        }
                     }
                     
                     await UniTask.Yield();

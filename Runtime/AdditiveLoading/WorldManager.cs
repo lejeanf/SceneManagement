@@ -35,6 +35,9 @@ namespace jeanf.scenemanagement
         
         private static WorldManager Instance;
         private static bool _isRegionTransitioning = false;
+
+        public delegate void InitCompleteDelegate(bool status);
+        public static InitCompleteDelegate InitComplete;
         
         public static Zone CurrentPlayerZone 
         { 
@@ -79,6 +82,7 @@ namespace jeanf.scenemanagement
 
         private void Awake()
         {
+            FadeMask.FadeValue(false);
             Instance = this;
             _sceneLoader = this.GetComponent<SceneLoader>();
             Init();
@@ -90,6 +94,8 @@ namespace jeanf.scenemanagement
         
         private void Subscribe()
         {
+            LoadPersistentSubScenes.PersistentLoadingComplete += SetSubSceneLoadedState;
+            SceneLoader.IsInitialLoadComplete += SetDependencyLoadedState;
             regionChangeRequestChannel.OnEventRaised += OnRegionChange;
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
@@ -98,10 +104,30 @@ namespace jeanf.scenemanagement
 
         private void Unsubscribe()
         {
+            LoadPersistentSubScenes.PersistentLoadingComplete -= SetSubSceneLoadedState;
+            SceneLoader.IsInitialLoadComplete -= SetDependencyLoadedState;
             regionChangeRequestChannel.OnEventRaised -= OnRegionChange;
             RequestRegionChange -= OnRegionChange;
             ResetWorld -= Init;
             ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
+        }
+
+        private bool isSubscenesLoaded = false;
+        private bool isDepedencyLoaded = false;
+        private void CheckIfInitialLoadIsComplete()
+        {
+            if(isSubscenesLoaded && isDepedencyLoaded) NoPeeking.SetIsLoadingState(true);
+        }
+
+        private void SetSubSceneLoadedState(bool state)
+        {
+            isSubscenesLoaded = state;
+            CheckIfInitialLoadIsComplete();
+        }
+        private void SetDependencyLoadedState(bool state)
+        {
+            isDepedencyLoaded = state;
+            CheckIfInitialLoadIsComplete();
         }
 
         private void Init()
