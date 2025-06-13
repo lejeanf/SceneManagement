@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Debug = System.Diagnostics.Debug;
 
 namespace jeanf.scenemanagement
 {
@@ -196,8 +197,21 @@ namespace jeanf.scenemanagement
             try
             {
                 var loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+                loadOperation.allowSceneActivation = false;
+        
+                while (!loadOperation.isDone && loadOperation.progress < 0.9f)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                }
+        
+                await UniTask.NextFrame(cancellationToken);
                 loadOperation.allowSceneActivation = true;
-                await loadOperation.ToUniTask(cancellationToken: cancellationToken);
+        
+                while (!loadOperation.isDone)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
+                }
+        
                 _loadedScenes.Add(sceneName);
             }
             finally
