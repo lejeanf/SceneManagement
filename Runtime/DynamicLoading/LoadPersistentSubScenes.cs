@@ -8,9 +8,9 @@ namespace jeanf.scenemanagement
 {
     public class LoadPersistentSubScenes : MonoBehaviour
     {
+        [SerializeField] private bool isLoadSequential = false;
         [Header("The order of subScenes will define their order of load")]
         public List<SubScene> subScenes;
-
     
         private bool _isPersistentLoadingComplete = false;
         public delegate void PersistentLoadingCompleteDelegate(bool status);
@@ -22,9 +22,13 @@ namespace jeanf.scenemanagement
             await UniTask.Delay(100);
             var world = World.DefaultGameObjectInjectionWorld.Unmanaged;
             
-            for (var i = 0; i < subScenes.Count; i++)
+            foreach (var s in subScenes)
             {
-                await LoadSubScene(subScenes[i], world);
+                if(isLoadSequential) await LoadSubScene(s, world);
+                else
+                {
+                    LoadSubScene(s, world).Forget();
+                }
             }
         
             LoadingInformation.LoadingStatus?.Invoke($"All subScenes loaded successfully.");

@@ -1899,6 +1899,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d3a7108093b06a458fcb0c34bf4b3b5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isLoadSequential: 0
   subScenes:
   - {fileID: 984702889}
   - {fileID: 2010461815}
