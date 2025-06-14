@@ -22,13 +22,21 @@ namespace jeanf.scenemanagement
             await UniTask.Delay(100);
             var world = World.DefaultGameObjectInjectionWorld.Unmanaged;
             
-            foreach (var s in subScenes)
+            if (isLoadSequential)
             {
-                if(isLoadSequential) await LoadSubScene(s, world);
-                else
+                foreach (var s in subScenes)
                 {
-                    LoadSubScene(s, world).Forget();
+                    await LoadSubScene(s, world);
                 }
+            }
+            else
+            {
+                var loadTasks = new List<UniTask>();
+                foreach (var s in subScenes)
+                {
+                    loadTasks.Add(LoadSubScene(s, world));
+                }
+                await UniTask.WhenAll(loadTasks);
             }
         
             LoadingInformation.LoadingStatus?.Invoke($"All subScenes loaded successfully.");
