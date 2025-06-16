@@ -30,7 +30,8 @@ namespace jeanf.scenemanagement
         public static ManageScenarioDelegate EndScenarioRequest;
         public static ManageScenarioDelegate StartScenarioRequest;
         public static ManageScenarioDelegate RestartScenarioRequest;
-        
+        public delegate void OnUnloadScenario();
+        public static OnUnloadScenario onUnloadScenario;
         public delegate void UpdateScenariosDelegate(List<string> activeScenarios);
         public static UpdateScenariosDelegate UpdateScenariosList;
 
@@ -129,6 +130,8 @@ namespace jeanf.scenemanagement
             _activeScenarios.Remove(UnloadScenario(scenarioID));
             List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
             UpdateScenariosList?.Invoke(scenarioList);
+            onUnloadScenario.Invoke();
+
         }
 
         private Scenario UnloadScenario(string scenarioID)
