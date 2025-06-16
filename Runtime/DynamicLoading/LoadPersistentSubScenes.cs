@@ -45,7 +45,7 @@ namespace jeanf.scenemanagement
         
         private async UniTask LoadSubScene(SubScene subScene, WorldUnmanaged world)
         {
-            LoadingInformation.LoadingStatus?.Invoke($"Loading subScene: {subScene.SceneName}.");
+            LoadingInformation.LoadingStatus?.Invoke($"Loading subScene: {subScene.name }.");
             var guid = subScene.SceneGUID;
             var subSceneEntity = SceneSystem.LoadSceneAsync(world, guid);
         
@@ -53,7 +53,7 @@ namespace jeanf.scenemanagement
             {
                 await UniTask.Yield();
             }
-            LoadingInformation.LoadingStatus?.Invoke($"SubScene {subScene.SceneName} loaded successfully.");
+            LoadingInformation.LoadingStatus?.Invoke($"SubScene {subScene.name} loaded successfully.");
         }
     }
 }
