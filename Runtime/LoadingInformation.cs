@@ -1,31 +1,36 @@
-using jeanf.scenemanagement;
 using UnityEngine;
 using TMPro;
 
-public class LoadingInformation : MonoBehaviour
+namespace jeanf.scenemanagement
 {
-    public delegate void LoadingStatusDelegate(string status);
-    public static LoadingStatusDelegate LoadingStatus;
-    
-    [SerializeField]private TextMeshProUGUI tmp;
-    private void OnEnable() => Subscribe();
-    private void OnDisable() => Unsubscribe();
-    private void OnDestroy() => Unsubscribe();
-    
-    private void Subscribe()
+    public class LoadingInformation : MonoBehaviour
     {
-        LoadingStatus += UpdateLoadingText;
-        LoadPersistentSubScenes.PersistentLoadingComplete += ctx => UpdateLoadingText("");
-    }
+        public bool isDebug = false;
+        public delegate void LoadingStatusDelegate(string status);
+        public static LoadingStatusDelegate LoadingStatus;
     
-    private void Unsubscribe()
-    {
-        LoadingStatus -= UpdateLoadingText;
-        LoadPersistentSubScenes.PersistentLoadingComplete -= ctx => UpdateLoadingText("");
-    }
+        [SerializeField] private TextMeshProUGUI tmp;
+        private void OnEnable() => Subscribe();
+        private void OnDisable() => Unsubscribe();
+        private void OnDestroy() => Unsubscribe();
+    
+        private void Subscribe()
+        {
+            LoadingStatus += UpdateLoadingText;
+            LoadPersistentSubScenes.PersistentLoadingComplete += ctx => UpdateLoadingText("");
+        }
+    
+        private void Unsubscribe()
+        {
+            LoadingStatus -= UpdateLoadingText;
+            LoadPersistentSubScenes.PersistentLoadingComplete -= ctx => UpdateLoadingText("");
+        }
 
-    private void UpdateLoadingText(string status)
-    {
-        tmp.text = status;
+        private void UpdateLoadingText(string status)
+        {
+            tmp.text = status;
+            if(isDebug && status != "") Debug.Log($"[{Time.time}] - {status}");
+        }
     }
 }
+

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Unity.Entities;
@@ -11,16 +12,18 @@ namespace jeanf.scenemanagement
         [SerializeField] private bool isLoadSequential = false;
         [Header("The order of subScenes will define their order of load")]
         public List<SubScene> subScenes;
-    
-        private bool _isPersistentLoadingComplete = false;
         public delegate void PersistentLoadingCompleteDelegate(bool status);
 
         public static PersistentLoadingCompleteDelegate PersistentLoadingComplete;
+
+        private List<Entity> listOfCreatedEntities = new List<Entity>();
+        
+        private WorldUnmanaged world;
         private async void OnEnable()
         {   
-            PersistentLoadingComplete?.Invoke(_isPersistentLoadingComplete = false);
+            PersistentLoadingComplete?.Invoke(false);
             await UniTask.Delay(100);
-            var world = World.DefaultGameObjectInjectionWorld.Unmanaged;
+            world = World.DefaultGameObjectInjectionWorld.Unmanaged;
             
             if (isLoadSequential)
             {
@@ -40,14 +43,23 @@ namespace jeanf.scenemanagement
             }
         
             LoadingInformation.LoadingStatus?.Invoke($"All subScenes loaded successfully.");
-            PersistentLoadingComplete?.Invoke(_isPersistentLoadingComplete = true);
+            PersistentLoadingComplete?.Invoke(true);
         }
-        
+
+        private void OnDestroy()
+        {
+            foreach (var entity in listOfCreatedEntities)
+            {
+                SceneSystem.UnloadScene(world, entity);
+            }
+        }
+
         private async UniTask LoadSubScene(SubScene subScene, WorldUnmanaged world)
         {
             LoadingInformation.LoadingStatus?.Invoke($"Loading subScene: {subScene.name }.");
             var guid = subScene.SceneGUID;
             var subSceneEntity = SceneSystem.LoadSceneAsync(world, guid);
+            listOfCreatedEntities.Add(subSceneEntity);
         
             while (!SceneSystem.IsSceneLoaded(world, subSceneEntity))
             {
