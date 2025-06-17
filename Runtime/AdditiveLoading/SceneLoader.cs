@@ -17,6 +17,7 @@ namespace jeanf.scenemanagement
         private bool _isInitialLoadComplete = false;
         public delegate void IsInitialDepedencyLoadCompleteDelegate(bool loadingState);
         public static IsInitialDepedencyLoadCompleteDelegate IsInitialLoadComplete;
+        public static IsInitialDepedencyLoadCompleteDelegate LoadComplete;
         
         public delegate void LoadScene(string sceneName);
         public LoadScene LoadSceneRequest;
@@ -147,6 +148,7 @@ namespace jeanf.scenemanagement
                     }
                     
                     await UniTask.Yield();
+                    LoadingInformation.LoadingStatus($"");
                 }
             }
             finally
@@ -155,6 +157,7 @@ namespace jeanf.scenemanagement
                 if (!_isProcessingUnloadQueue && _unloadQueue.Count == 0)
                 {
                     IsLoading?.Invoke(false);
+                    LoadComplete?.Invoke(true);
                 }
             }
         }
