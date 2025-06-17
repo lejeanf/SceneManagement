@@ -116,7 +116,11 @@ namespace jeanf.scenemanagement
         private bool isDepedencyLoaded = false;
         private void CheckIfInitialLoadIsComplete()
         {
-            if(isSubscenesLoaded && isDepedencyLoaded) NoPeeking.SetIsLoadingState(true);
+            if (isSubscenesLoaded && isDepedencyLoaded)
+            {
+                NoPeeking.SetIsLoadingState(true);
+                InitComplete?.Invoke(true);
+            }
         }
 
         private void SetSubSceneLoadedState(bool state)
