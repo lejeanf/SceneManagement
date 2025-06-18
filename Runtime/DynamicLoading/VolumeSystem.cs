@@ -91,6 +91,7 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.OnUpdate");
             _activeVolumes.Clear();
             _toLoadList.Clear();
             _toUnloadList.Clear();
@@ -123,6 +124,7 @@ namespace jeanf.scenemanagement
             ProcessPendingNotifications();
 
             if (relevantPositions.IsCreated) relevantPositions.Dispose();
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         
@@ -130,6 +132,7 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         private void LoadPrecomputedData(ref SystemState state)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.LoadPrecomputedData");
             _zoneToRegionMap.Clear();
             _landingZones.Clear();
             
@@ -164,11 +167,13 @@ namespace jeanf.scenemanagement
             tempZoneList.Dispose();
 
             BuildPrecomputedCheckableZones(ref state, precomputedBuffer);
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         [BurstCompile]
         private void BuildPrecomputedCheckableZones(ref SystemState state, DynamicBuffer<PrecomputedVolumeDataBuffer> precomputedBuffer)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.BuildPrecomputedCheckableZones");
             for (int i = 0; i < precomputedBuffer.Length; i++)
             {
                 var entry = precomputedBuffer[i];
@@ -202,11 +207,13 @@ namespace jeanf.scenemanagement
                     _precomputedCheckableZones.TryAdd(entry.primaryZoneId, checkableArray);
                 }
             }
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         [BurstCompile]
         private NativeHashSet<FixedString128Bytes> SetCheckableZones(FixedString128Bytes currentZone)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.SetCheckableZones");
             _checkableZoneIds.Clear();
 
             if (currentZone.IsEmpty)
@@ -215,6 +222,7 @@ namespace jeanf.scenemanagement
                 {
                     _checkableZoneIds.Add(_allZones[i]);
                 }
+                UnityEngine.Profiling.Profiler.EndSample();
                 return _checkableZoneIds;
             }
 
@@ -226,6 +234,7 @@ namespace jeanf.scenemanagement
                 }
             }
 
+            UnityEngine.Profiling.Profiler.EndSample();
             return _checkableZoneIds;
         }
 
@@ -238,6 +247,7 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         private FixedString128Bytes CheckVolumesForPlayerZone(ref SystemState state, float3 playerPosition, ref FixedString128Bytes currentZone, NativeHashSet<FixedString128Bytes> checkableZones)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.CheckVolumesForPlayerZone");
             var newPlayerZone = currentZone;
 
             foreach (var (volume, transform, entity) in
@@ -262,11 +272,13 @@ namespace jeanf.scenemanagement
                 }
             }
 
+            UnityEngine.Profiling.Profiler.EndSample();
             return newPlayerZone;
         }
         [BurstCompile]
         private void CheckForZoneAndRegionChange(FixedString128Bytes newPlayerZone)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.CheckForZoneAndRegionChange");
             bool zoneChanged = !_currentPlayerZone.Equals(newPlayerZone);
             bool regionChanged = false;
             FixedString128Bytes newPlayerRegion = new FixedString128Bytes();
@@ -291,10 +303,13 @@ namespace jeanf.scenemanagement
                 _regionChangeNotificationPending = true;
                 _pendingRegionNotification = newPlayerRegion;
             }
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         private void ProcessPendingNotifications()
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.ProcessPendingNotifications");
+            
             if (_zoneChangeNotificationPending)
             {
                 WorldManager.NotifyZoneChangeFromECS(_pendingZoneNotification);
@@ -310,11 +325,14 @@ namespace jeanf.scenemanagement
                 _lastNotifiedRegion = _pendingRegionNotification;
                 _regionChangeNotificationPending = false;
             }
+            
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         [BurstCompile]
         private void ProcessLevelLoadingStates(ref SystemState state)
         {
+            UnityEngine.Profiling.Profiler.BeginSample("VolumeSystem.ProcessLevelLoadingStates");
             foreach (var (volumes, levelInfo, entity) in
                      SystemAPI.Query<DynamicBuffer<VolumeBuffer>, RefRW<LevelInfo>>()
                          .WithEntityAccess())
@@ -355,6 +373,7 @@ namespace jeanf.scenemanagement
                 streamingData.runtimeEntity = Entity.Null;
                 state.EntityManager.SetComponentData(toUnload.Item1, streamingData);
             }
+            UnityEngine.Profiling.Profiler.EndSample();
         }
     }
 }
