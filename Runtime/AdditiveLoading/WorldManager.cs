@@ -291,7 +291,7 @@ namespace jeanf.scenemanagement
         
         private void OnRegionChange(Region region)
         {
-            if (_currentPlayerRegion == region)
+            if (_currentPlayerRegion == region && hasGameBeenInitialized)
             {
                 Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
                 return;
