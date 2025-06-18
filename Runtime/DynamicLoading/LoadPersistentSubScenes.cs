@@ -50,7 +50,7 @@ namespace jeanf.scenemanagement
         {
             foreach (var entity in listOfCreatedEntities)
             {
-                SceneSystem.UnloadScene(world, entity);
+                if(world.IsCreated && entity != Entity.Null) SceneSystem.UnloadScene(world, entity);
             }
         }
 
