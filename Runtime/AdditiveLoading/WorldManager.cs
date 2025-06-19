@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using jeanf.EventSystem;
 using jeanf.universalplayer;
+using Unity.Burst;
 using Unity.Collections;
 
 namespace jeanf.scenemanagement
