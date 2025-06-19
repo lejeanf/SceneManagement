@@ -120,6 +120,7 @@ namespace jeanf.scenemanagement
             if (isSubscenesLoaded && isDepedencyLoaded)
             {
                 NoPeeking.SetIsLoadingState(true);
+                FadeMask.TogglePPE?.Invoke(true);
                 InitComplete?.Invoke(true);
             }
         }
