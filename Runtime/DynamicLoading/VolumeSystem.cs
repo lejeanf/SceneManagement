@@ -74,18 +74,16 @@ namespace jeanf.scenemanagement
             if (_zoneToRegionMap.IsCreated) _zoneToRegionMap.Dispose();
             if (_landingZones.IsCreated) _landingZones.Dispose();
             if (_allZones.IsCreated) _allZones.Dispose();
-            
-            if (_precomputedCheckableZones.IsCreated)
+
+            if (!_precomputedCheckableZones.IsCreated) return;
+            var enumerator = _precomputedCheckableZones.GetEnumerator();
+            while (enumerator.MoveNext())
             {
-                var enumerator = _precomputedCheckableZones.GetEnumerator();
-                while (enumerator.MoveNext())
-                {
-                    if (enumerator.Current.Value.IsCreated)
-                        enumerator.Current.Value.Dispose();
-                }
-                enumerator.Dispose();
-                _precomputedCheckableZones.Dispose();
+                if (enumerator.Current.Value.IsCreated)
+                    enumerator.Current.Value.Dispose();
             }
+            enumerator.Dispose();
+            _precomputedCheckableZones.Dispose();
         }
 
         [BurstCompile]
@@ -149,14 +147,15 @@ namespace jeanf.scenemanagement
 
             foreach (var entry in precomputedBuffer)
             {
-                if (entry.isZoneRegionMapping && !entry.zoneId.IsEmpty && !entry.regionId.IsEmpty)
+                switch (entry)
                 {
-                    _zoneToRegionMap.TryAdd(entry.zoneId, entry.regionId);
-                    tempZoneList.Add(entry.zoneId);
-                }
-                else if (entry.isLandingZone && !entry.landingZoneId.IsEmpty)
-                {
-                    _landingZones.Add(entry.landingZoneId);
+                    case { isZoneRegionMapping: true, zoneId: { IsEmpty: false }, regionId: { IsEmpty: false } }:
+                        _zoneToRegionMap.TryAdd(entry.zoneId, entry.regionId);
+                        tempZoneList.Add(entry.zoneId);
+                        break;
+                    case { isLandingZone: true, landingZoneId: { IsEmpty: false } }:
+                        _landingZones.Add(entry.landingZoneId);
+                        break;
                 }
             }
 
@@ -169,38 +168,33 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         private void BuildPrecomputedCheckableZones(ref SystemState state, DynamicBuffer<PrecomputedVolumeDataBuffer> precomputedBuffer)
         {
-            for (int i = 0; i < precomputedBuffer.Length; i++)
+            foreach (var entry in precomputedBuffer)
             {
-                var entry = precomputedBuffer[i];
-                if (entry.isHeader && !entry.primaryZoneId.IsEmpty)
+                if (!entry.isHeader || entry.primaryZoneId.IsEmpty) continue;
+                var tempList = new NativeList<FixedString128Bytes>(entry.count + _landingZones.Count, Allocator.Temp);
+
+                for (var j = 0; j < entry.count; j++)
                 {
-                    var tempList = new NativeList<FixedString128Bytes>(entry.count + _landingZones.Count, Allocator.Temp);
-
-                    for (int j = 0; j < entry.count; j++)
+                    var dataIndex = entry.startIndex + j;
+                    if (dataIndex >= precomputedBuffer.Length) continue;
+                    var dataEntry = precomputedBuffer[dataIndex];
+                    if (dataEntry is { isData: true, checkableZoneId: { IsEmpty: false } })
                     {
-                        var dataIndex = entry.startIndex + j;
-                        if (dataIndex < precomputedBuffer.Length)
-                        {
-                            var dataEntry = precomputedBuffer[dataIndex];
-                            if (dataEntry.isData && !dataEntry.checkableZoneId.IsEmpty)
-                            {
-                                tempList.Add(dataEntry.checkableZoneId);
-                            }
-                        }
+                        tempList.Add(dataEntry.checkableZoneId);
                     }
-
-                    var landingEnumerator = _landingZones.GetEnumerator();
-                    while (landingEnumerator.MoveNext())
-                    {
-                        tempList.Add(landingEnumerator.Current);
-                    }
-                    landingEnumerator.Dispose();
-
-                    var checkableArray = tempList.ToArray(Allocator.Persistent);
-                    tempList.Dispose();
-                    
-                    _precomputedCheckableZones.TryAdd(entry.primaryZoneId, checkableArray);
                 }
+
+                var landingEnumerator = _landingZones.GetEnumerator();
+                while (landingEnumerator.MoveNext())
+                {
+                    tempList.Add(landingEnumerator.Current);
+                }
+                landingEnumerator.Dispose();
+
+                var checkableArray = tempList.ToArray(Allocator.Persistent);
+                tempList.Dispose();
+                    
+                _precomputedCheckableZones.TryAdd(entry.primaryZoneId, checkableArray);
             }
         }
 
@@ -211,18 +205,19 @@ namespace jeanf.scenemanagement
 
             if (currentZone.IsEmpty)
             {
-                for (int i = 0; i < _allZones.Length; i++)
+                foreach (var t in _allZones)
                 {
-                    _checkableZoneIds.Add(_allZones[i]);
+                    _checkableZoneIds.Add(t);
                 }
+
                 return _checkableZoneIds;
             }
 
             if (_precomputedCheckableZones.TryGetValue(currentZone, out var checkableArray))
             {
-                for (int i = 0; i < checkableArray.Length; i++)
+                foreach (var t in checkableArray)
                 {
-                    _checkableZoneIds.Add(checkableArray[i]);
+                    _checkableZoneIds.Add(t);
                 }
             }
 
@@ -240,36 +235,45 @@ namespace jeanf.scenemanagement
         {
             var newPlayerZone = currentZone;
 
-            foreach (var (volume, transform, entity) in
-                     SystemAPI.Query<RefRO<Volume>, RefRO<LocalToWorld>>().WithEntityAccess())
+            var entities = _volumeQuery.ToEntityArray(Allocator.Temp);
+            var volumes = _volumeQuery.ToComponentDataArray<Volume>(Allocator.Temp);
+            var transforms = _volumeQuery.ToComponentDataArray<LocalToWorld>(Allocator.Temp);
+
+            for (var i = 0; i < entities.Length; i++)
             {
-                if (!ShouldCheckVolume(checkableZones, volume.ValueRO.ZoneId))
+                var volume = volumes[i];
+                var transform = transforms[i];
+                var entity = entities[i];
+    
+                if (!ShouldCheckVolume(checkableZones, volume.ZoneId))
                     continue;
 
-                var range = volume.ValueRO.Scale * 0.5f;
-                var pos = transform.ValueRO.Position;
+                var range = volume.Scale * 0.5f;
+                var pos = transform.Position;
                 var distance = math.abs(playerPosition - pos);
                 var insideAxis = distance < range;
 
-                if (insideAxis.x && insideAxis.y && insideAxis.z)
-                {
-                    _activeVolumes.Add(entity);
+                if (insideAxis is not { x: true, y: true, z: true }) continue;
+                _activeVolumes.Add(entity);
 
-                    if (!volume.ValueRO.ZoneId.IsEmpty)
-                    {
-                        newPlayerZone = volume.ValueRO.ZoneId;
-                    }
+                if (!volume.ZoneId.IsEmpty)
+                {
+                    newPlayerZone = volume.ZoneId;
                 }
             }
+
+            entities.Dispose();
+            volumes.Dispose();
+            transforms.Dispose();
 
             return newPlayerZone;
         }
         [BurstCompile]
         private void CheckForZoneAndRegionChange(FixedString128Bytes newPlayerZone)
         {
-            bool zoneChanged = !_currentPlayerZone.Equals(newPlayerZone);
-            bool regionChanged = false;
-            FixedString128Bytes newPlayerRegion = new FixedString128Bytes();
+            var zoneChanged = !_currentPlayerZone.Equals(newPlayerZone);
+            var regionChanged = false;
+            var newPlayerRegion = new FixedString128Bytes();
 
             if (!newPlayerZone.IsEmpty && _zoneToRegionMap.TryGetValue(newPlayerZone, out newPlayerRegion))
             {
@@ -338,27 +342,26 @@ namespace jeanf.scenemanagement
                     }
                 }
 
-                if (shouldLoad && levelInfo.ValueRW.runtimeEntity == Entity.Null)
+                switch (shouldLoad)
                 {
-                    _toLoadList.Add((entity, levelInfo.ValueRW));
-                }
-                else if (!shouldLoad && levelInfo.ValueRW.runtimeEntity != Entity.Null)
-                {
-                    _toUnloadList.Add((entity, levelInfo.ValueRW));
+                    case true when levelInfo.ValueRW.runtimeEntity == Entity.Null:
+                        _toLoadList.Add((entity, levelInfo.ValueRW));
+                        break;
+                    case false when levelInfo.ValueRW.runtimeEntity != Entity.Null:
+                        _toUnloadList.Add((entity, levelInfo.ValueRW));
+                        break;
                 }
             }
 
-            for (int i = 0; i < _toLoadList.Length; i++)
+            foreach (var toLoad in _toLoadList)
             {
-                var toLoad = _toLoadList[i];
                 var streamingData = toLoad.Item2;
                 streamingData.runtimeEntity = SceneSystem.LoadSceneAsync(state.WorldUnmanaged, streamingData.sceneReference);
                 state.EntityManager.SetComponentData(toLoad.Item1, streamingData);
             }
 
-            for (int i = 0; i < _toUnloadList.Length; i++)
+            foreach (var toUnload in _toUnloadList)
             {
-                var toUnload = _toUnloadList[i];
                 var streamingData = toUnload.Item2;
                 SceneSystem.UnloadScene(state.WorldUnmanaged, streamingData.runtimeEntity, SceneSystem.UnloadParameters.DestroyMetaEntities);
                 streamingData.runtimeEntity = Entity.Null;
