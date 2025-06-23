@@ -17,6 +17,7 @@ namespace jeanf.scenemanagement
 
         private EntityQuery _relevantQuery;
         private EntityQuery _volumeQuery;
+        private EntityQuery _levelLoadingQuery;
         private EntityQuery _precomputedDataQuery;
 
         private FixedString128Bytes _currentPlayerZone;
@@ -61,6 +62,7 @@ namespace jeanf.scenemanagement
 
             _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
             _volumeQuery = SystemAPI.QueryBuilder().WithAll<Volume, LocalToWorld>().Build();
+            _levelLoadingQuery = SystemAPI.QueryBuilder().WithAll<VolumeBuffer, LevelInfo>().Build();
             _precomputedDataQuery = SystemAPI.QueryBuilder().WithAll<PrecomputedVolumeDataBuffer>().Build();
         }
 
@@ -328,10 +330,15 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         private void ProcessLevelLoadingStates(ref SystemState state)
         {
-            foreach (var (volumes, levelInfo, entity) in
-                     SystemAPI.Query<DynamicBuffer<VolumeBuffer>, RefRW<LevelInfo>>()
-                         .WithEntityAccess())
+            var entities = _levelLoadingQuery.ToEntityArray(Allocator.Temp);
+            var levelInfos = _levelLoadingQuery.ToComponentDataArray<LevelInfo>(Allocator.Temp);
+
+            for (int entityIndex = 0; entityIndex < entities.Length; entityIndex++)
             {
+                var entity = entities[entityIndex];
+                var volumes = state.EntityManager.GetBuffer<VolumeBuffer>(entity, true);
+                var levelInfo = levelInfos[entityIndex];
+
                 bool shouldLoad = false;
                 for (int i = 0; i < volumes.Length; i++)
                 {
@@ -344,14 +351,17 @@ namespace jeanf.scenemanagement
 
                 switch (shouldLoad)
                 {
-                    case true when levelInfo.ValueRW.runtimeEntity == Entity.Null:
-                        _toLoadList.Add((entity, levelInfo.ValueRW));
+                    case true when levelInfo.runtimeEntity == Entity.Null:
+                        _toLoadList.Add((entity, levelInfo));
                         break;
-                    case false when levelInfo.ValueRW.runtimeEntity != Entity.Null:
-                        _toUnloadList.Add((entity, levelInfo.ValueRW));
+                    case false when levelInfo.runtimeEntity != Entity.Null:
+                        _toUnloadList.Add((entity, levelInfo));
                         break;
                 }
             }
+
+            entities.Dispose();
+            levelInfos.Dispose();
 
             foreach (var toLoad in _toLoadList)
             {
