@@ -156,7 +156,7 @@ namespace jeanf.scenemanagement
                 _isProcessingLoadQueue = false;
                 if (_loadQueue.Count == 0)
                 {
-                    LoadComplete?.Invoke(true);
+                    IsLoading?.Invoke(false);
                 }
                 
                 await UniTask.WaitUntil(() => !_isProcessingUnloadQueue, cancellationToken: token);
