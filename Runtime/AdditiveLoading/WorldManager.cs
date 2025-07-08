@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using jeanf.EventSystem;
 using jeanf.universalplayer;
-using Unity.Burst;
 using Unity.Collections;
 
 namespace jeanf.scenemanagement
@@ -13,6 +12,7 @@ namespace jeanf.scenemanagement
     {
         public bool isDebug = false;
         private SceneLoader _sceneLoader;
+        [SerializeField] private List<SceneReference> worldDependencies = new List<SceneReference>();
         public List<Region> ListOfRegions;
         
         private Dictionary<string, Zone> _zoneDictionary = new Dictionary<string, Zone>();
@@ -101,6 +101,11 @@ namespace jeanf.scenemanagement
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
+
+            foreach (var dependency in worldDependencies)
+            {
+                _sceneLoader.LoadSceneRequest?.Invoke(dependency.SceneName);
+            }
         }
 
         private void Unsubscribe()
@@ -111,6 +116,11 @@ namespace jeanf.scenemanagement
             RequestRegionChange -= OnRegionChange;
             ResetWorld -= Init;
             ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
+            
+            foreach (var dependency in worldDependencies)
+            {
+                _sceneLoader.UnLoadSceneRequest?.Invoke(dependency.SceneName);
+            }
         }
 
         private bool isSubscenesLoaded = false;
