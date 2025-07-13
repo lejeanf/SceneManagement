@@ -101,11 +101,6 @@ namespace jeanf.scenemanagement
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
-
-            foreach (var dependency in worldDependencies)
-            {
-                _sceneLoader.LoadSceneRequest?.Invoke(dependency.SceneName);
-            }
         }
 
         private void Unsubscribe()
@@ -119,7 +114,7 @@ namespace jeanf.scenemanagement
             
             foreach (var dependency in worldDependencies)
             {
-                _sceneLoader.UnLoadSceneRequest?.Invoke(dependency.SceneName);
+                _sceneLoader.UnLoadSceneRequest(dependency.SceneName);
             }
         }
 
@@ -135,6 +130,14 @@ namespace jeanf.scenemanagement
             }
         }
 
+        private void LoadWorldDependencies()
+        {
+            foreach (var dependency in worldDependencies)
+            {
+                _sceneLoader.LoadSceneRequest(dependency.SceneName);
+            }
+        }
+
         private void SetSubSceneLoadedState(bool state)
         {
             isSubscenesLoaded = state;
@@ -143,6 +146,7 @@ namespace jeanf.scenemanagement
         private void SetDependencyLoadedState(bool state)
         {
             isDepedencyLoaded = state;
+            LoadWorldDependencies();
             CheckIfInitialLoadIsComplete();
         }
 
