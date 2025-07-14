@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using jeanf.EventSystem;
 using jeanf.universalplayer;
@@ -83,7 +84,6 @@ namespace jeanf.scenemanagement
         
         private bool isSubscenesLoaded = false;
         private bool isDepedencyLoaded = false;
-        private bool isAllScenesLoaded = false;
 
         private void Awake()
         {
@@ -113,7 +113,6 @@ namespace jeanf.scenemanagement
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
-            SceneLoader.LoadComplete += OnAllScenesLoaded;
         }
 
         private void Unsubscribe()
@@ -124,36 +123,46 @@ namespace jeanf.scenemanagement
             RequestRegionChange -= OnRegionChange;
             ResetWorld -= Init;
             ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
-            
+    
             foreach (var dependency in worldDependencies)
             {
                 _sceneLoader.UnLoadSceneRequest(dependency.SceneName);
-            }
-        }
-        
-        private void OnAllScenesLoaded(bool isComplete)
-        {
-            isAllScenesLoaded = isComplete;
-    
-            if (isComplete && !_isRegionTransitioning && isDepedencyLoaded && isSubscenesLoaded)
-            {
-                if (isDebug) Debug.Log("[WorldManager] All scenes loaded - setting loading state to false");
-                NoPeeking.SetIsLoadingState(false);
-            }
-            else
-            {
-                if (isDebug) Debug.Log($"[WorldManager] OnAllScenesLoaded called but not ready: isComplete={isComplete}, regionTransitioning={_isRegionTransitioning}, depLoaded={isDepedencyLoaded}, subLoaded={isSubscenesLoaded}");
             }
         }
 
         private void CheckIfInitialLoadIsComplete()
         {
             if (!isSubscenesLoaded || !isDepedencyLoaded) return;
+    
             FadeMask.TogglePPE?.Invoke(true);
             InitComplete?.Invoke(true);
 
-            if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete - but staying in loading state until all scenes loaded");
+            if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete - checking if we should complete loading");
+    
+            WaitForSceneLoaderToFinishAsync().Forget();
         }
+        private async UniTaskVoid WaitForSceneLoaderToFinishAsync()
+        {
+            if (isDebug) Debug.Log("[WorldManager] Waiting for SceneLoader to finish all operations");
+    
+            while (_sceneLoader.IsCurrentlyLoading() || _sceneLoader.GetPendingOperationCount() > 0)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Still waiting - IsLoading: {_sceneLoader.IsCurrentlyLoading()}, Pending: {_sceneLoader.GetPendingOperationCount()}");
+                await UniTask.Delay(100); // 0.1 seconds
+            }
+            await UniTask.Delay(200); // 0.2 seconds
+    
+            if (!_isRegionTransitioning && !_sceneLoader.IsCurrentlyLoading() && _sceneLoader.GetPendingOperationCount() == 0)
+            {
+                if (isDebug) Debug.Log("[WorldManager] SceneLoader is idle - completing initial load");
+                NoPeeking.SetIsLoadingState(false);
+            }
+            else
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Not completing load - regionTransitioning: {_isRegionTransitioning}, isLoading: {_sceneLoader.IsCurrentlyLoading()}, pending: {_sceneLoader.GetPendingOperationCount()}");
+            }
+        }
+
 
         private void LoadWorldDependencies()
         {
@@ -198,26 +207,13 @@ namespace jeanf.scenemanagement
             isSubscenesLoaded = state;
             if (isDebug) Debug.Log($"[WorldManager] SetSubSceneLoadedState: {state}");
             CheckIfInitialLoadIsComplete();
-    
-            if (state && isDepedencyLoaded && isAllScenesLoaded && !_isRegionTransitioning)
-            {
-                if (isDebug) Debug.Log("[WorldManager] Subscenes loaded - completing initial load");
-                NoPeeking.SetIsLoadingState(false);
-            }
         }
         private void SetDependencyLoadedState(bool state)
         {
             isDepedencyLoaded = state;
             if (isDebug) Debug.Log($"[WorldManager] SetDependencyLoadedState: {state}");
             CheckIfInitialLoadIsComplete();
-    
-            if (state && isSubscenesLoaded && isAllScenesLoaded && !_isRegionTransitioning)
-            {
-                if (isDebug) Debug.Log("[WorldManager] Dependencies loaded - completing initial load");
-                NoPeeking.SetIsLoadingState(false);
-            }
         }
-
         private void Init()
         {
             hasGameBeenInitialized = false;
@@ -226,10 +222,9 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = "";
             _lastNotifiedRegion = "";
             _isRegionTransitioning = false;
-            
+
             isSubscenesLoaded = false;
             isDepedencyLoaded = false;
-            isAllScenesLoaded = false;
 
             ClearAllMappings();
             BuildDataMappings();
