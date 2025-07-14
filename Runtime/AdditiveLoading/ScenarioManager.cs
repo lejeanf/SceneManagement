@@ -73,12 +73,24 @@ namespace jeanf.scenemanagement
         
         private async Task ScenarioRestartAsync(string scenarioId)
         {
-            Debug.Log("Restarting scenario : " + scenarioId); 
             NoPeeking.SetIsLoadingState(true);
             UnloadScenario(scenarioId);
-            Debug.Log("after unload wait .5s");
             await Task.Delay(500);
             LoadScenario(scenarioId);
+            await WaitForSceneLoadingComplete();
+            NoPeeking.SetIsLoadingState(false); // Handle fade here
+        }
+        private async Task WaitForSceneLoadingComplete()
+        {
+            await UniTask.Yield();
+    
+            while (_sceneLoader.IsCurrentlyLoading() || _sceneLoader.GetPendingOperationCount() > 0)
+            {
+                Debug.Log($"[ScenarioManager] Waiting for scene operations - IsLoading: {_sceneLoader.IsCurrentlyLoading()}, Pending: {_sceneLoader.GetPendingOperationCount()}");
+                await UniTask.Delay(100);
+            }
+    
+            await UniTask.Delay(200);
         }
         private void LoadScenario(string scenarioId)
         {
@@ -86,9 +98,18 @@ namespace jeanf.scenemanagement
 
             if (_activeScenarios.Contains(scenario))
             {
-                Debug.Log(
-                    $"A request to load scenario with ID: {scenario.scenarioName} has been received but that scenario is already in the list of active scenarios. The request has been denied.");
+                Debug.Log($"A request to load scenario with ID: {scenario.scenarioName} has been received but that scenario is already in the list of active scenarios. The request has been denied.");
                 return;
+            }
+
+            // Check if we need to handle scenario transition (fade out)
+            bool isTransition = _activeScenarios.Count > 0;
+            
+            if (isTransition)
+            {
+                // FADE OUT: Trigger fade before unloading
+                NoPeeking.SetIsLoadingState(true);
+                Debug.Log($"Starting scenario transition from {_activeScenarios[0].scenarioName} to {scenario.scenarioName}");
             }
 
             switch (_activeScenarios.Count)
@@ -104,18 +125,20 @@ namespace jeanf.scenemanagement
                     {
                         EndScenarioRequestPrompt.Invoke(s.id);
                     }
-
                     break;
                 }
             }
 
+            // Apply zone overrides
             foreach (var zoneOverride in ScenarioDictionary[scenarioId].ZoneOverrides)
             {
                 if (activeOverridesPerZone.ContainsKey(zoneOverride.zone.id)) continue;
-                if (zoneOverride.AppsForThisZone_Override.Count > 0 ) activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
+                if (zoneOverride.AppsForThisZone_Override.Count > 0) 
+                    activeOverridesPerZone.Add(zoneOverride.zone.id, zoneOverride.AppsForThisZone_Override);
                 OnZoneOverridesChanged?.Invoke(zoneOverride.zone.id);
             }
 
+            // Load new scenario scenes
             foreach (var scene in CompileSceneList(scenario))
             {
                 _sceneLoader.LoadSceneRequest(scene);
@@ -124,7 +147,26 @@ namespace jeanf.scenemanagement
             _activeScenarios.Add(scenario);
             List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
             UpdateScenariosList?.Invoke(scenarioList);
+            
+            // If this was a transition, handle fade in after loading completes
+            if (isTransition)
+            {
+                HandleScenarioTransitionComplete().Forget();
+            }
         }
+        private async UniTaskVoid HandleScenarioTransitionComplete()
+        {
+            // Wait for scene loading to complete
+            await WaitForSceneLoadingComplete();
+    
+            // FADE IN: Clear loading state to trigger fade in
+            if (!WorldManager.IsRegionTransitioning)
+            {
+                NoPeeking.SetIsLoadingState(false);
+                Debug.Log("Scenario transition complete - fading in");
+            }
+        }
+
 
         private void OnScenarioEndRequest(string scenarioID)
         {
