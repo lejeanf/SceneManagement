@@ -105,6 +105,7 @@ namespace jeanf.scenemanagement
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
+            SceneLoader.LoadComplete += OnAllScenesLoaded;
         }
 
         private void Unsubscribe()
@@ -119,6 +120,14 @@ namespace jeanf.scenemanagement
             foreach (var dependency in worldDependencies)
             {
                 _sceneLoader.UnLoadSceneRequest(dependency.SceneName);
+            }
+        }
+        
+        private void OnAllScenesLoaded(bool isComplete)
+        {
+            if (isComplete && !_isRegionTransitioning)
+            {
+                NoPeeking.SetIsLoadingState(false);
             }
         }
 

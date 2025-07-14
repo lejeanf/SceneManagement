@@ -74,13 +74,12 @@ namespace jeanf.scenemanagement
         private async Task ScenarioRestartAsync(string scenarioId)
         {
             Debug.Log("Restarting scenario : " + scenarioId); 
+            NoPeeking.SetIsLoadingState(true);
             UnloadScenario(scenarioId);
-            NoPeeking.SetIsLoadingState(false);
             Debug.Log("after unload wait .5s");
             await Task.Delay(500);
             LoadScenario(scenarioId);
         }
-
         private void LoadScenario(string scenarioId)
         {
             if (!ScenarioDictionary.TryGetValue(scenarioId, out var scenario)) return;
