@@ -11,6 +11,13 @@ namespace jeanf.scenemanagement
     [RequireComponent(typeof(ScenarioManager))]
     public class WorldManager : MonoBehaviour
     {
+        public enum LoadingSource
+        {
+            WorldDependencies,
+            PersistentSubScenes,
+            InitialRegion
+        }
+
         public bool isDebug = false;
         private SceneLoader _sceneLoader;
         [SerializeField] private List<SceneReference> worldDependencies = new List<SceneReference>();
@@ -37,6 +44,15 @@ namespace jeanf.scenemanagement
         
         private static WorldManager Instance;
         private static bool _isRegionTransitioning = false;
+
+        [Header("Loading Coordination")]
+        [SerializeField] private bool trackInitialLoading = true;
+        private readonly Dictionary<LoadingSource, bool> _loadingStates = new Dictionary<LoadingSource, bool>();
+        private bool _allInitialLoadingComplete = false;
+
+        private bool hasGameBeenInitialized = false;
+        private string _lastNotifiedZone = "";
+        private string _lastNotifiedRegion = "";
 
         public delegate void InitCompleteDelegate(bool status);
         public static InitCompleteDelegate InitComplete;
@@ -78,22 +94,17 @@ namespace jeanf.scenemanagement
         public delegate void BroadcastAppList(List<AppType> list);
         public static BroadcastAppList _broadcastAppList;
 
-        private bool hasGameBeenInitialized = false;
-        private string _lastNotifiedZone = "";
-        private string _lastNotifiedRegion = "";
-        
-        private bool isSubscenesLoaded = false;
-        private bool isDepedencyLoaded = false;
-
         private void Awake()
         {
             Instance = this;
             _sceneLoader = this.GetComponent<SceneLoader>();
-    
+
             NoPeeking.SetIsLoadingState(true);
-    
+
             FadeMask.PrepareVolumeProfile(FadeMask.FadeType.Loading);
             FadeMask.SetVolumeWeight(1.0f);
+    
+            InitializeLoadingStates();
         }
 
         private void Start()
@@ -130,39 +141,114 @@ namespace jeanf.scenemanagement
             }
         }
 
-        private void CheckIfInitialLoadIsComplete()
+        private void InitializeLoadingStates()
         {
-            if (!isSubscenesLoaded || !isDepedencyLoaded) return;
+            if (!trackInitialLoading) return;
     
-            FadeMask.TogglePPE?.Invoke(true);
-            InitComplete?.Invoke(true);
-
-            if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete - checking if we should complete loading");
+            _loadingStates.Clear();
+            foreach (LoadingSource source in System.Enum.GetValues(typeof(LoadingSource)))
+            {
+                _loadingStates[source] = false;
+            }
+            _allInitialLoadingComplete = false;
     
-            WaitForSceneLoaderToFinishAsync().Forget();
+            if (isDebug) Debug.Log("[WorldManager] Loading states initialized");
         }
-        private async UniTaskVoid WaitForSceneLoaderToFinishAsync()
+
+        public static void SetLoadingComplete(LoadingSource source, bool isComplete)
         {
-            if (isDebug) Debug.Log("[WorldManager] Waiting for SceneLoader to finish all operations");
+            if (Instance != null)
+            {
+                Instance.UpdateLoadingState(source, isComplete);
+            }
+        }
+
+        private void UpdateLoadingState(LoadingSource source, bool isComplete)
+        {
+            if (!trackInitialLoading) return;
+    
+            if (!_loadingStates.ContainsKey(source))
+            {
+                if (isDebug) Debug.LogWarning($"[WorldManager] Unknown loading source: {source}");
+                return;
+            }
+    
+            bool previousState = _loadingStates[source];
+            _loadingStates[source] = isComplete;
+    
+            if (isDebug && previousState != isComplete)
+            {
+                Debug.Log($"[WorldManager] {source} loading state changed to: {isComplete}");
+            }
+    
+            CheckAllInitialLoadingComplete();
+        }
+
+        private void CheckAllInitialLoadingComplete()
+        {
+            if (!trackInitialLoading || _allInitialLoadingComplete) return;
+    
+            bool allComplete = true;
+            foreach (var kvp in _loadingStates)
+            {
+                if (!kvp.Value)
+                {
+                    allComplete = false;
+                    if (isDebug) Debug.Log($"[WorldManager] Still waiting for: {kvp.Key}");
+                    break;
+                }
+            }
+    
+            if (allComplete)
+            {
+                _allInitialLoadingComplete = true;
+                if (isDebug) Debug.Log("[WorldManager] All initial loading sources complete!");
+        
+                WaitForFinalSceneOperations().Forget();
+            }
+        }
+
+        private async UniTaskVoid WaitForFinalSceneOperations()
+        {
+            if (_sceneLoader == null)
+            {
+                Debug.LogError("[WorldManager] SceneLoader is null!");
+                return;
+            }
+    
+            await UniTask.Delay(100);
     
             while (_sceneLoader.IsCurrentlyLoading() || _sceneLoader.GetPendingOperationCount() > 0)
             {
-                if (isDebug) Debug.Log($"[WorldManager] Still waiting - IsLoading: {_sceneLoader.IsCurrentlyLoading()}, Pending: {_sceneLoader.GetPendingOperationCount()}");
-                await UniTask.Delay(100); // 0.1 seconds
+                if (isDebug) 
+                    Debug.Log($"[WorldManager] Waiting for SceneLoader - IsLoading: {_sceneLoader.IsCurrentlyLoading()}, Pending: {_sceneLoader.GetPendingOperationCount()}");
+                await UniTask.Delay(100);
             }
-            await UniTask.Delay(200); // 0.2 seconds
     
-            if (!_isRegionTransitioning && !_sceneLoader.IsCurrentlyLoading() && _sceneLoader.GetPendingOperationCount() == 0)
+            await UniTask.Delay(200);
+    
+            if (isDebug) Debug.Log("[WorldManager] All scene operations complete - triggering fade out");
+    
+            if (!_isRegionTransitioning)
             {
-                if (isDebug) Debug.Log("[WorldManager] SceneLoader is idle - completing initial load");
                 NoPeeking.SetIsLoadingState(false);
-            }
-            else
-            {
-                if (isDebug) Debug.Log($"[WorldManager] Not completing load - regionTransitioning: {_isRegionTransitioning}, isLoading: {_sceneLoader.IsCurrentlyLoading()}, pending: {_sceneLoader.GetPendingOperationCount()}");
             }
         }
 
+        private void CheckIfInitialLoadIsComplete()
+        {
+            bool subscenesLoaded = _loadingStates.TryGetValue(LoadingSource.PersistentSubScenes, out bool subValue) && subValue;
+            bool dependenciesLoaded = _loadingStates.TryGetValue(LoadingSource.WorldDependencies, out bool depValue) && depValue;
+            
+            if (!subscenesLoaded || !dependenciesLoaded) return;
+
+            FadeMask.TogglePPE?.Invoke(true);
+            InitComplete?.Invoke(true);
+
+            if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete");
+
+            SetLoadingComplete(LoadingSource.InitialRegion, true);
+        }
 
         private void LoadWorldDependencies()
         {
@@ -202,18 +288,25 @@ namespace jeanf.scenemanagement
                 }
             }
         }
+
         private void SetSubSceneLoadedState(bool state)
         {
-            isSubscenesLoaded = state;
             if (isDebug) Debug.Log($"[WorldManager] SetSubSceneLoadedState: {state}");
+    
+            SetLoadingComplete(LoadingSource.PersistentSubScenes, state);
+    
             CheckIfInitialLoadIsComplete();
         }
+
         private void SetDependencyLoadedState(bool state)
         {
-            isDepedencyLoaded = state;
             if (isDebug) Debug.Log($"[WorldManager] SetDependencyLoadedState: {state}");
+    
+            SetLoadingComplete(LoadingSource.WorldDependencies, state);
+    
             CheckIfInitialLoadIsComplete();
         }
+        
         private void Init()
         {
             hasGameBeenInitialized = false;
@@ -222,14 +315,14 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = "";
             _lastNotifiedRegion = "";
             _isRegionTransitioning = false;
-
-            isSubscenesLoaded = false;
-            isDepedencyLoaded = false;
+            
+            InitializeLoadingStates();
 
             ClearAllMappings();
             BuildDataMappings();
             LoadWorldDependencies();
         }
+
         private void ClearAllMappings()
         {
             _zoneDictionary.Clear();
@@ -413,13 +506,13 @@ namespace jeanf.scenemanagement
             
             _activeRegions.Add(region);
             
-            StartCoroutine(CompleteRegionTransition());
+            CompleteRegionTransition().Forget();
         }
 
-        private System.Collections.IEnumerator CompleteRegionTransition()
+        private async UniTaskVoid CompleteRegionTransition()
         {
-            yield return new WaitForEndOfFrame();
-            yield return new WaitForEndOfFrame();
+            await UniTask.NextFrame();
+            await UniTask.NextFrame();
             
             _isRegionTransitioning = false;
             
@@ -513,6 +606,22 @@ namespace jeanf.scenemanagement
         public static Dictionary<string, Region> GetRegionDictionaryPerZone()
         {
             return Instance?._regionDictionaryPerZone;
+        }
+
+        public static bool IsLoadingComplete(LoadingSource source)
+        {
+            if (Instance == null) return false;
+            return Instance._loadingStates.TryGetValue(source, out bool value) && value;
+        }
+
+        public static bool ArePersistentSubScenesLoaded()
+        {
+            return IsLoadingComplete(LoadingSource.PersistentSubScenes);
+        }
+
+        public static bool AreWorldDependenciesLoaded()
+        {
+            return IsLoadingComplete(LoadingSource.WorldDependencies);
         }
     }
 }
