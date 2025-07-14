@@ -277,19 +277,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d893e95ad8884254fbcdb159ebb62787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isMovingChannel: {fileID: 11400000, guid: 36f1ba17ffcd8b045a3737ff8f4a0ff9, type: 2}
+  GeneralPauseEvent: {fileID: 0}
   minTimeBetweenFootsteps: 0.45
   maxTimeBetweenFootsteps: 0.5
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 8192
+  rayDistance: 0.3
+  stereoPan: -0.25
   audioSource: {fileID: 192680642}
-  isMovingChannel: {fileID: 11400000, guid: 36f1ba17ffcd8b045a3737ff8f4a0ff9, type: 2}
   linoleumSounds: {fileID: 6418180475301049370, guid: a1311abb60e08b64a8f46d0b75536bec,
     type: 2}
   concreteSounds: {fileID: 6418180475301049370, guid: 1d7f1ec7687c2b64890444cf97f894e7,
     type: 2}
-  rayDistance: 0.3
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 8192
-  stereoPan: -0.25
 --- !u!82 &192680642
 AudioSource:
   m_ObjectHideFlags: 0
@@ -389,6 +390,26 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!1 &221994761 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2311871612787447076, guid: e87a4cab69290cb40805f373b8ccd8d7,
+    type: 3}
+  m_PrefabInstance: {fileID: 778468112}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &221994766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 221994761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 025cc6d62b166084c9a929ec0d7ce112, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  TestChannel: {fileID: 11400000, guid: 030966fcf034be946ab6123e0405c29b, type: 2}
+  messageToSend: 9676d954-a694-403e-b558-c2e40553fa66
 --- !u!1 &233548888 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6067379427550378826, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -1002,10 +1023,30 @@ PrefabInstance:
       propertyPath: isDebug
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8979075195523201058, guid: e87a4cab69290cb40805f373b8ccd8d7,
+        type: 3}
+      propertyPath: worldDependencies.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8979075195523201058, guid: e87a4cab69290cb40805f373b8ccd8d7,
+        type: 3}
+      propertyPath: worldDependencies.Array.data[0].sceneName
+      value: Interaction_Demo
+      objectReference: {fileID: 0}
+    - target: {fileID: 8979075195523201058, guid: e87a4cab69290cb40805f373b8ccd8d7,
+        type: 3}
+      propertyPath: worldDependencies.Array.data[0].sceneAsset
+      value: 
+      objectReference: {fileID: 102900000, guid: 18d3facd613be8b48be6524ea4d0e57c,
+        type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2311871612787447076, guid: e87a4cab69290cb40805f373b8ccd8d7,
+        type: 3}
+      insertIndex: 2
+      addedObject: {fileID: 221994766}
   m_SourcePrefab: {fileID: 100100000, guid: e87a4cab69290cb40805f373b8ccd8d7, type: 3}
 --- !u!1 &804148143 stripped
 GameObject:
@@ -1967,7 +2008,8 @@ MonoBehaviour:
   - 0
   - 1
   snapshotTransitionTime: 1
-  TimeToWait: 10
+  stethoscopeTransitionTime: 1
+  delayTimeForIntro: 0.5
   isMuted: 1
   muteEventSO: {fileID: 11400000, guid: 8a8f850dc9757154a988fab2b7f65155, type: 2}
   unmuteEventSO: {fileID: 11400000, guid: 6a442c7528f8b9c4390821e926b2e962, type: 2}
@@ -2033,7 +2075,7 @@ GameObject:
   - component: {fileID: 1457784060}
   - component: {fileID: 1457784059}
   m_Layer: 8
-  m_Name: Cube (1)
+  m_Name: WallTest
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2054,7 +2096,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -2550,6 +2592,7 @@ MonoBehaviour:
   cameraOffset: {fileID: 376454066}
   listOfFilters: []
   cameraResetChannel: {fileID: 11400000, guid: 869cdbdb9de48ea42aa65f9a90dbc1d4, type: 2}
+  FadeEventChannel: {fileID: 0}
 --- !u!4 &1631578571
 Transform:
   m_ObjectHideFlags: 0
