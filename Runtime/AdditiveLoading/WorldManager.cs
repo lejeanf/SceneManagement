@@ -86,6 +86,10 @@ namespace jeanf.scenemanagement
             FadeMask.FadeValue(false);
             Instance = this;
             _sceneLoader = this.GetComponent<SceneLoader>();
+        }
+
+        private void Start()
+        {
             Init();
         }
 
@@ -132,12 +136,42 @@ namespace jeanf.scenemanagement
 
         private void LoadWorldDependencies()
         {
+            if (_sceneLoader == null) return;
+            if (worldDependencies == null) return;
+    
+            if (worldDependencies.Count == 0)
+            {
+                SetDependencyLoadedState(true);
+                return;
+            }
+    
             foreach (var dependency in worldDependencies)
             {
-                _sceneLoader.LoadSceneRequest(dependency.SceneName);
+                if (dependency == null)
+                {
+                    Debug.LogError("Found null dependency in worldDependencies list");
+                    continue;
+                }
+        
+                if (string.IsNullOrEmpty(dependency.SceneName))
+                {
+                    Debug.LogError($"Dependency has null or empty SceneName: {dependency}");
+                    continue;
+                }
+        
+                Debug.Log($"[WorldManager] Loading world dependency: {dependency.SceneName}");
+        
+                try
+                {
+                    _sceneLoader.LoadSceneRequest(dependency.SceneName);
+                    Debug.Log($"Successfully called LoadSceneRequest for: {dependency.SceneName}");
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"Exception calling LoadSceneRequest for {dependency.SceneName}: {ex.Message}\n{ex.StackTrace}");
+                }
             }
         }
-
         private void SetSubSceneLoadedState(bool state)
         {
             isSubscenesLoaded = state;
@@ -146,7 +180,6 @@ namespace jeanf.scenemanagement
         private void SetDependencyLoadedState(bool state)
         {
             isDepedencyLoaded = state;
-            LoadWorldDependencies();
             CheckIfInitialLoadIsComplete();
         }
 
@@ -158,11 +191,14 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = "";
             _lastNotifiedRegion = "";
             _isRegionTransitioning = false;
-            
+    
+            isSubscenesLoaded = false;
+            isDepedencyLoaded = false;
+    
             ClearAllMappings();
             BuildDataMappings();
+            LoadWorldDependencies();
         }
-        
         private void ClearAllMappings()
         {
             _zoneDictionary.Clear();

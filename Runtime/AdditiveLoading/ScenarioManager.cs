@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using jeanf.EventSystem;
+using jeanf.universalplayer;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -74,8 +75,9 @@ namespace jeanf.scenemanagement
         {
             Debug.Log("Restarting scenario : " + scenarioId); 
             UnloadScenario(scenarioId);
-            Debug.Log("after unload wait 2s");
-            await Task.Delay(2000);
+            NoPeeking.SetIsLoadingState(false);
+            Debug.Log("after unload wait .5s");
+            await Task.Delay(500);
             LoadScenario(scenarioId);
         }
 
@@ -131,7 +133,11 @@ namespace jeanf.scenemanagement
             List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
             UpdateScenariosList?.Invoke(scenarioList);
             onUnloadScenario.Invoke();
-
+            
+            if (!WorldManager.IsRegionTransitioning)
+            {
+                NoPeeking.SetIsLoadingState(false);
+            }
         }
 
         private Scenario UnloadScenario(string scenarioID)
