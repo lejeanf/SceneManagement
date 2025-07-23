@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using jeanf.universalplayer;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 namespace jeanf.scenemanagement
@@ -28,7 +29,9 @@ namespace jeanf.scenemanagement
         
         public delegate void FlushScenesDelegate();
         public FlushScenesDelegate FlushScenesRequest;
-        
+
+
+        [SerializeField] private BoolFloatEventChannelSO FadeEventChannel;
         private readonly struct SceneOperation
         {
             public readonly SceneOperationType Type;
@@ -160,6 +163,8 @@ namespace jeanf.scenemanagement
                 }
                 
                 await UniTask.WaitUntil(() => !_isProcessingUnloadQueue, cancellationToken: token);
+                FadeEventChannel?.RaiseEvent(false, 1.0f);
+                FadeMask.TogglePPE.Invoke(true);
                 LoadComplete?.Invoke(true);
             }
         }
