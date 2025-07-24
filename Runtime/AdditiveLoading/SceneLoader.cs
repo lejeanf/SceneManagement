@@ -163,8 +163,6 @@ namespace jeanf.scenemanagement
                 }
                 
                 await UniTask.WaitUntil(() => !_isProcessingUnloadQueue, cancellationToken: token);
-                FadeEventChannel?.RaiseEvent(false, 1.0f);
-                FadeMask.TogglePPE.Invoke(true);
                 LoadComplete?.Invoke(true);
             }
         }

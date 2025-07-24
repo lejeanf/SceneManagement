@@ -41,7 +41,7 @@ namespace jeanf.scenemanagement
 
         [propertyDrawer.ReadOnly] [SerializeField] private Zone _currentPlayerZone;
         [propertyDrawer.ReadOnly] [SerializeField] private Region _currentPlayerRegion;
-        
+        [SerializeField] private BoolFloatEventChannelSO FadeEventChannel;
         private static WorldManager Instance;
         private static bool _isRegionTransitioning = false;
 
@@ -248,6 +248,8 @@ namespace jeanf.scenemanagement
             if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete");
 
             SetLoadingComplete(LoadingSource.InitialRegion, true);
+            FadeEventChannel?.RaiseEvent(false, 1.0f);
+            FadeMask.TogglePPE.Invoke(true);
         }
 
         private void LoadWorldDependencies()
