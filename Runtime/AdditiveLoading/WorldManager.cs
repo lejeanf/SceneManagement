@@ -56,6 +56,7 @@ namespace jeanf.scenemanagement
 
         public delegate void InitCompleteDelegate(bool status);
         public static InitCompleteDelegate InitComplete;
+        private bool firstLoadCompleted = false;
         
         public static Zone CurrentPlayerZone 
         { 
@@ -242,7 +243,7 @@ namespace jeanf.scenemanagement
             
             if (!subscenesLoaded || !dependenciesLoaded) return;
 
-            FadeMask.TogglePPE?.Invoke(true);
+            //FadeMask.TogglePPE?.Invoke(true);
             InitComplete?.Invoke(true);
 
             if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete");
@@ -250,6 +251,7 @@ namespace jeanf.scenemanagement
             SetLoadingComplete(LoadingSource.InitialRegion, true);
             FadeEventChannel?.RaiseEvent(false, 1.0f);
             FadeMask.TogglePPE.Invoke(true);
+            firstLoadCompleted = true;
         }
 
         private void LoadWorldDependencies()
@@ -507,7 +509,11 @@ namespace jeanf.scenemanagement
             }
             
             _activeRegions.Add(region);
-            
+            if (firstLoadCompleted)
+            {
+                FadeEventChannel?.RaiseEvent(false, 1.0f);
+                FadeMask.TogglePPE.Invoke(true);
+            }
             CompleteRegionTransition().Forget();
         }
 
