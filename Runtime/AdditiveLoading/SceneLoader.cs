@@ -29,9 +29,6 @@ namespace jeanf.scenemanagement
         
         public delegate void FlushScenesDelegate();
         public FlushScenesDelegate FlushScenesRequest;
-
-
-        [SerializeField] private BoolFloatEventChannelSO FadeEventChannel;
         private readonly struct SceneOperation
         {
             public readonly SceneOperationType Type;
