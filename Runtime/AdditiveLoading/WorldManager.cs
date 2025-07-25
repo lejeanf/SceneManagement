@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using jeanf.EventSystem;
@@ -511,12 +512,17 @@ namespace jeanf.scenemanagement
             _activeRegions.Add(region);
             if (firstLoadCompleted)
             {
-                FadeEventChannel?.RaiseEvent(false, 1.0f);
-                FadeMask.TogglePPE.Invoke(true);
+                StartCoroutine(FadeOnRegionChange());
             }
             CompleteRegionTransition().Forget();
         }
 
+        IEnumerator FadeOnRegionChange()
+        {
+            yield return new WaitForSeconds(1.0f);
+            FadeEventChannel?.RaiseEvent(false, 1.0f);
+            FadeMask.TogglePPE.Invoke(true);
+        }
         private async UniTaskVoid CompleteRegionTransition()
         {
             await UniTask.NextFrame();
