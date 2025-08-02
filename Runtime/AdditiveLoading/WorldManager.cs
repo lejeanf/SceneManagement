@@ -122,6 +122,7 @@ namespace jeanf.scenemanagement
         {
             LoadPersistentSubScenes.PersistentLoadingComplete += SetSubSceneLoadedState;
             SceneLoader.IsInitialLoadComplete += SetDependencyLoadedState;
+            SceneLoader.LoadComplete += ctx => PublishAppList();
             regionChangeRequestChannel.OnEventRaised += OnRegionChange;
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
@@ -132,6 +133,7 @@ namespace jeanf.scenemanagement
         {
             LoadPersistentSubScenes.PersistentLoadingComplete -= SetSubSceneLoadedState;
             SceneLoader.IsInitialLoadComplete -= SetDependencyLoadedState;
+            SceneLoader.LoadComplete -= ctx => PublishAppList();
             regionChangeRequestChannel.OnEventRaised -= OnRegionChange;
             RequestRegionChange -= OnRegionChange;
             ResetWorld -= Init;
@@ -564,6 +566,25 @@ namespace jeanf.scenemanagement
 
             var listToBroadcast = zone.DefaultAppsInZone;
             if (ScenarioManager.activeOverridesPerZone.TryGetValue(zone.id, out var value))
+            {
+                listToBroadcast = value;
+            }
+
+            if (listToBroadcast.Count == 0)
+            {
+                Debug.Log($"[WorldManager] listToBroadcast (apps) is empty.");
+                return;
+            }
+
+            _broadcastAppList?.Invoke(listToBroadcast);
+        }
+
+        //Used post scene loading
+        private void PublishAppList()
+        {
+            if (CurrentPlayerZone == null) return;
+            var listToBroadcast = CurrentPlayerZone.DefaultAppsInZone;
+            if (ScenarioManager.activeOverridesPerZone.TryGetValue(CurrentPlayerZone.id, out var value))
             {
                 listToBroadcast = value;
             }
