@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -11,6 +12,11 @@ namespace jeanf.scenemanagement
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     public partial struct VolumeRenderingSystem : ISystem
     {
+#if UNITY_EDITOR
+        private static int[] s_cachedInstanceIDs = System.Array.Empty<int>();
+        private static int s_lastSelectionCount = -1;
+#endif
+        
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -20,24 +26,19 @@ namespace jeanf.scenemanagement
         public void OnUpdate(ref SystemState state)
         {
             NativeHashSet<int> selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.TempJob);
-    
+
 #if UNITY_EDITOR
-            // Use Selection.objects instead of Selection.gameObjects to avoid array allocation
-            // and cache the count to avoid multiple property calls
-            var selectedObjects = Selection.objects;
-            int selectionCount = Selection.count;
-    
-            // Alternative approach: Use a static list to avoid allocations
-            // This requires adding a static field to your class:
-            // private static readonly List<GameObject> tempGameObjectList = new List<GameObject>();
-    
-            for (int i = 0; i < selectionCount; i++)
+            // Only update cache when selection changes
+            int currentSelectionCount = Selection.count;
+            if (currentSelectionCount != s_lastSelectionCount)
             {
-                var selectedObj = selectedObjects[i];
-                if (selectedObj is GameObject gameObject)
-                {
-                    selectedGameObjectsIds.Add(gameObject.GetInstanceID());
-                }
+                s_lastSelectionCount = currentSelectionCount;
+                s_cachedInstanceIDs = Selection.instanceIDs;
+            }
+    
+            for (int i = 0; i < s_cachedInstanceIDs.Length; i++)
+            {
+                selectedGameObjectsIds.Add(s_cachedInstanceIDs[i]);
             }
 #endif
 
