@@ -147,8 +147,9 @@ namespace jeanf.scenemanagement
 
             var tempZoneList = new NativeList<FixedString128Bytes>(100, Allocator.Temp);
 
-            foreach (var entry in precomputedBuffer)
+            for (var index = 0; index < precomputedBuffer.Length; index++)
             {
+                var entry = precomputedBuffer[index];
                 switch (entry)
                 {
                     case { isZoneRegionMapping: true, zoneId: { IsEmpty: false }, regionId: { IsEmpty: false } }:
@@ -170,8 +171,9 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         private void BuildPrecomputedCheckableZones(ref SystemState state, DynamicBuffer<PrecomputedVolumeDataBuffer> precomputedBuffer)
         {
-            foreach (var entry in precomputedBuffer)
+            for (var index = 0; index < precomputedBuffer.Length; index++)
             {
+                var entry = precomputedBuffer[index];
                 if (!entry.isHeader || entry.primaryZoneId.IsEmpty) continue;
                 var tempList = new NativeList<FixedString128Bytes>(entry.count + _landingZones.Count, Allocator.Temp);
 
@@ -191,11 +193,12 @@ namespace jeanf.scenemanagement
                 {
                     tempList.Add(landingEnumerator.Current);
                 }
+
                 landingEnumerator.Dispose();
 
                 var checkableArray = tempList.ToArray(Allocator.Persistent);
                 tempList.Dispose();
-                    
+
                 _precomputedCheckableZones.TryAdd(entry.primaryZoneId, checkableArray);
             }
         }
@@ -207,8 +210,9 @@ namespace jeanf.scenemanagement
 
             if (currentZone.IsEmpty)
             {
-                foreach (var t in _allZones)
+                for (var index = 0; index < _allZones.Length; index++)
                 {
+                    var t = _allZones[index];
                     _checkableZoneIds.Add(t);
                 }
 
@@ -217,8 +221,9 @@ namespace jeanf.scenemanagement
 
             if (_precomputedCheckableZones.TryGetValue(currentZone, out var checkableArray))
             {
-                foreach (var t in checkableArray)
+                for (var index = 0; index < checkableArray.Length; index++)
                 {
+                    var t = checkableArray[index];
                     _checkableZoneIds.Add(t);
                 }
             }
@@ -363,17 +368,21 @@ namespace jeanf.scenemanagement
             entities.Dispose();
             levelInfos.Dispose();
 
-            foreach (var toLoad in _toLoadList)
+            for (var index = 0; index < _toLoadList.Length; index++)
             {
+                var toLoad = _toLoadList[index];
                 var streamingData = toLoad.Item2;
-                streamingData.runtimeEntity = SceneSystem.LoadSceneAsync(state.WorldUnmanaged, streamingData.sceneReference);
+                streamingData.runtimeEntity =
+                    SceneSystem.LoadSceneAsync(state.WorldUnmanaged, streamingData.sceneReference);
                 state.EntityManager.SetComponentData(toLoad.Item1, streamingData);
             }
 
-            foreach (var toUnload in _toUnloadList)
+            for (var index = 0; index < _toUnloadList.Length; index++)
             {
+                var toUnload = _toUnloadList[index];
                 var streamingData = toUnload.Item2;
-                SceneSystem.UnloadScene(state.WorldUnmanaged, streamingData.runtimeEntity, SceneSystem.UnloadParameters.DestroyMetaEntities);
+                SceneSystem.UnloadScene(state.WorldUnmanaged, streamingData.runtimeEntity,
+                    SceneSystem.UnloadParameters.DestroyMetaEntities);
                 streamingData.runtimeEntity = Entity.Null;
                 state.EntityManager.SetComponentData(toUnload.Item1, streamingData);
             }
