@@ -12,23 +12,18 @@ namespace jeanf.scenemanagement
         // Public getter for the scene name
         public string SceneName => sceneName;
 
-        #if UNITY_EDITOR
-        // Called automatically by Unity when the object is modified in the editor
-        public void OnValidate()
+        public SceneReference(string sceneName)
         {
-            // Ensure the sceneName is updated when the sceneAsset changes
-            if (sceneAsset != null)
+            this.sceneName = sceneName;
+        }
+        
+        #if UNITY_EDITOR
+        // Méthode pour forcer la mise à jour du nom
+        public void UpdateSceneName()
+        {
+            if (sceneAsset != null && sceneAsset is SceneAsset)
             {
-                if (sceneAsset is SceneAsset)
-                {
-                    sceneName = sceneAsset.name; // Extract scene name from the asset
-                }
-                else
-                {
-                    Debug.LogWarning("Assigned object is not a SceneAsset!");
-                    sceneAsset = null; // Reset if it's not a valid SceneAsset
-                    sceneName = "";
-                }
+                sceneName = sceneAsset.name;
             }
             else
             {
@@ -42,23 +37,28 @@ namespace jeanf.scenemanagement
     [CustomPropertyDrawer(typeof(SceneReference))]
     public class SceneReferenceDrawer : PropertyDrawer
     {
-
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
 
-            // Get the serialized properties
             SerializedProperty sceneAssetProp = property.FindPropertyRelative("sceneAsset");
             SerializedProperty sceneNameProp = property.FindPropertyRelative("sceneName");
 
-            // Draw the SceneAsset field with a label
-            position = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
-            EditorGUI.BeginChangeCheck();
+            // Vérifier si le nom a changé
+            if (sceneAssetProp.objectReferenceValue != null)
+            {
+                string currentName = sceneAssetProp.objectReferenceValue.name;
+                if (sceneNameProp.stringValue != currentName)
+                {
+                    sceneNameProp.stringValue = currentName;
+                }
+            }
 
-            // Restrict the object field to accept only SceneAssets
+            position = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
+        
+            EditorGUI.BeginChangeCheck();
             Object sceneAsset = EditorGUI.ObjectField(position, sceneAssetProp.objectReferenceValue, typeof(SceneAsset), false);
 
-            // If the scene asset changes, update the scene name
             if (EditorGUI.EndChangeCheck())
             {
                 sceneAssetProp.objectReferenceValue = sceneAsset;
@@ -68,6 +68,80 @@ namespace jeanf.scenemanagement
             EditorGUI.EndProperty();
         }
     }
-    #endif
 
+    // AssetPostprocessor pour détecter les renommages de scènes
+    public class SceneReferenceAssetPostprocessor : AssetPostprocessor
+    {
+        private static void OnPostprocessAllAssets(
+            string[] importedAssets,
+            string[] deletedAssets,
+            string[] movedAssets,
+            string[] movedFromAssetPaths)
+        {
+            bool sceneRenamed = false;
+
+            // Vérifier si des scènes ont été déplacées/renommées
+            for (int i = 0; i < movedAssets.Length; i++)
+            {
+                if (movedAssets[i].EndsWith(".unity"))
+                {
+                    sceneRenamed = true;
+                    break;
+                }
+            }
+
+            if (sceneRenamed)
+            {
+                // Forcer la mise à jour de tous les objets contenant des SceneReference
+                RefreshAllSceneReferences();
+            }
+        }
+
+        private static void RefreshAllSceneReferences()
+        {
+            // Trouver tous les MonoBehaviour et ScriptableObject dans le projet
+            string[] guids = AssetDatabase.FindAssets("t:MonoBehaviour t:ScriptableObject");
+        
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                Object obj = AssetDatabase.LoadAssetAtPath<Object>(path);
+            
+                if (obj != null)
+                {
+                    SerializedObject serializedObject = new SerializedObject(obj);
+                    SerializedProperty property = serializedObject.GetIterator();
+                    bool hasChanges = false;
+
+                    while (property.NextVisible(true))
+                    {
+                        if (property.type == "SceneReference")
+                        {
+                            SerializedProperty sceneAssetProp = property.FindPropertyRelative("sceneAsset");
+                            SerializedProperty sceneNameProp = property.FindPropertyRelative("sceneName");
+
+                            if (sceneAssetProp != null && sceneAssetProp.objectReferenceValue != null)
+                            { 
+                                string currentName = sceneAssetProp.objectReferenceValue.name;
+                                if (sceneNameProp.stringValue != currentName)
+                                {
+                                    sceneNameProp.stringValue = currentName;
+                                    hasChanges = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (hasChanges)
+                    {
+                        serializedObject.ApplyModifiedProperties();
+                        EditorUtility.SetDirty(obj);
+                    }
+                }
+            }
+
+            AssetDatabase.SaveAssets();
+        }
+    }
+    #endif
 }
