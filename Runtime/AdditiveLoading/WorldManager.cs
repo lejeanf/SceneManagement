@@ -474,13 +474,13 @@ namespace jeanf.scenemanagement
         
         private void OnRegionChange(Region region)
         {
-            FadeMask.TogglePPE.Invoke(false);
-            FadeEventChannel?.RaiseEvent(true, 0.1f);
             if (_currentPlayerRegion == region && hasGameBeenInitialized)
             {
                 Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
                 return;
             }
+            FadeMask.TogglePPE.Invoke(false);
+            FadeEventChannel?.RaiseEvent(true, 0.1f);
 
             _isRegionTransitioning = true;
             
