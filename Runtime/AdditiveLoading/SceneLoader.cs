@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -52,6 +53,21 @@ namespace jeanf.scenemanagement
         private bool _isProcessingLoadQueue = false;
         private bool _isProcessingUnloadQueue = false;
         private bool _isFlushingMemory = false;
+
+        #if UNITY_EDITOR
+        [Tooltip("This is only for devs in the Editor, will not be included in any build, not even alpha.")]
+        [SerializeField] private List<SceneReference> devScenes = new List<SceneReference>();
+
+        private void Awake()
+        {
+            foreach (var devScene in devScenes)
+            {
+                QueueLoadScene(devScene.SceneName);
+            }
+        }
+        #endif
+        
+        
 
         private void OnEnable() => Subscribe();
         private void OnDisable() => Unsubscribe();
