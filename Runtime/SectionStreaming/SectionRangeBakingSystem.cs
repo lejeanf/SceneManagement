@@ -57,10 +57,15 @@ namespace jeanf.SceneManagement
                         continue;
                     }
 
+                    float minDist = i == 0 ? 0f : sectionLevels[i - 1].MaxDistance;
+                    float maxDist = sectionLevel.MaxDistance;
+
                     var rangeData = new SectionRangeData
                     {
-                        MinDistance = i == 0 ? 0f : sectionLevels[i - 1].MaxDistance,
-                        MaxDistance = sectionLevel.MaxDistance,
+                        MinDistance = minDist,
+                        MaxDistance = maxDist,
+                        MinDistanceSq = minDist * minDist,
+                        MaxDistanceSq = maxDist * maxDist,
                         Level = i
                     };
 
@@ -87,6 +92,8 @@ namespace jeanf.SceneManagement
     {
         public float MinDistance;
         public float MaxDistance;
+        public float MinDistanceSq;
+        public float MaxDistanceSq;
         public int Level;
     }
 }
