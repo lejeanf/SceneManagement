@@ -5,29 +5,23 @@ on:
         branches:
           - main
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@unity'
-          registry-url-@unity: 'https://package.unity.com/'
-
-      - run: npm install -g npm@latest
-      
-      - run: npm install
-
-      - run: npm run build --if-present
-
-      - run: npm test --if-present
-
-      - run: npm publish --access public
+    release:
+        name: 🚀 publish
+        runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+            contents: read
+        steps:
+            - uses: actions/checkout@v4
+            
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  registry-url: https://registry.npmjs.org
+                  scope: '@unity'
+                  registry-url-@unity: 'https://package.unity.com/'
+                  
+            - run: npm install
+            
+            - run: npm publish --access public
