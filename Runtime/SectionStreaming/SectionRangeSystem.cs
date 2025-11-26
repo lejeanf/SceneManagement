@@ -12,13 +12,24 @@ namespace jeanf.SceneManagement
     [UpdateInGroup(typeof(SceneSystemGroup))]
     partial struct SectionRangeSystem : ISystem
     {
+        private NativeHashSet<Entity> _interceptedSections;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SectionRange>();
+            _interceptedSections = new NativeHashSet<Entity>(16, Allocator.Persistent);
         }
 
         [BurstCompile]
+        public void OnDestroy(ref SystemState state)
+        {
+            if (_interceptedSections.IsCreated)
+            {
+                _interceptedSections.Dispose();
+            }
+        }
+
         public void OnUpdate(ref SystemState state)
         {
             NativeHashSet<Entity> sectionsToLoad = new NativeHashSet<Entity>(16, Allocator.Temp);
@@ -61,6 +72,44 @@ namespace jeanf.SceneManagement
             for (int i = 0; i < sectionEntities.Length; i++)
             {
                 var sectionEntity = sectionEntities[i];
+                if (!_interceptedSections.Contains(sectionEntity))
+                {
+                    var rangeData = sectionRangeData[i];
+                    bool shouldBeLoaded = sectionsToLoad.Contains(sectionEntity);
+                    var sectionState = SceneSystem.GetSectionStreamingState(state.WorldUnmanaged, sectionEntity);
+                    bool hasRequest = state.EntityManager.HasComponent<RequestSceneLoaded>(sectionEntity);
+
+                    UnityEngine.Debug.Log($"[SectionRange] INTERCEPT Level {rangeData.Level}: shouldLoad={shouldBeLoaded}, state={sectionState}, hasRequest={hasRequest}");
+
+                    if (!shouldBeLoaded)
+                    {
+                        if (state.EntityManager.Exists(sectionEntity) && hasRequest)
+                        {
+                            state.EntityManager.RemoveComponent<RequestSceneLoaded>(sectionEntity);
+                            UnityEngine.Debug.Log($"[SectionRange] INTERCEPT Removed RequestSceneLoaded from Level {rangeData.Level}");
+                        }
+
+                        if (sectionState == SceneSystem.SectionStreamingState.Loading ||
+                            sectionState == SceneSystem.SectionStreamingState.Loaded)
+                        {
+                            SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
+                            UnityEngine.Debug.Log($"[SectionRange] INTERCEPT Unloading Level {rangeData.Level}");
+                        }
+                    }
+
+                    _interceptedSections.Add(sectionEntity);
+                }
+            }
+
+            for (int i = 0; i < sectionEntities.Length; i++)
+            {
+                var sectionEntity = sectionEntities[i];
+
+                if (!state.EntityManager.Exists(sectionEntity))
+                {
+                    continue;
+                }
+
                 var rangeData = sectionRangeData[i];
                 var sectionState = SceneSystem.GetSectionStreamingState(state.WorldUnmanaged, sectionEntity);
                 bool shouldBeLoaded = sectionsToLoad.Contains(sectionEntity);
