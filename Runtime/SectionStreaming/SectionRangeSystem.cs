@@ -13,12 +13,27 @@ namespace jeanf.SceneManagement
     partial struct SectionRangeSystem : ISystem
     {
         private NativeHashSet<Entity> _interceptedSections;
+        private EntityQuery _sectionQuery;
+        private EntityQuery _playerQuery;
+        private float3 _lastPlayerPosition;
+        private bool _hasLastPosition;
+        private const float MOVEMENT_THRESHOLD = 1f;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
             state.RequireForUpdate<SectionRange>();
             _interceptedSections = new NativeHashSet<Entity>(16, Allocator.Persistent);
+
+            _sectionQuery = SystemAPI.QueryBuilder()
+                .WithAll<SectionRange, SectionRangeData, SceneSectionData>()
+                .Build();
+
+            _playerQuery = SystemAPI.QueryBuilder()
+                .WithAll<LocalTransform, Player>()
+                .Build();
+
+            _hasLastPosition = false;
         }
 
         [BurstCompile]
@@ -30,30 +45,55 @@ namespace jeanf.SceneManagement
             }
         }
 
+        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            NativeHashSet<Entity> sectionsToLoad = new NativeHashSet<Entity>(16, Allocator.Temp);
+            var sectionEntities = _sectionQuery.ToEntityArray(Allocator.Temp);
 
-            var sectionQuery = SystemAPI.QueryBuilder()
-                .WithAll<SectionRange, SectionRangeData, SceneSectionData>()
-                .Build();
-
-            var sectionEntities = sectionQuery.ToEntityArray(Allocator.Temp);
-            var sectionRanges = sectionQuery.ToComponentDataArray<SectionRange>(Allocator.Temp);
-            var sectionRangeData = sectionQuery.ToComponentDataArray<SectionRangeData>(Allocator.Temp);
-
-            int playersProcessed = 0;
-            foreach (var transform in SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Player>())
+            if (sectionEntities.Length == 0)
             {
-                playersProcessed++;
-                float3 entityPosition = transform.ValueRO.Position;
+                sectionEntities.Dispose();
+                return;
+            }
 
+            var sectionRanges = _sectionQuery.ToComponentDataArray<SectionRange>(Allocator.Temp);
+            var sectionRangeData = _sectionQuery.ToComponentDataArray<SectionRangeData>(Allocator.Temp);
+
+            bool hasPlayer = !_playerQuery.IsEmpty;
+            float3 playerPosition = default;
+
+            if (hasPlayer)
+            {
+                var playerTransforms = _playerQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+                if (playerTransforms.Length > 0)
+                {
+                    playerPosition = playerTransforms[0].Position;
+                }
+                else
+                {
+                    hasPlayer = false;
+                }
+                playerTransforms.Dispose();
+            }
+
+            bool playerMoved = !_hasLastPosition || (hasPlayer && math.distance(playerPosition, _lastPlayerPosition) > MOVEMENT_THRESHOLD);
+
+            if (hasPlayer && playerMoved)
+            {
+                _lastPlayerPosition = playerPosition;
+                _hasLastPosition = true;
+            }
+
+            NativeHashSet<Entity> sectionsToLoad = new NativeHashSet<Entity>(sectionEntities.Length, Allocator.Temp);
+
+            if (hasPlayer)
+            {
                 for (int i = 0; i < sectionEntities.Length; i++)
                 {
                     var sectionRange = sectionRanges[i];
                     var rangeData = sectionRangeData[i];
 
-                    float3 distance = entityPosition - sectionRange.Center;
+                    float3 distance = playerPosition - sectionRange.Center;
                     distance.y = 0;
                     float distanceLength = math.length(distance);
 
@@ -63,41 +103,6 @@ namespace jeanf.SceneManagement
                     {
                         sectionsToLoad.Add(sectionEntities[i]);
                     }
-
-                    DrawSectionRangeDebug(sectionRange.Center, rangeData.MinDistance, rangeData.MaxDistance,
-                        sectionsToLoad.Contains(sectionEntities[i]), rangeData.Level);
-                }
-            }
-
-            for (int i = 0; i < sectionEntities.Length; i++)
-            {
-                var sectionEntity = sectionEntities[i];
-                if (!_interceptedSections.Contains(sectionEntity))
-                {
-                    var rangeData = sectionRangeData[i];
-                    bool shouldBeLoaded = sectionsToLoad.Contains(sectionEntity);
-                    var sectionState = SceneSystem.GetSectionStreamingState(state.WorldUnmanaged, sectionEntity);
-                    bool hasRequest = state.EntityManager.HasComponent<RequestSceneLoaded>(sectionEntity);
-
-                    UnityEngine.Debug.Log($"[SectionRange] INTERCEPT Level {rangeData.Level}: shouldLoad={shouldBeLoaded}, state={sectionState}, hasRequest={hasRequest}");
-
-                    if (!shouldBeLoaded)
-                    {
-                        if (state.EntityManager.Exists(sectionEntity) && hasRequest)
-                        {
-                            state.EntityManager.RemoveComponent<RequestSceneLoaded>(sectionEntity);
-                            UnityEngine.Debug.Log($"[SectionRange] INTERCEPT Removed RequestSceneLoaded from Level {rangeData.Level}");
-                        }
-
-                        if (sectionState == SceneSystem.SectionStreamingState.Loading ||
-                            sectionState == SceneSystem.SectionStreamingState.Loaded)
-                        {
-                            SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
-                            UnityEngine.Debug.Log($"[SectionRange] INTERCEPT Unloading Level {rangeData.Level}");
-                        }
-                    }
-
-                    _interceptedSections.Add(sectionEntity);
                 }
             }
 
@@ -111,43 +116,78 @@ namespace jeanf.SceneManagement
                 }
 
                 var rangeData = sectionRangeData[i];
-                var sectionState = SceneSystem.GetSectionStreamingState(state.WorldUnmanaged, sectionEntity);
                 bool shouldBeLoaded = sectionsToLoad.Contains(sectionEntity);
 
-                if (shouldBeLoaded)
-                {
-                    bool hasRequestSceneLoaded = state.EntityManager.HasComponent<RequestSceneLoaded>(sectionEntity);
+                var sectionState = SceneSystem.GetSectionStreamingState(state.WorldUnmanaged, sectionEntity);
+                bool hasRequestSceneLoaded = state.EntityManager.HasComponent<RequestSceneLoaded>(sectionEntity);
 
-                    if (sectionState == SceneSystem.SectionStreamingState.Unloaded)
-                    {
-                        if (!hasRequestSceneLoaded)
-                        {
-                            state.EntityManager.AddComponent<RequestSceneLoaded>(sectionEntity);
-                        }
-                    }
-                    else if (!hasRequestSceneLoaded)
-                    {
-                        state.EntityManager.AddComponent<RequestSceneLoaded>(sectionEntity);
-                    }
-                }
-                else
+                bool isNewSection = !_interceptedSections.Contains(sectionEntity);
+
+                if (isNewSection)
                 {
-                    if (playersProcessed > 0 && sectionsToLoad.Count > 0)
+                    if (!shouldBeLoaded)
                     {
-                        if (state.EntityManager.HasComponent<RequestSceneLoaded>(sectionEntity))
+                        if (hasRequestSceneLoaded)
                         {
                             state.EntityManager.RemoveComponent<RequestSceneLoaded>(sectionEntity);
                         }
 
-                        if (sectionState == SceneSystem.SectionStreamingState.Loaded)
+                        if (sectionState == SceneSystem.SectionStreamingState.Loading ||
+                            sectionState == SceneSystem.SectionStreamingState.Loaded)
                         {
                             SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
                         }
                     }
+
+                    _interceptedSections.Add(sectionEntity);
                 }
+                else if (hasPlayer && playerMoved)
+                {
+                    if (shouldBeLoaded)
+                    {
+                        if (sectionState == SceneSystem.SectionStreamingState.Unloaded && !hasRequestSceneLoaded)
+                        {
+                            state.EntityManager.AddComponent<RequestSceneLoaded>(sectionEntity);
+                        }
+                        else if (!hasRequestSceneLoaded)
+                        {
+                            state.EntityManager.AddComponent<RequestSceneLoaded>(sectionEntity);
+                        }
+                    }
+                    else
+                    {
+                        if (sectionsToLoad.Count > 0)
+                        {
+                            if (hasRequestSceneLoaded)
+                            {
+                                state.EntityManager.RemoveComponent<RequestSceneLoaded>(sectionEntity);
+                            }
+
+                            if (sectionState == SceneSystem.SectionStreamingState.Loaded)
+                            {
+                                SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
+                            }
+                        }
+                    }
+                }
+
+#if UNITY_EDITOR
+                if (hasPlayer)
+                {
+                    var sectionRange = sectionRanges[i];
+                    DrawSectionRangeDebug(sectionRange.Center, rangeData.MinDistance, rangeData.MaxDistance,
+                        shouldBeLoaded, rangeData.Level);
+                }
+#endif
             }
+
+            sectionEntities.Dispose();
+            sectionRanges.Dispose();
+            sectionRangeData.Dispose();
+            sectionsToLoad.Dispose();
         }
 
+#if UNITY_EDITOR
         private static void DrawSectionRangeDebug(float3 center, float minDistance, float maxDistance, bool isActive, int level)
         {
             Color baseColor = isActive ? new Color(0f, 0.8f, 0f) : new Color(0.8f, 0f, 0f);
@@ -188,5 +228,6 @@ namespace jeanf.SceneManagement
                 Debug.DrawLine(point1, point2, color);
             }
         }
+#endif
     }
 }
