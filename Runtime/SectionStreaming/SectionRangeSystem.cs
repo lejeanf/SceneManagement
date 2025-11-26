@@ -122,6 +122,7 @@ namespace jeanf.SceneManagement
             _sectionsToLoad.Clear();
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
+            bool interceptedNewSections = false;
 
             for (int i = 0; i < sectionEntities.Length; i++)
             {
@@ -155,6 +156,8 @@ namespace jeanf.SceneManagement
                 if (isNewSection)
                 {
                     s_InterceptMarker.Begin();
+                    interceptedNewSections = true;
+
                     if (!shouldBeLoaded)
                     {
                         if (hasRequestSceneLoaded)
@@ -168,11 +171,18 @@ namespace jeanf.SceneManagement
                             SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
                         }
                     }
+                    else
+                    {
+                        if (!hasRequestSceneLoaded)
+                        {
+                            ecb.AddComponent<RequestSceneLoaded>(sectionEntity);
+                        }
+                    }
 
                     _interceptedSections.Add(sectionEntity);
                     s_InterceptMarker.End();
                 }
-                else if (hasPlayer && playerMoved)
+                else if (hasPlayer && (playerMoved || interceptedNewSections))
                 {
                     s_LoadUnloadMarker.Begin();
                     if (shouldBeLoaded)
