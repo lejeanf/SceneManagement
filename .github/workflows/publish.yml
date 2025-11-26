@@ -13,26 +13,17 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: 📚 checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🟢 node setup
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@unity'
+          registry-url-@unity: 'https://package.unity.com/'
 
-      - name: Update npm CLI
-        run: npm install -g npm@latest
-
-      - name: 📦 Install dependencies
-        run: npm install 
-
-      - name: ⚙️ Build (if present)
-        run: npm run build --if-present
-
-      - name: 🧪 Test (if present)
-        run: npm test --if-present
-
-      - name: 🚀 Publish to NPM
-        run: npm publish --access public
+      - run: npm install -g npm@latest      
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test --if-present
+      - run: npm publish --access public
