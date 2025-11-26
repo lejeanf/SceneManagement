@@ -4,11 +4,13 @@ on:
     push:
         branches:
           - main
-
 jobs:
     release:
         name: 🚀 publish
         runs-on: ubuntu-latest
+        permissions:
+            id-token: write
+            contents: read
         steps:
             - name: 📚 checkout
               uses: actions/checkout@v3
@@ -19,5 +21,3 @@ jobs:
                   registry-url: https://registry.npmjs.org
             - name: 🚀 publish
               run: npm publish --access public
-              env:
-                  NODE_AUTH_TOKEN: ${{secrets.NPM_AUTH_TOKEN}}
