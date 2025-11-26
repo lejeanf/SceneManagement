@@ -113,6 +113,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   isDebug: 0
   maxConcurrentLoads: 2
+  devScenes: []
 --- !u!114 &8979075195523201058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -126,6 +127,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isDebug: 0
+  worldDependencies: []
   ListOfRegions:
   - {fileID: 11400000, guid: bbabf3e47905c1b4da96100c0b4e4484, type: 2}
   - {fileID: 11400000, guid: 3be0bdecc77225043bf1a2f89f5cfc8c, type: 2}
@@ -135,6 +137,8 @@ MonoBehaviour:
   sendTeleportTarget: {fileID: 4547402059037323192}
   _currentPlayerZone: {fileID: 0}
   _currentPlayerRegion: {fileID: 0}
+  FadeEventChannel: {fileID: 11400000, guid: 81e451f2c982d9a4bbba1960913d44b0, type: 2}
+  trackInitialLoading: 1
 --- !u!114 &2246953710021239090
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -56,16 +56,38 @@ namespace jeanf.scenemanagement
 
         private async UniTask LoadSubScene(SubScene subScene, WorldUnmanaged world)
         {
-            LoadingInformation.LoadingStatus?.Invoke($"Loading subScene: {subScene.name }.");
+            LoadingInformation.LoadingStatus?.Invoke($"Loading subScene: {subScene.name}.");
             var guid = subScene.SceneGUID;
-            var subSceneEntity = SceneSystem.LoadSceneAsync(world, guid);
-            listOfCreatedEntities.Add(subSceneEntity);
-        
-            while (!SceneSystem.IsSceneLoaded(world, subSceneEntity))
+            Entity subSceneEntity;
+            bool useSections = subScene.GetComponent<UseSectionStreaming>() != null;
+
+            if (useSections)
             {
+                subSceneEntity = SceneSystem.LoadSceneAsync(world, guid);
+                listOfCreatedEntities.Add(subSceneEntity);
+
+                var entityManager = world.EntityManager;
+                while (!entityManager.Exists(subSceneEntity))
+                {
+                    await UniTask.Yield();
+                }
+
                 await UniTask.Yield();
+
+                LoadingInformation.LoadingStatus?.Invoke($"SubScene {subScene.name} ready (sections managed by SectionRangeSystem).");
             }
-            LoadingInformation.LoadingStatus?.Invoke($"SubScene {subScene.name} loaded successfully.");
+            else
+            {
+                subSceneEntity = SceneSystem.LoadSceneAsync(world, guid);
+                listOfCreatedEntities.Add(subSceneEntity);
+
+                while (!SceneSystem.IsSceneLoaded(world, subSceneEntity))
+                {
+                    await UniTask.Yield();
+                }
+
+                LoadingInformation.LoadingStatus?.Invoke($"SubScene {subScene.name} loaded successfully.");
+            }
         }
     }
 }
