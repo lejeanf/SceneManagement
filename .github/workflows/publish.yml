@@ -9,17 +9,15 @@ jobs:
     release:
         name: 🚀 publish
         runs-on: ubuntu-latest
-        permissions:
-            id-token: write
-            contents: read
         steps:
-            - uses: actions/checkout@v4
-            
-            - uses: actions/setup-node@v4
+            - name: 📚 checkout
+              uses: actions/checkout@v3
+            - name: 🟢 node
+              uses: actions/setup-node@v3
               with:
-                  node-version: 20
+                  node-version: 16
                   registry-url: https://registry.npmjs.org
-                  scope: '@unity'
-                  registry-url-@unity: 'https://package.unity.com/'
-                              
-            - run: npm publish --access public
+            - name: 🚀 publish
+              run: npm publish --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{secrets.NPM_AUTH_TOKEN}}
