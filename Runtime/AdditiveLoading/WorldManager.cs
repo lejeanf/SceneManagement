@@ -58,6 +58,7 @@ namespace jeanf.scenemanagement
         public delegate void InitCompleteDelegate(bool status);
         public static InitCompleteDelegate InitComplete;
         private bool firstLoadCompleted = false;
+        private bool _isQuitting = false;
         
         public static Zone CurrentPlayerZone 
         { 
@@ -128,6 +129,10 @@ namespace jeanf.scenemanagement
             ResetWorld += Init;
             ScenarioManager.OnZoneOverridesChanged += OnZoneOverridesChanged;
         }
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
+        }
 
         private void Unsubscribe()
         {
@@ -138,7 +143,8 @@ namespace jeanf.scenemanagement
             RequestRegionChange -= OnRegionChange;
             ResetWorld -= Init;
             ScenarioManager.OnZoneOverridesChanged -= OnZoneOverridesChanged;
-    
+
+            if (_isQuitting || _sceneLoader == null) return;
             foreach (var dependency in worldDependencies)
             {
                 _sceneLoader.UnLoadSceneRequest(dependency.SceneName);
