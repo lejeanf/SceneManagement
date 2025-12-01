@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using Unity.Entities;
 using Unity.Scenes;
@@ -48,9 +49,19 @@ namespace jeanf.scenemanagement
 
         private void OnDestroy()
         {
-            foreach (var entity in listOfCreatedEntities)
+            if (World.DefaultGameObjectInjectionWorld == null || !World.DefaultGameObjectInjectionWorld.IsCreated)
+                return;
+
+            foreach (var entity in listOfCreatedEntities.Where(entity => world.IsCreated && entity != Entity.Null))
             {
-                if(world.IsCreated && entity != Entity.Null) SceneSystem.UnloadScene(world, entity);
+                try
+                {
+                    SceneSystem.UnloadScene(world, entity);
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
             }
         }
 
