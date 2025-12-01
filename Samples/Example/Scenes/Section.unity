@@ -4836,7 +4836,8 @@ MonoBehaviour:
   sectionDistances:
   - 25
   - 100
-  sectionIndices: 0100000002000000
+  - 200
+  sectionIndices: 010000000200000003000000
 --- !u!4 &1757271947
 Transform:
   m_ObjectHideFlags: 0

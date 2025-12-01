@@ -88,8 +88,7 @@ namespace jeanf.SceneManagement
                 playerTransforms.Dispose();
             }
 
-            bool playerMoved = !_hasLastPosition ||
-                (hasPlayer && math.lengthsq(playerPosition - _lastPlayerPosition) > MOVEMENT_THRESHOLD_SQ);
+            bool playerMoved = !_hasLastPosition || (hasPlayer && math.lengthsq(playerPosition - _lastPlayerPosition) > MOVEMENT_THRESHOLD_SQ);
 
             int sectionCount = _sectionQuery.CalculateEntityCount();
             bool hasNewSections = sectionCount != _interceptedSections.Count;
@@ -182,7 +181,7 @@ namespace jeanf.SceneManagement
                     _interceptedSections.Add(sectionEntity);
                     s_InterceptMarker.End();
                 }
-                else if (hasPlayer && (playerMoved || interceptedNewSections))
+                else if (hasPlayer && playerMoved)
                 {
                     s_LoadUnloadMarker.Begin();
                     if (shouldBeLoaded)
@@ -194,17 +193,14 @@ namespace jeanf.SceneManagement
                     }
                     else
                     {
-                        if (_sectionsToLoad.Count > 0)
+                        if (hasRequestSceneLoaded)
                         {
-                            if (hasRequestSceneLoaded)
-                            {
-                                ecb.RemoveComponent<RequestSceneLoaded>(sectionEntity);
-                            }
+                            ecb.RemoveComponent<RequestSceneLoaded>(sectionEntity);
+                        }
 
-                            if (sectionState == SceneSystem.SectionStreamingState.Loaded)
-                            {
-                                SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
-                            }
+                        if (sectionState == SceneSystem.SectionStreamingState.Loaded)
+                        {
+                            SceneSystem.UnloadScene(state.WorldUnmanaged, sectionEntity, SceneSystem.UnloadParameters.Default);
                         }
                     }
                     s_LoadUnloadMarker.End();
