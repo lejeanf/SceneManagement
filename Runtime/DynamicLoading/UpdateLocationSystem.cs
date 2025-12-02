@@ -1,5 +1,3 @@
-// LocationUpdateNotificationSystem.cs
-
 using Unity.Collections;
 using Unity.Entities;
 
@@ -8,27 +6,33 @@ namespace jeanf.scenemanagement
     [UpdateAfter(typeof(VolumeSystem))]
     public partial class LocationUpdateNotificationSystem : SystemBase
     {
+        private EndSimulationEntityCommandBufferSystem _ecbSystem;
+
+        protected override void OnCreate()
+        {
+            base.OnCreate();
+            _ecbSystem = World.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
+        }
+
         protected override void OnUpdate()
         {
-            // Process zone change notifications
-            Entities.WithoutBurst().WithStructuralChanges().ForEach((Entity entity, in ZoneChangeNotificationComponent notification) =>
+            var ecb = _ecbSystem.CreateCommandBuffer();
+
+            foreach (var (notification, entity) in SystemAPI.Query<RefRO<ZoneChangeNotificationComponent>>().WithEntityAccess())
             {
-                WorldManager.NotifyZoneChangeFromECS(notification.ZoneId);
-                EntityManager.DestroyEntity(entity);
-                
-            }).Run();
-        
-            // Process region change notifications
-            Entities.WithoutBurst().WithStructuralChanges().ForEach((Entity entity, in RegionChangeNotificationComponent notification) =>
+                WorldManager.NotifyZoneChangeFromECS(notification.ValueRO.ZoneId);
+
+                ecb.DestroyEntity(entity);
+            }
+
+            foreach (var (notification, entity) in SystemAPI.Query<RefRO<RegionChangeNotificationComponent>>().WithEntityAccess())
             {
-                WorldManager.NotifyRegionChangeFromECS(notification.RegionId);
-                EntityManager.DestroyEntity(entity);
-                
-            }).Run();
+                WorldManager.NotifyRegionChangeFromECS(notification.ValueRO.RegionId);
+                ecb.DestroyEntity(entity);
+            }
         }
     }
-    
-    
+
     public struct ZoneChangeNotificationComponent : IComponentData
     {
         public FixedString128Bytes ZoneId;

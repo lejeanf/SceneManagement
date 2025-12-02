@@ -288,12 +288,9 @@ namespace jeanf.scenemanagement
                     continue;
                 }
         
-                Debug.Log($"[WorldManager] Loading world dependency: {dependency.SceneName}");
-        
                 try
                 {
                     _sceneLoader.LoadSceneRequest(dependency.SceneName);
-                    Debug.Log($"Successfully called LoadSceneRequest for: {dependency.SceneName}");
                 }
                 catch (System.Exception ex)
                 {
@@ -304,19 +301,13 @@ namespace jeanf.scenemanagement
 
         private void SetSubSceneLoadedState(bool state)
         {
-            if (isDebug) Debug.Log($"[WorldManager] SetSubSceneLoadedState: {state}");
-    
             SetLoadingComplete(LoadingSource.PersistentSubScenes, state);
-    
             CheckIfInitialLoadIsComplete();
         }
 
         private void SetDependencyLoadedState(bool state)
         {
-            if (isDebug) Debug.Log($"[WorldManager] SetDependencyLoadedState: {state}");
-    
             SetLoadingComplete(LoadingSource.WorldDependencies, state);
-    
             CheckIfInitialLoadIsComplete();
         }
         
@@ -426,15 +417,13 @@ namespace jeanf.scenemanagement
         public static void NotifyZoneChangeFromECS(FixedString128Bytes zoneId)
         {
             if (Instance == null || _isRegionTransitioning || zoneId.IsEmpty) return;
-            var zoneIdString = zoneId.ToString();
-            Instance.OnZoneChangedFromECS(zoneIdString);
+            Instance.OnZoneChangedFromECS(zoneId);
         }
         
         public static void NotifyRegionChangeFromECS(FixedString128Bytes regionId)
         {
             if (Instance == null || _isRegionTransitioning || regionId.IsEmpty) return;
-            var regionIdString = regionId.ToString();
-            Instance.OnRegionChangedFromECS(regionIdString);
+            Instance.OnRegionChangedFromECS(regionId);
         }
 
         private void OnZoneChangedFromECS(FixedString128Bytes id)
