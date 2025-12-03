@@ -36,6 +36,12 @@ namespace jeanf.scenemanagement
         private NativeArray<FixedString128Bytes> _allZones;
         private bool _precomputedDataInitialized;
 
+        private int _maxSceneOperationsPerFrame;
+        private int _framesSinceLastOperation;
+        private int _minFramesBetweenBatches;
+        private NativeQueue<(Entity, LevelInfo)> _pendingLoadQueue;
+        private NativeQueue<(Entity, LevelInfo)> _pendingUnloadQueue;
+
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
@@ -60,6 +66,12 @@ namespace jeanf.scenemanagement
             _pendingRegionNotification = new FixedString128Bytes();
             _precomputedDataInitialized = false;
 
+            _maxSceneOperationsPerFrame = 2; 
+            _minFramesBetweenBatches = 1;
+            _framesSinceLastOperation = 0;
+            _pendingLoadQueue = new NativeQueue<(Entity, LevelInfo)>(Allocator.Persistent);
+            _pendingUnloadQueue = new NativeQueue<(Entity, LevelInfo)>(Allocator.Persistent);
+
             _relevantQuery = SystemAPI.QueryBuilder().WithAll<Relevant, LocalToWorld>().Build();
             _volumeQuery = SystemAPI.QueryBuilder().WithAll<Volume, LocalToWorld>().Build();
             _levelLoadingQuery = SystemAPI.QueryBuilder().WithAll<VolumeBuffer, LevelInfo>().Build();
@@ -76,6 +88,8 @@ namespace jeanf.scenemanagement
             if (_zoneToRegionMap.IsCreated) _zoneToRegionMap.Dispose();
             if (_landingZones.IsCreated) _landingZones.Dispose();
             if (_allZones.IsCreated) _allZones.Dispose();
+            if (_pendingLoadQueue.IsCreated) _pendingLoadQueue.Dispose();
+            if (_pendingUnloadQueue.IsCreated) _pendingUnloadQueue.Dispose();
 
             if (!_precomputedCheckableZones.IsCreated) return;
             var enumerator = _precomputedCheckableZones.GetEnumerator();
@@ -119,8 +133,8 @@ namespace jeanf.scenemanagement
                 );
             
             ProcessLevelLoadingStates(ref state);
-            
             ProcessPendingNotifications(ref state);
+            ProcessPendingSceneOperations(ref state);
 
             if (relevantPositions.IsCreated) relevantPositions.Dispose();
         }
@@ -193,7 +207,6 @@ namespace jeanf.scenemanagement
                 {
                     tempList.Add(landingEnumerator.Current);
                 }
-
                 landingEnumerator.Dispose();
 
                 var checkableArray = tempList.ToArray(Allocator.Persistent);
@@ -370,22 +383,57 @@ namespace jeanf.scenemanagement
 
             for (var index = 0; index < _toLoadList.Length; index++)
             {
-                var toLoad = _toLoadList[index];
-                var streamingData = toLoad.Item2;
-                streamingData.runtimeEntity =
-                    SceneSystem.LoadSceneAsync(state.WorldUnmanaged, streamingData.sceneReference);
-                state.EntityManager.SetComponentData(toLoad.Item1, streamingData);
+                _pendingLoadQueue.Enqueue(_toLoadList[index]);
             }
 
             for (var index = 0; index < _toUnloadList.Length; index++)
             {
-                var toUnload = _toUnloadList[index];
+                _pendingUnloadQueue.Enqueue(_toUnloadList[index]);
+            }
+        }
+
+        [BurstCompile]
+        private void ProcessPendingSceneOperations(ref SystemState state)
+        {
+            _framesSinceLastOperation++;
+
+            if (_framesSinceLastOperation < _minFramesBetweenBatches)
+                return;
+
+            int operationsThisFrame = 0;
+
+            while (operationsThisFrame < _maxSceneOperationsPerFrame && _pendingUnloadQueue.TryDequeue(out var toUnload))
+            {
                 var streamingData = toUnload.Item2;
                 SceneSystem.UnloadScene(state.WorldUnmanaged, streamingData.runtimeEntity,
                     SceneSystem.UnloadParameters.DestroyMetaEntities);
                 streamingData.runtimeEntity = Entity.Null;
                 state.EntityManager.SetComponentData(toUnload.Item1, streamingData);
+                operationsThisFrame++;
+            }
+
+            while (operationsThisFrame < _maxSceneOperationsPerFrame && _pendingLoadQueue.TryDequeue(out var toLoad))
+            {
+                var streamingData = toLoad.Item2;
+                streamingData.runtimeEntity =
+                    SceneSystem.LoadSceneAsync(state.WorldUnmanaged, streamingData.sceneReference);
+                state.EntityManager.SetComponentData(toLoad.Item1, streamingData);
+                operationsThisFrame++;
+            }
+
+            if (operationsThisFrame > 0)
+            {
+                _framesSinceLastOperation = 0;
             }
         }
+
+        public void SetSceneOperationLimits(int maxOpsPerFrame, int minFramesBetween)
+        {
+            _maxSceneOperationsPerFrame = math.max(1, maxOpsPerFrame);
+            _minFramesBetweenBatches = math.max(0, minFramesBetween);
+        }
+
+        public int GetPendingLoadCount() => _pendingLoadQueue.Count;
+        public int GetPendingUnloadCount() => _pendingUnloadQueue.Count;
     }
 }
