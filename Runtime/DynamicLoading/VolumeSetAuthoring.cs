@@ -9,7 +9,7 @@ namespace jeanf.scenemanagement
 #if UNITY_EDITOR
     public class VolumeSetAuthoring : MonoBehaviour
     {
-        public List<VolumeAuthoring> volumes;
+        public List<VolumeAuthoring> volumes = new List<VolumeAuthoring>();
 
         public class Baker : Baker<VolumeSetAuthoring>
         {
