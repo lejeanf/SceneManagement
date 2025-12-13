@@ -8,6 +8,7 @@ namespace jeanf.scenemanagement
     {
         [FormerlySerializedAs("name")] [Header("App Information")]
         public string appName;
+        public string appTitle;
         public Texture2D icon;
     }
 }
