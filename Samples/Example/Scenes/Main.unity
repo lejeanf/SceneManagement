@@ -558,7 +558,8 @@ GameObject:
   - component: {fileID: 293213381}
   - component: {fileID: 293213380}
   - component: {fileID: 293213379}
-  m_Layer: 13
+  - component: {fileID: 293213382}
+  m_Layer: 31
   m_Name: Linoleum (1)
   m_TagString: Linoleum
   m_Icon: {fileID: 0}
@@ -658,6 +659,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 293213377}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &293213382
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293213377}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &295002164 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3489735565914949661, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -734,7 +762,8 @@ GameObject:
   - component: {fileID: 378199662}
   - component: {fileID: 378199661}
   - component: {fileID: 378199660}
-  m_Layer: 13
+  - component: {fileID: 378199663}
+  m_Layer: 31
   m_Name: Linoleum (2)
   m_TagString: Linoleum
   m_Icon: {fileID: 0}
@@ -834,6 +863,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 378199658}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &378199663
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 378199658}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &408010799 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6783634762735975773, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -875,7 +931,8 @@ GameObject:
   - component: {fileID: 436722039}
   - component: {fileID: 436722038}
   - component: {fileID: 436722037}
-  m_Layer: 13
+  - component: {fileID: 436722040}
+  m_Layer: 31
   m_Name: Concrete (1)
   m_TagString: Concrete
   m_Icon: {fileID: 0}
@@ -975,6 +1032,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 436722035}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &436722040
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436722035}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &454524407 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 505420968046896364, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -1305,7 +1389,8 @@ GameObject:
   - component: {fileID: 609245165}
   - component: {fileID: 609245164}
   - component: {fileID: 609245163}
-  m_Layer: 13
+  - component: {fileID: 609245166}
+  m_Layer: 31
   m_Name: Concrete (3)
   m_TagString: Concrete
   m_Icon: {fileID: 0}
@@ -1405,6 +1490,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 609245161}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &609245166
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 609245161}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1001 &638575716
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1575,7 +1687,8 @@ GameObject:
   - component: {fileID: 740526090}
   - component: {fileID: 740526089}
   - component: {fileID: 740526088}
-  m_Layer: 13
+  - component: {fileID: 740526091}
+  m_Layer: 31
   m_Name: Linoleum (3)
   m_TagString: Linoleum
   m_Icon: {fileID: 0}
@@ -1675,6 +1788,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 740526086}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &740526091
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 740526086}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!4 &752913879 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5607058472881638146, guid: e198c52c18c6b3f4d9dfbd7383227835,
@@ -2041,7 +2181,8 @@ GameObject:
   - component: {fileID: 868340248}
   - component: {fileID: 868340247}
   - component: {fileID: 868340246}
-  m_Layer: 13
+  - component: {fileID: 868340250}
+  m_Layer: 31
   m_Name: Linoleum
   m_TagString: Linoleum
   m_Icon: {fileID: 0}
@@ -2141,6 +2282,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1574667795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &868340250
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 868340245}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1001 &888394672
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2448,7 +2616,8 @@ GameObject:
   - component: {fileID: 945315677}
   - component: {fileID: 945315676}
   - component: {fileID: 945315675}
-  m_Layer: 13
+  - component: {fileID: 945315678}
+  m_Layer: 31
   m_Name: Concrete (2)
   m_TagString: Concrete
   m_Icon: {fileID: 0}
@@ -2548,6 +2717,33 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 945315673}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!54 &945315678
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 945315673}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &963776258 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8443194820722063113, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -5130,17 +5326,17 @@ PrefabInstance:
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_LocalPosition.x
-      value: 2.46
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.98
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_LocalPosition.z
-      value: -2.7
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2423214379621556911, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
@@ -6408,7 +6604,8 @@ GameObject:
   - component: {fileID: 2033136412}
   - component: {fileID: 2033136411}
   - component: {fileID: 2033136410}
-  m_Layer: 13
+  - component: {fileID: 2033136414}
+  m_Layer: 31
   m_Name: Concrete
   m_TagString: Concrete
   m_Icon: {fileID: 0}
@@ -6508,6 +6705,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1574667795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &2033136414
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2033136409}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &2089951194 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 926571528456701099, guid: 15d66d68a4116d243b7bb3b273842708,
