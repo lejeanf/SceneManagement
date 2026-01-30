@@ -119,6 +119,52 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &65486987
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 65486988}
+  - component: {fileID: 65486989}
+  m_Layer: 0
+  m_Name: 101
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &65486988
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 65486987}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 5, y: 1.5, z: -11.25}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &65486989
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 65486987}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 101
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1 &71369021 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2258425262222752749, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -148,6 +194,98 @@ CapsuleCollider:
   m_Height: 0.05379386
   m_Direction: 2
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &119992521
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 119992522}
+  - component: {fileID: 119992523}
+  m_Layer: 0
+  m_Name: 109
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &119992522
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 119992521}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -2.5, y: 1.5, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &119992523
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 119992521}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 109
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
+--- !u!1 &127812356
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 127812357}
+  - component: {fileID: 127812358}
+  m_Layer: 0
+  m_Name: 104
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &127812357
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 127812356}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.5, z: 3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &127812358
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 127812356}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 104
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1 &149745892
 GameObject:
   m_ObjectHideFlags: 0
@@ -715,6 +853,58 @@ CapsuleCollider:
   m_Height: 0.05379386
   m_Direction: 2
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &331736942 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6601360083180395373, guid: 15d66d68a4116d243b7bb3b273842708,
+    type: 3}
+  m_PrefabInstance: {fileID: 1930017184}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &333140939
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 333140940}
+  - component: {fileID: 333140941}
+  m_Layer: 0
+  m_Name: 108
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &333140940
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 333140939}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 1.5, z: -16.75}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &333140941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 333140939}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 108
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1 &374366268 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1463028101600307115, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -1166,6 +1356,20 @@ Transform:
   - {fileID: 1004688818}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &571847619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: FPS/Elevate
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 110d9016d6486d84697b9d7a66a57d45, type: 3}
+  m_ActionId: 2d3a814a-7377-481c-ad17-a76dd1d9ebf7
 --- !u!1001 &575654801
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1675,6 +1879,52 @@ CapsuleCollider:
   m_Height: 0.05379386
   m_Direction: 2
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &733215840
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 733215841}
+  - component: {fileID: 733215842}
+  m_Layer: 0
+  m_Name: 107
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &733215841
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 733215840}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -7.75, y: 1.5, z: -14.25}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &733215842
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 733215840}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 107
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1 &740526086
 GameObject:
   m_ObjectHideFlags: 0
@@ -2309,6 +2559,52 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!1 &872087403
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 872087404}
+  - component: {fileID: 872087405}
+  m_Layer: 0
+  m_Name: 103
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &872087404
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 872087403}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 1.25, y: 1.5, z: -15}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &872087405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 872087403}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 103
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1001 &888394672
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3651,6 +3947,52 @@ MonoBehaviour:
       y: 1270002149
       z: 4261492139
       w: 23173900
+--- !u!1 &1309803526
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1309803527}
+  - component: {fileID: 1309803528}
+  m_Layer: 0
+  m_Name: 105
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1309803527
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1309803526}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 3.75, y: 1.5, z: 10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &1309803528
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1309803526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 105
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!4 &1333377013 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6198128344752344525, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -4310,6 +4652,52 @@ Transform:
   - {fileID: 1648685556}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1561021720
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1561021721}
+  - component: {fileID: 1561021722}
+  m_Layer: 0
+  m_Name: 102
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1561021721
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1561021720}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: -5, y: 1.5, z: -11.75}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &1561021722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1561021720}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 102
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1 &1572791163 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8414590065842960059, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -4378,6 +4766,87 @@ Transform:
   - {fileID: 609245162}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1582397103
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1582397104}
+  - component: {fileID: 1582397106}
+  - component: {fileID: 1582397105}
+  m_Layer: 0
+  m_Name: DoorIdentifiers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1582397104
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1582397103}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 65486988}
+  - {fileID: 1561021721}
+  - {fileID: 872087404}
+  - {fileID: 127812357}
+  - {fileID: 1309803527}
+  - {fileID: 2114061240}
+  - {fileID: 733215841}
+  - {fileID: 333140940}
+  - {fileID: 119992522}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1582397105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1582397103}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 274b27a213850d843b91a425f9fcb98c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.Utilities.BoxColliderPoolManager
+  maxPoolSize: 5
+  cullingDistance: 5
+  distanceCheckInterval: 0.5
+  minimumSpacing: 0.5
+  reassignmentThreshold: 1.3
+  keepOutOfRangeAssignments: 1
+--- !u!114 &1582397106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1582397103}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21a29c87a21281e47a1b03ec9da7cd80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.AudioSourcePoolManager
+  audioSourcePrefab: {fileID: 8946807900318080254, guid: 7f02ee0b575117b4288172beeb319a06,
+    type: 3}
+  maxPoolSize: 5
+  cullingDistance: 5
+  distanceCheckInterval: 0.5
+  minimumSourceSpacing: 0.5
+  reassignmentThreshold: 1.3
+  keepOutOfRangeAssignments: 1
+  fadeDuration: 0.25
 --- !u!4 &1588118419 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2969270201452490162, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -4584,6 +5053,20 @@ CapsuleCollider:
   m_Height: 0.05379386
   m_Direction: 2
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1682826944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: FPS/ActivateFreeCam
+  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.InputActionReference
+  m_Asset: {fileID: -944628639613478452, guid: 110d9016d6486d84697b9d7a66a57d45, type: 3}
+  m_ActionId: c72238c9-2dbc-4e03-adad-f849210c73cb
 --- !u!1001 &1725814386
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5031,6 +5514,12 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 1828667431}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1857775486 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6601360084267668000, guid: 15d66d68a4116d243b7bb3b273842708,
+    type: 3}
+  m_PrefabInstance: {fileID: 1930017184}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1919422758 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3715769913663591969, guid: 15d66d68a4116d243b7bb3b273842708,
@@ -5373,6 +5862,16 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2559006522628317241, guid: 15d66d68a4116d243b7bb3b273842708,
+        type: 3}
+      propertyPath: m_LeftHand
+      value: 
+      objectReference: {fileID: 1857775486}
+    - target: {fileID: 2559006522628317241, guid: 15d66d68a4116d243b7bb3b273842708,
+        type: 3}
+      propertyPath: m_RightHand
+      value: 
+      objectReference: {fileID: 331736942}
     - target: {fileID: 2599669817457998611, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_Enabled
@@ -5468,6 +5967,16 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3920846596333291025, guid: 15d66d68a4116d243b7bb3b273842708,
+        type: 3}
+      propertyPath: freeCamAction
+      value: 
+      objectReference: {fileID: 1682826944}
+    - target: {fileID: 3920846596333291025, guid: 15d66d68a4116d243b7bb3b273842708,
+        type: 3}
+      propertyPath: fpsElevateAction
+      value: 
+      objectReference: {fileID: 571847619}
     - target: {fileID: 3950214326736801369, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_Enabled
@@ -5948,6 +6457,11 @@ PrefabInstance:
       propertyPath: m_LocalPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6693059999648577018, guid: 15d66d68a4116d243b7bb3b273842708,
+        type: 3}
+      propertyPath: m_Camera
+      value: 
+      objectReference: {fileID: 1475870600}
     - target: {fileID: 6693059999648577018, guid: 15d66d68a4116d243b7bb3b273842708,
         type: 3}
       propertyPath: m_Enabled
@@ -6761,6 +7275,52 @@ CapsuleCollider:
   m_Height: 0.05379386
   m_Direction: 2
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &2114061239
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2114061240}
+  - component: {fileID: 2114061241}
+  m_Layer: 0
+  m_Name: 106
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2114061240
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2114061239}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.00000031292436, z: -0, w: -1}
+  m_LocalPosition: {x: -1.5, y: 1.5, z: 5.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1582397104}
+  m_LocalEulerAnglesHint: {x: 0, y: 360, z: 0}
+--- !u!114 &2114061241
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2114061239}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a25067843f7f994d88643a0f7007b99, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorIdentifier
+  doorNumber: 106
+  audioConfiguration: {fileID: 11400000, guid: 1ccf0bfa69cf2e34a8edff36ac98e577, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -6777,3 +7337,4 @@ SceneRoots:
   - {fileID: 1598510760}
   - {fileID: 568910247}
   - {fileID: 1574667795}
+  - {fileID: 1582397104}

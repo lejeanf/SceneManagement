@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4453093168078531673}
   - component: {fileID: 7270800449914844260}
+  - component: {fileID: 1488601331775449630}
   m_Layer: 0
   m_Name: ObjectThatFollowsCamera
   m_TagString: Untagged
@@ -44,3 +45,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b4407c9287b44f4694c49336869a65e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &1488601331775449630
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6922798849384411428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe7904f24ca9373458f867a101323c55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomaticDoorSystem::AutomaticDoorSystem.DoorTriggerableAuthoring
