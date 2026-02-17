@@ -547,30 +547,22 @@ namespace jeanf.scenemanagement
             OnRegionChange(region);
         }
         
-        private async void OnRegionChange(string regionId)
+        private async void OnRegionChange(Region region)
         {
-            if (!_mappingInitialized)
-            {
-                Debug.LogError("[WorldManager] Region mapping is not initialized. Cannot change region.");
-                return;
-            }
-            
-            if (!_regionDictionary.TryGetValue(regionId, out var region))
-            {
-                Debug.LogError($"[WorldManager] Region {regionId} not found in dictionary.");
-                return;
-            }
-
-            if (_currentPlayerRegion != null && _currentPlayerRegion.id == regionId)
+            if (_currentPlayerRegion == region && hasGameBeenInitialized)
             {
                 if (isDebug) Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
                 return;
             }
 
+            // Fade to black FIRST
             FadeMask.SetStateLoading();
             if (isDebug) Debug.Log("[WorldManager] Fading to black before region change...");
             
+            // Wait for fade to complete
             await UniTask.Delay(System.TimeSpan.FromSeconds(0.2f));
+
+            // Now start the region change while screen is black
             FadeEventChannel?.RaiseEvent(true, 0.1f);
 
             _isRegionTransitioning = true;
@@ -609,12 +601,6 @@ namespace jeanf.scenemanagement
                 StartCoroutine(FadeOnRegionChange());
             }
             CompleteRegionTransition().Forget();
-        }
-
-        IEnumerator FadeOnRegionChange()
-        {
-            yield return new WaitForSeconds(1.0f);
-            FadeEventChannel?.RaiseEvent(false, 1.0f);
         }
 
         IEnumerator FadeOnRegionChange()
