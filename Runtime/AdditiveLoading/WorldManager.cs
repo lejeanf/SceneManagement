@@ -23,6 +23,12 @@ namespace jeanf.scenemanagement
         private SceneLoader _sceneLoader;
         [SerializeField] private List<SceneReference> worldDependencies = new List<SceneReference>();
         public List<Region> ListOfRegions;
+
+        [Header("Initial Region")]
+        [Tooltip("Optional: Region to load automatically at startup. If not set, relies on ECS volume detection.")]
+        [SerializeField] private Region initialRegion;
+        [Tooltip("Optional: Zone to set as current at startup. Should be a zone within the initial region.")]
+        [SerializeField] private Zone initialZone;
         
         private Dictionary<string, Zone> _zoneDictionary = new Dictionary<string, Zone>();
         private Dictionary<string, Region> _regionDictionary = new Dictionary<string, Region>();
@@ -59,6 +65,9 @@ namespace jeanf.scenemanagement
         public static InitCompleteDelegate InitComplete;
         private bool firstLoadCompleted = false;
         private bool _isQuitting = false;
+
+        private SpawnPos? _pendingTeleport = null;
+        private bool _isWaitingForScenesToLoad = false;
         
         public static Zone CurrentPlayerZone 
         { 
@@ -104,8 +113,7 @@ namespace jeanf.scenemanagement
 
             NoPeeking.SetIsLoadingState(true);
 
-            FadeMask.PrepareVolumeProfile(FadeMask.FadeType.Loading);
-            FadeMask.SetVolumeWeight(1.0f);
+            FadeMask.SetStateLoading();
     
             InitializeLoadingStates();
         }
@@ -123,7 +131,7 @@ namespace jeanf.scenemanagement
         {
             LoadPersistentSubScenes.PersistentLoadingComplete += SetSubSceneLoadedState;
             SceneLoader.IsInitialLoadComplete += SetDependencyLoadedState;
-            SceneLoader.LoadComplete += ctx => PublishAppList();
+            SceneLoader.LoadComplete += OnSceneLoadComplete;
             regionChangeRequestChannel.OnEventRaised += OnRegionChange;
             RequestRegionChange += OnRegionChange;
             ResetWorld += Init;
@@ -138,7 +146,7 @@ namespace jeanf.scenemanagement
         {
             LoadPersistentSubScenes.PersistentLoadingComplete -= SetSubSceneLoadedState;
             SceneLoader.IsInitialLoadComplete -= SetDependencyLoadedState;
-            SceneLoader.LoadComplete -= ctx => PublishAppList();
+            SceneLoader.LoadComplete -= OnSceneLoadComplete;
             regionChangeRequestChannel.OnEventRaised -= OnRegionChange;
             RequestRegionChange -= OnRegionChange;
             ResetWorld -= Init;
@@ -249,8 +257,29 @@ namespace jeanf.scenemanagement
         {
             bool subscenesLoaded = _loadingStates.TryGetValue(LoadingSource.PersistentSubScenes, out bool subValue) && subValue;
             bool dependenciesLoaded = _loadingStates.TryGetValue(LoadingSource.WorldDependencies, out bool depValue) && depValue;
-            
+
             if (!subscenesLoaded || !dependenciesLoaded) return;
+
+            // Load initial region if specified
+            if (initialRegion != null && _currentPlayerRegion == null)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Loading initial region: {initialRegion.levelName} ({initialRegion.id})");
+                if (isDebug) Debug.Log($"[WorldManager] SpawnPosOnInit: {initialRegion.SpawnPosOnInit.position}");
+                if (isDebug) Debug.Log($"[WorldManager] SpawnPosOnRegionChangeRequest: {initialRegion.SpawnPosOnRegionChangeRequest.position}");
+
+                // OnRegionChange will handle the teleport to the correct initial spawn position
+                OnRegionChange(initialRegion);
+
+                // Set initial zone if specified
+                if (initialZone != null)
+                {
+                    _currentPlayerZone = initialZone;
+                    _lastNotifiedZone = initialZone.id;
+                    PublishCurrentZoneId?.Invoke(initialZone.id);
+                    PublishAppList(initialZone);
+                    if (isDebug) Debug.Log($"[WorldManager] Set initial zone: {initialZone.zoneName} ({initialZone.id})");
+                }
+            }
 
             //FadeMask.TogglePPE?.Invoke(true);
             InitComplete?.Invoke(true);
@@ -259,7 +288,6 @@ namespace jeanf.scenemanagement
 
             SetLoadingComplete(LoadingSource.InitialRegion, true);
             FadeEventChannel?.RaiseEvent(false, 1.0f);
-            FadeMask.TogglePPE.Invoke(true);
             firstLoadCompleted = true;
         }
 
@@ -461,6 +489,58 @@ namespace jeanf.scenemanagement
             }
         }
 
+        private void OnSceneLoadComplete(bool isComplete)
+        {
+            if (isDebug) Debug.Log($"[WorldManager] OnSceneLoadComplete called. isComplete: {isComplete}, _isWaitingForScenesToLoad: {_isWaitingForScenesToLoad}, HasPendingTeleport: {_pendingTeleport.HasValue}");
+
+            PublishAppList();
+
+            // Check if we have a pending teleport and scenes are done loading
+            if (_isWaitingForScenesToLoad && _pendingTeleport.HasValue)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Checking scene loader state - IsLoading: {_sceneLoader?.IsCurrentlyLoading()}, Pending: {_sceneLoader?.GetPendingOperationCount()}");
+
+                // Verify all scenes are actually loaded
+                if (_sceneLoader != null && !_sceneLoader.IsCurrentlyLoading() && _sceneLoader.GetPendingOperationCount() == 0)
+                {
+                    if (isDebug) Debug.Log($"[WorldManager] All scenes loaded! Executing pending teleport to: {_pendingTeleport.Value.position}");
+
+                    PerformTeleport(_pendingTeleport.Value);
+
+                    _pendingTeleport = null;
+                    _isWaitingForScenesToLoad = false;
+                }
+                else
+                {
+                    if (isDebug) Debug.Log($"[WorldManager] Cannot teleport yet - scenes still loading. IsLoading: {_sceneLoader?.IsCurrentlyLoading()}, Pending: {_sceneLoader?.GetPendingOperationCount()}");
+                }
+            }
+            else
+            {
+                if (isDebug && (_isWaitingForScenesToLoad || _pendingTeleport.HasValue))
+                {
+                    Debug.Log($"[WorldManager] Not ready to teleport - _isWaitingForScenesToLoad: {_isWaitingForScenesToLoad}, HasPendingTeleport: {_pendingTeleport.HasValue}");
+                }
+            }
+        }
+
+        private void PerformTeleport(SpawnPos spawnPos)
+        {
+            if (sendTeleportTarget == null)
+            {
+                Debug.LogWarning("[WorldManager] Cannot teleport - sendTeleportTarget is null");
+                return;
+            }
+
+            if (isDebug) Debug.Log($"[WorldManager] Executing teleport to position: {spawnPos.position}");
+
+            sendTeleportTarget.transform.position = spawnPos.position;
+            sendTeleportTarget.transform.rotation = Quaternion.Euler(spawnPos.rotation);
+            sendTeleportTarget.Teleport();
+
+            if (isDebug) Debug.Log($"[WorldManager] Teleport completed. Transform position: {sendTeleportTarget.transform.position}");
+        }
+
         private void OnRegionChange(string newRegionID)
         {
             if (!_regionDictionary.TryGetValue(newRegionID, out var region)) return;
@@ -474,18 +554,17 @@ namespace jeanf.scenemanagement
                 Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
                 return;
             }
-            FadeMask.TogglePPE.Invoke(false);
             FadeEventChannel?.RaiseEvent(true, 0.1f);
 
             _isRegionTransitioning = true;
-            
+
             _currentPlayerRegion = region;
             _lastNotifiedRegion = region.id;
-            
+
             PublishCurrentRegionId?.Invoke(_currentPlayerRegion.id);
 
             _tempRegionsToRemove.Clear();
-            
+
             for (int i = 0; i < _activeRegions.Count; i++)
             {
                 var removedRegion = RequestUnLoadForObsoleteRegion(_activeRegions[i]);
@@ -496,19 +575,19 @@ namespace jeanf.scenemanagement
             {
                 _activeRegions.Remove(_tempRegionsToRemove[i]);
             }
-            
+
             RequestLoadForRegionDependencies(region);
 
             var spawnPos = SetTeleportTarget(region, hasGameBeenInitialized);
-            
-            if (sendTeleportTarget != null)
-            {
-                sendTeleportTarget.transform.position = spawnPos.position;
-                sendTeleportTarget.transform.rotation = Quaternion.Euler(spawnPos.rotation);
-                sendTeleportTarget.Teleport();
-            }
-            
+
+            // Store the pending teleport to be executed when scenes finish loading
+            _pendingTeleport = spawnPos;
+            _isWaitingForScenesToLoad = true;
+
+            if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: Pending teleport to {spawnPos.position} set. Waiting for scenes to load...");
+
             _activeRegions.Add(region);
+
             if (firstLoadCompleted)
             {
                 StartCoroutine(FadeOnRegionChange());
@@ -520,15 +599,24 @@ namespace jeanf.scenemanagement
         {
             yield return new WaitForSeconds(1.0f);
             FadeEventChannel?.RaiseEvent(false, 1.0f);
-            FadeMask.TogglePPE.Invoke(true);
         }
         private async UniTaskVoid CompleteRegionTransition()
         {
+            // Wait for pending teleport to complete before ending the region transition
+            // This prevents ECS volume detection from running before teleport finishes
+            while (_isWaitingForScenesToLoad || _pendingTeleport.HasValue)
+            {
+                await UniTask.Delay(50);
+                if (isDebug) Debug.Log($"[WorldManager] Waiting for teleport to complete before ending region transition...");
+            }
+
             await UniTask.NextFrame();
             await UniTask.NextFrame();
-            
+
             _isRegionTransitioning = false;
-            
+
+            if (isDebug) Debug.Log($"[WorldManager] Region transition complete. ECS volume detection re-enabled.");
+
             if (_currentPlayerRegion?.zonesInThisRegion != null && _currentPlayerRegion.zonesInThisRegion.Count > 0)
             {
                 var firstZone = _currentPlayerRegion.zonesInThisRegion[0];
@@ -536,7 +624,7 @@ namespace jeanf.scenemanagement
                 {
                     _currentPlayerZone = firstZone;
                     _lastNotifiedZone = firstZone.id;
-                    
+
                     PublishCurrentZoneId?.Invoke(firstZone.id);
                     PublishAppList(firstZone);
                 }
@@ -545,13 +633,21 @@ namespace jeanf.scenemanagement
 
         private SpawnPos SetTeleportTarget(Region region, bool hasRegionBeenInitialized)
         {
+            if (isDebug) Debug.Log($"[WorldManager] SetTeleportTarget called for region: {region.levelName} (ID: {region.id})");
+
             var spawnPos = new SpawnPos(region.SpawnPosOnRegionChangeRequest.position, region.SpawnPosOnRegionChangeRequest.rotation);
-            if (hasRegionBeenInitialized) return spawnPos;
-            
+            if (hasRegionBeenInitialized)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] SetTeleportTarget: Using SpawnPosOnRegionChangeRequest: {spawnPos.position}");
+                return spawnPos;
+            }
+
             spawnPos.position = region.SpawnPosOnInit.position;
             spawnPos.rotation = region.SpawnPosOnInit.rotation;
             hasGameBeenInitialized = true;
 
+            if (isDebug) Debug.Log($"[WorldManager] SetTeleportTarget: Using SpawnPosOnInit (first load): {spawnPos.position}");
+            if (isDebug) Debug.Log($"[WorldManager] SetTeleportTarget: Region.SpawnPosOnInit raw value: {region.SpawnPosOnInit.position}");
             return spawnPos;
         }
 
@@ -595,12 +691,21 @@ namespace jeanf.scenemanagement
 
         private void RequestLoadForRegionDependencies(Region region)
         {
-            if (!_compiledSceneLists.TryGetValue(region.id, out var sceneNames) || sceneNames.Count <= 0) return;
-            
+            if (!_compiledSceneLists.TryGetValue(region.id, out var sceneNames) || sceneNames.Count <= 0)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] No region dependencies to load for region: {region.id}");
+                return;
+            }
+
+            if (isDebug) Debug.Log($"[WorldManager] Requesting load for {sceneNames.Count} region dependencies");
+
             for (int i = 0; i < sceneNames.Count; i++)
             {
+                if (isDebug) Debug.Log($"[WorldManager] Loading region scene: {sceneNames[i]}");
                 _sceneLoader.LoadSceneRequest(sceneNames[i]);
             }
+
+            if (isDebug) Debug.Log($"[WorldManager] All region scene load requests submitted. SceneLoader state - IsLoading: {_sceneLoader.IsCurrentlyLoading()}, Pending: {_sceneLoader.GetPendingOperationCount()}");
         }
         
         private Region RequestUnLoadForObsoleteRegion(Region region)
