@@ -50,6 +50,7 @@ namespace jeanf.scenemanagement
         [propertyDrawer.ReadOnly] [SerializeField] private Region _currentPlayerRegion;
         [SerializeField] private BoolFloatEventChannelSO FadeEventChannel;
         private static WorldManager Instance;
+        public static bool IsRegionTransitioning => _isRegionTransitioning;
         private static bool _isRegionTransitioning = false;
 
         [Header("Loading Coordination")]
@@ -92,8 +93,6 @@ namespace jeanf.scenemanagement
                 }
             }
         }
-
-        public static bool IsRegionTransitioning => _isRegionTransitioning;
 
         public delegate void SendId(string newRegionID);
         public static SendId RequestRegionChange;
