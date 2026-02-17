@@ -547,13 +547,30 @@ namespace jeanf.scenemanagement
             OnRegionChange(region);
         }
         
-        private void OnRegionChange(Region region)
+        private async void OnRegionChange(string regionId)
         {
-            if (_currentPlayerRegion == region && hasGameBeenInitialized)
+            if (!_mappingInitialized)
             {
-                Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
+                Debug.LogError("[WorldManager] Region mapping is not initialized. Cannot change region.");
                 return;
             }
+            
+            if (!_regionDictionary.TryGetValue(regionId, out var region))
+            {
+                Debug.LogError($"[WorldManager] Region {regionId} not found in dictionary.");
+                return;
+            }
+
+            if (_currentPlayerRegion != null && _currentPlayerRegion.id == regionId)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
+                return;
+            }
+
+            FadeMask.SetStateLoading();
+            if (isDebug) Debug.Log("[WorldManager] Fading to black before region change...");
+            
+            await UniTask.Delay(System.TimeSpan.FromSeconds(0.2f));
             FadeEventChannel?.RaiseEvent(true, 0.1f);
 
             _isRegionTransitioning = true;
@@ -580,7 +597,6 @@ namespace jeanf.scenemanagement
 
             var spawnPos = SetTeleportTarget(region, hasGameBeenInitialized);
 
-            // Store the pending teleport to be executed when scenes finish loading
             _pendingTeleport = spawnPos;
             _isWaitingForScenesToLoad = true;
 
@@ -600,10 +616,14 @@ namespace jeanf.scenemanagement
             yield return new WaitForSeconds(1.0f);
             FadeEventChannel?.RaiseEvent(false, 1.0f);
         }
+
+        IEnumerator FadeOnRegionChange()
+        {
+            yield return new WaitForSeconds(1.0f);
+            FadeEventChannel?.RaiseEvent(false, 1.0f);
+        }
         private async UniTaskVoid CompleteRegionTransition()
         {
-            // Wait for pending teleport to complete before ending the region transition
-            // This prevents ECS volume detection from running before teleport finishes
             while (_isWaitingForScenesToLoad || _pendingTeleport.HasValue)
             {
                 await UniTask.Delay(50);
@@ -615,7 +635,9 @@ namespace jeanf.scenemanagement
 
             _isRegionTransitioning = false;
 
-            if (isDebug) Debug.Log($"[WorldManager] Region transition complete. ECS volume detection re-enabled.");
+            if (isDebug) Debug.Log($"[WorldManager] Region transition complete. Fading back to clear...");
+    
+            FadeMask.SetStateClear();
 
             if (_currentPlayerRegion?.zonesInThisRegion != null && _currentPlayerRegion.zonesInThisRegion.Count > 0)
             {
