@@ -535,7 +535,7 @@ namespace jeanf.scenemanagement
 
             sendTeleportTarget.transform.position = spawnPos.position;
             sendTeleportTarget.transform.rotation = Quaternion.Euler(spawnPos.rotation);
-            sendTeleportTarget.Teleport();
+            sendTeleportTarget.Teleport(false);
 
             if (isDebug) Debug.Log($"[WorldManager] Teleport completed. Transform position: {sendTeleportTarget.transform.position}");
         }

@@ -40,4 +40,4 @@ MonoBehaviour:
   isUsingOnInitSpawnPos: 1
   SpawnPosOnInit:
     position: {x: -2.5, y: 0, z: -2.5}
-    rotation: {x: 0, y: 0, z: 0}
+    rotation: {x: 12.5, y: 10, z: -2.5}
