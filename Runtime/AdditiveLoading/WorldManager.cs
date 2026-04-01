@@ -160,7 +160,7 @@ namespace jeanf.scenemanagement
             if (_isQuitting || _sceneLoader == null) return;
             foreach (var dependency in worldDependencies)
             {
-                _sceneLoader.UnLoadSceneRequest(dependency.Name);
+                _sceneLoader.UnLoadSceneRequest(dependency.Address);
             }
         }
 
@@ -315,19 +315,19 @@ namespace jeanf.scenemanagement
                     continue;
                 }
 
-                if (string.IsNullOrEmpty(dependency.Name))
+                if (string.IsNullOrEmpty(dependency.Address))
                 {
-                    Debug.LogError($"Dependency has null or empty SceneName: {dependency}");
+                    Debug.LogError($"Dependency has null or empty Address: {dependency}");
                     continue;
                 }
 
                 try
                 {
-                    _sceneLoader.LoadSceneRequest(dependency.Name);
+                    _sceneLoader.LoadSceneRequest(dependency.Address);
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogError($"Exception calling LoadSceneRequest for {dependency.Name}: {ex.Message}\n{ex.StackTrace}");
+                    Debug.LogError($"Exception calling LoadSceneRequest for {dependency.Address}: {ex.Message}\n{ex.StackTrace}");
                 }
             }
         }
@@ -462,7 +462,7 @@ namespace jeanf.scenemanagement
             
             for (int i = 0; i < region.dependenciesInThisRegion.Count; i++)
             {
-                sceneNames.Add(region.dependenciesInThisRegion[i].Name);
+                sceneNames.Add(region.dependenciesInThisRegion[i].Address);
             }
             _compiledSceneLists[region.id] = sceneNames;
         }
