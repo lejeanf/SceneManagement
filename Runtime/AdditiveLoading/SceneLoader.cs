@@ -285,15 +285,19 @@ namespace jeanf.scenemanagement
             finally
             {
                 _isProcessingLoadQueue = false;
-                if (_loadQueue.Count == 0)
+
+                if (_loadQueue.Count > 0)
+                {
+                    ProcessLoadQueue().Forget();
+                }
+                else
                 {
                     IsLoading?.Invoke(false);
+                    MonitorLoadComplete(token).Forget();
                 }
-                
-                MonitorLoadComplete(token).Forget();
             }
         }
-        
+
         private async UniTaskVoid ProcessUnloadQueue()
         {
             if (_isProcessingUnloadQueue) return;
@@ -336,6 +340,7 @@ namespace jeanf.scenemanagement
                 if (!_isProcessingLoadQueue && _loadQueue.Count == 0)
                 {
                     IsLoading?.Invoke(false);
+                    MonitorLoadComplete(token).Forget();
                 }
             }
         }

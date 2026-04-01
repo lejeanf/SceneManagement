@@ -265,15 +265,17 @@ namespace jeanf.scenemanagement
 
             if (!subscenesLoaded || !dependenciesLoaded) return;
 
+            //FadeMask.TogglePPE?.Invoke(true);
+            InitComplete?.Invoke(true);
+
+            if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete");
+
             // Load initial region if specified
             if (initialRegion != null && _currentPlayerRegion == null)
             {
                 if (isDebug) Debug.Log($"[WorldManager] Loading initial region: {initialRegion.levelName} ({initialRegion.id})");
                 if (isDebug) Debug.Log($"[WorldManager] SpawnPosOnInit: {initialRegion.SpawnPosOnInit.position}");
                 if (isDebug) Debug.Log($"[WorldManager] SpawnPosOnRegionChangeRequest: {initialRegion.SpawnPosOnRegionChangeRequest.position}");
-
-                // OnRegionChange will handle the teleport to the correct initial spawn position
-                OnRegionChange(initialRegion);
 
                 // Set initial zone if specified
                 if (initialZone != null)
@@ -284,12 +286,12 @@ namespace jeanf.scenemanagement
                     PublishAppList(initialZone);
                     if (isDebug) Debug.Log($"[WorldManager] Set initial zone: {initialZone.zoneName} ({initialZone.id})");
                 }
+
+                // OnRegionChange is async void — don't set firstLoadCompleted or fade here,
+                // CompleteRegionTransition handles fade-out after teleport is done
+                OnRegionChange(initialRegion);
+                return;
             }
-
-            //FadeMask.TogglePPE?.Invoke(true);
-            InitComplete?.Invoke(true);
-
-            if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete");
 
             SetLoadingComplete(LoadingSource.InitialRegion, true);
             FadeEventChannel?.RaiseEvent(false, 1.0f);
@@ -630,14 +632,22 @@ namespace jeanf.scenemanagement
                 _activeRegions.Remove(_tempRegionsToRemove[i]);
             }
 
-            RequestLoadForRegionDependencies(region);
+            var hasLoadRequests = RequestLoadForRegionDependencies(region);
+            var hasActiveOperations = _sceneLoader.IsCurrentlyLoading() || _sceneLoader.GetPendingOperationCount() > 0;
 
             var spawnPos = SetTeleportTarget(region, hasGameBeenInitialized);
 
-            _pendingTeleport = spawnPos;
-            _isWaitingForScenesToLoad = true;
-
-            if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: Pending teleport to {spawnPos.position} set. Waiting for scenes to load...");
+            if (hasLoadRequests || hasActiveOperations)
+            {
+                _pendingTeleport = spawnPos;
+                _isWaitingForScenesToLoad = true;
+                if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: Pending teleport to {spawnPos.position} set. Waiting for scenes to load...");
+            }
+            else
+            {
+                PerformTeleport(spawnPos);
+                if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: No pending operations, teleporting immediately to {spawnPos.position}");
+            }
 
             _activeRegions.Add(region);
 
@@ -742,12 +752,12 @@ namespace jeanf.scenemanagement
             _broadcastAppList?.Invoke(listToBroadcast);
         }
 
-        private void RequestLoadForRegionDependencies(Region region)
+        private bool RequestLoadForRegionDependencies(Region region)
         {
             if (!_compiledSceneLists.TryGetValue(region.id, out var sceneNames) || sceneNames.Count <= 0)
             {
                 if (isDebug) Debug.Log($"[WorldManager] No region dependencies to load for region: {region.id}");
-                return;
+                return false;
             }
 
             if (isDebug) Debug.Log($"[WorldManager] Requesting load for {sceneNames.Count} region dependencies");
@@ -759,6 +769,7 @@ namespace jeanf.scenemanagement
             }
 
             if (isDebug) Debug.Log($"[WorldManager] All region scene load requests submitted. SceneLoader state - IsLoading: {_sceneLoader.IsCurrentlyLoading()}, Pending: {_sceneLoader.GetPendingOperationCount()}");
+            return true;
         }
         
         private Region RequestUnLoadForObsoleteRegion(Region region)
