@@ -423,9 +423,18 @@ namespace jeanf.scenemanagement
                         await UniTask.NextFrame(cancellationToken);
                     }
                 }
-                
-                await UniTask.NextFrame(cancellationToken);
-                
+
+                while (!handle.IsDone)
+                {
+                    await UniTask.NextFrame(cancellationToken);
+                }
+
+                if (handle.Status != AsyncOperationStatus.Succeeded)
+                {
+                    Debug.LogError($"[SceneLoader] Addressable load failed for scene: {sceneName} (status: {handle.Status})");
+                    return;
+                }
+
                 await handle.Result.ActivateAsync().ToUniTask(cancellationToken: cancellationToken);
 
                 _loadedScenes[sceneName] = handle;
