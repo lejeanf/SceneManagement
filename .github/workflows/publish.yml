@@ -4,6 +4,10 @@ on:
     push:
         branches:
           - main
+     
+permissions:
+    id-token: write  # Required for OIDC
+    contents: read
 
 jobs:
     release:
@@ -19,5 +23,3 @@ jobs:
                   registry-url: https://registry.npmjs.org
             - name: 🚀 publish
               run: npm publish --access public
-              #env:
-              #    NODE_AUTH_TOKEN: ${{secrets.NPM_AUTH_TOKEN}}
