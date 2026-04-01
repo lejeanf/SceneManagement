@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using jeanf.EventSystem;
@@ -98,12 +99,17 @@ namespace jeanf.scenemanagement
         public static SendId RequestRegionChange;
         public static SendId PublishCurrentRegionId;
         public static SendId PublishCurrentZoneId;
-        
+
         public delegate void Reset();
         public static Reset ResetWorld;
-        
+
         public delegate void BroadcastAppList(List<AppType> list);
         public static BroadcastAppList _broadcastAppList;
+
+        public delegate void BroadcastRegion(Region region);
+        public static BroadcastRegion PublishCurrentRegion;
+
+        public static bool IsInitialized { get; private set; }
 
         private void Awake()
         {
@@ -154,7 +160,7 @@ namespace jeanf.scenemanagement
             if (_isQuitting || _sceneLoader == null) return;
             foreach (var dependency in worldDependencies)
             {
-                _sceneLoader.UnLoadSceneRequest(dependency.SceneName);
+                _sceneLoader.UnLoadSceneRequest(dependency.Name);
             }
         }
 
@@ -290,17 +296,17 @@ namespace jeanf.scenemanagement
             firstLoadCompleted = true;
         }
 
-        private void LoadWorldDependencies()
+        private void LoadWorldDependenciesInternal()
         {
             if (_sceneLoader == null) return;
             if (worldDependencies == null) return;
-    
+
             if (worldDependencies.Count == 0)
             {
                 SetDependencyLoadedState(true);
                 return;
             }
-    
+
             foreach (var dependency in worldDependencies)
             {
                 if (dependency == null)
@@ -308,22 +314,44 @@ namespace jeanf.scenemanagement
                     Debug.LogError("Found null dependency in worldDependencies list");
                     continue;
                 }
-        
-                if (string.IsNullOrEmpty(dependency.SceneName))
+
+                if (string.IsNullOrEmpty(dependency.Name))
                 {
                     Debug.LogError($"Dependency has null or empty SceneName: {dependency}");
                     continue;
                 }
-        
+
                 try
                 {
-                    _sceneLoader.LoadSceneRequest(dependency.SceneName);
+                    _sceneLoader.LoadSceneRequest(dependency.Name);
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogError($"Exception calling LoadSceneRequest for {dependency.SceneName}: {ex.Message}\n{ex.StackTrace}");
+                    Debug.LogError($"Exception calling LoadSceneRequest for {dependency.Name}: {ex.Message}\n{ex.StackTrace}");
                 }
             }
+        }
+
+        public static async UniTask LoadWorldDependencies()
+        {
+            if (Instance == null) return;
+            Instance.LoadWorldDependenciesInternal();
+            await UniTask.WaitUntil(AreWorldDependenciesLoaded);
+        }
+
+        public static async UniTask LoadRegion(Region region)
+        {
+            if (Instance == null) return;
+            Instance.RequestLoadForRegionDependencies(region);
+            await UniTask.WaitUntil(() =>
+                Instance._sceneLoader != null &&
+                !Instance._sceneLoader.IsCurrentlyLoading() &&
+                Instance._sceneLoader.GetPendingOperationCount() == 0);
+        }
+
+        public static void SpawnPlayer(SpawnPos spawnPos)
+        {
+            Instance?.PerformTeleport(spawnPos);
         }
 
         private void SetSubSceneLoadedState(bool state)
@@ -346,12 +374,25 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = "";
             _lastNotifiedRegion = "";
             _isRegionTransitioning = false;
-            
+            IsInitialized = false;
+
             InitializeLoadingStates();
 
             ClearAllMappings();
             BuildDataMappings();
-            LoadWorldDependencies();
+            LoadWorldDependenciesInternal();
+        }
+
+        public static void SetInitialLocation(Region region, Zone zone)
+        {
+            if (Instance == null) return;
+            Instance._currentPlayerRegion = region;
+            Instance._currentPlayerZone   = zone ?? region.zonesInThisRegion.FirstOrDefault();
+
+            PublishCurrentRegionId?.Invoke(region.id);
+            PublishCurrentRegion?.Invoke(region);
+            PublishCurrentZoneId?.Invoke(Instance._currentPlayerZone?.id ?? default);
+            IsInitialized = true;
         }
 
         private void ClearAllMappings()
@@ -421,7 +462,7 @@ namespace jeanf.scenemanagement
             
             for (int i = 0; i < region.dependenciesInThisRegion.Count; i++)
             {
-                sceneNames.Add(region.dependenciesInThisRegion[i].SceneName);
+                sceneNames.Add(region.dependenciesInThisRegion[i].Name);
             }
             _compiledSceneLists[region.id] = sceneNames;
         }
@@ -460,6 +501,8 @@ namespace jeanf.scenemanagement
             if (string.IsNullOrEmpty(zoneId)) return;
             if (!_zoneDictionary.TryGetValue(zoneId, out var zone)) return;
 
+            if (zone != null && !zone.IsAccessible()) return;
+
             _lastNotifiedZone = zoneId;
             _currentPlayerZone = zone;
             
@@ -473,11 +516,13 @@ namespace jeanf.scenemanagement
             if (regionId == _lastNotifiedRegion) return;
             if (string.IsNullOrEmpty(regionId)) return;
             if (!_regionDictionary.TryGetValue(regionId, out var region)) return;
-            
-            _lastNotifiedRegion = regionId;
+
+            _lastNotifiedRegion  = regionId;
             _currentPlayerRegion = region;
-            
-            OnRegionChange(region);
+
+            PublishCurrentRegionId?.Invoke(region.id);
+            PublishCurrentRegion?.Invoke(region);
+            RequestLoadForRegionDependencies(region);
         }
         
         private void OnZoneOverridesChanged(string zoneId)
@@ -570,6 +615,7 @@ namespace jeanf.scenemanagement
             _lastNotifiedRegion = region.id;
 
             PublishCurrentRegionId?.Invoke(_currentPlayerRegion.id);
+            PublishCurrentRegion?.Invoke(region);
 
             _tempRegionsToRemove.Clear();
 

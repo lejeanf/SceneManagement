@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using jeanf.propertyDrawer;
 using UnityEngine;
+using jeanf.ContentManagement;
+using jeanf.ContentManagement.ProgressionSystem.Data;
 
 namespace jeanf.scenemanagement
 {
@@ -16,5 +18,13 @@ namespace jeanf.scenemanagement
         // this can be overriden by scenario List when a scenario is launched
         // should be reset with that list after a scenario is completed
         public List<AppType> DefaultAppsInZone;  // default list of apps for this zone
+
+        public UnlockableContent contentId = UnlockableContent.UC_UNLOCKED;
+
+        public bool IsAccessible()
+        {
+            if (contentId == UnlockableContent.UC_UNLOCKED) return true;
+            return ContentUnlockService.IsUnlocked((int)contentId);
+        }
     }
 }

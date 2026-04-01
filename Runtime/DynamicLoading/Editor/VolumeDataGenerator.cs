@@ -16,6 +16,7 @@ namespace jeanf.scenemanagement
         private Vector2 scrollPosition;
         private bool showPreview = false;
         private Dictionary<string, List<string>> previewData = new Dictionary<string, List<string>>();
+        private Dictionary<string, string> _zoneDisplayNames = new Dictionary<string, string>();
 
         [MenuItem("Tools/Scene Management/Volume Data Generator")]
         public static void ShowWindow()
@@ -133,45 +134,51 @@ namespace jeanf.scenemanagement
         private void DrawPreview()
         {
             EditorGUILayout.LabelField("Preview Generated Data", EditorStyles.boldLabel);
-            
+
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(300));
-            
+
             foreach (var kvp in previewData)
             {
-                EditorGUILayout.LabelField($"Zone: {kvp.Key}", EditorStyles.boldLabel);
+                var zoneLabel = _zoneDisplayNames.TryGetValue(kvp.Key, out var name) ? name : kvp.Key;
+                EditorGUILayout.LabelField($"Zone: {zoneLabel}", EditorStyles.boldLabel);
                 EditorGUI.indentLevel++;
                 EditorGUILayout.LabelField($"Checkable zones ({kvp.Value.Count}):");
                 foreach (var checkable in kvp.Value)
                 {
-                    EditorGUILayout.LabelField($"• {checkable}");
+                    var checkableLabel = _zoneDisplayNames.TryGetValue(checkable, out var cName) ? cName : checkable;
+                    EditorGUILayout.LabelField($"\u2022 {checkableLabel}");
                 }
                 EditorGUI.indentLevel--;
                 EditorGUILayout.Space();
             }
-            
+
             EditorGUILayout.EndScrollView();
         }
         
         private void GeneratePreviewData()
         {
             if (sourceRegionConnectivity == null) return;
-            
+
             previewData.Clear();
+            _zoneDisplayNames.Clear();
             var generator = new VolumeDataProcessor(sourceRegionConnectivity);
-            
+
             foreach (var region in sourceRegionConnectivity.activeRegions)
             {
                 if (region?.zonesInThisRegion == null) continue;
-                
+
                 foreach (var zone in region.zonesInThisRegion)
                 {
                     if (zone == null) continue;
-                    
-                    var checkableZones = generator.GetCheckableZonesForZone(zone.id.ToString());
-                    previewData[zone.id.ToString()] = new List<string>(checkableZones);
+
+                    var zoneKey = zone.id.ToString();
+                    _zoneDisplayNames[zoneKey] = $"{zone.zoneName}  ({region.levelName})";
+
+                    var checkableZones = generator.GetCheckableZonesForZone(zoneKey);
+                    previewData[zoneKey] = new List<string>(checkableZones);
                 }
             }
-            
+
             showPreview = true;
             Repaint();
         }
@@ -179,12 +186,19 @@ namespace jeanf.scenemanagement
         private void GenerateNewAsset()
         {
             if (sourceRegionConnectivity == null) return;
-            
+
             var asset = CreateInstance<PrecomputedVolumeData>();
             var generator = new VolumeDataProcessor(sourceRegionConnectivity);
             generator.PopulatePrecomputedData(asset);
-            
+
             string fullPath = $"{savePath}{fileName}.asset";
+            var dir = savePath.TrimEnd('/');
+            if (!AssetDatabase.IsValidFolder(dir))
+            {
+                var parent = System.IO.Path.GetDirectoryName(dir);
+                var folderName = System.IO.Path.GetFileName(dir);
+                AssetDatabase.CreateFolder(parent, folderName);
+            }
             AssetDatabase.CreateAsset(asset, fullPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();

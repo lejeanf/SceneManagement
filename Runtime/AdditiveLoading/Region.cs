@@ -26,6 +26,8 @@ namespace jeanf.scenemanagement
         public bool isUsingOnInitSpawnPos = false;
         [Tooltip("[OPTIONAL] only used for the game init or restart.")]
         public SpawnPos SpawnPosOnInit;
+        [Header("Map")]
+        public Sprite map;
     }
     
     [System.Serializable]   

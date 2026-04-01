@@ -73,12 +73,13 @@ namespace jeanf.scenemanagement
         
         private async Task ScenarioRestartAsync(string scenarioId)
         {
-            NoPeeking.SetIsLoadingState(true);
+            if (!ScenarioDictionary.TryGetValue(scenarioId, out var scenario)) return;
+            if (scenario.enableFadeOnLoad) NoPeeking.SetIsLoadingState(true);
             UnloadScenario(scenarioId);
             await Task.Delay(500);
             LoadScenario(scenarioId);
             await WaitForSceneLoadingComplete();
-            NoPeeking.SetIsLoadingState(false); // Handle fade here
+            if (scenario.enableFadeOnLoad) NoPeeking.SetIsLoadingState(false); // Handle fade here
         }
         private async Task WaitForSceneLoadingComplete()
         {
@@ -108,7 +109,7 @@ namespace jeanf.scenemanagement
             if (isTransition)
             {
                 // FADE OUT: Trigger fade before unloading
-                NoPeeking.SetIsLoadingState(true);
+                if (scenario.enableFadeOnLoad) NoPeeking.SetIsLoadingState(true);
                 Debug.Log($"Starting scenario transition from {_activeScenarios[0].scenarioName} to {scenario.scenarioName}");
             }
 
@@ -151,18 +152,18 @@ namespace jeanf.scenemanagement
             // If this was a transition, handle fade in after loading completes
             if (isTransition)
             {
-                HandleScenarioTransitionComplete().Forget();
+                HandleScenarioTransitionComplete(scenario).Forget();
             }
         }
-        private async UniTaskVoid HandleScenarioTransitionComplete()
+        private async UniTaskVoid HandleScenarioTransitionComplete(Scenario scenario)
         {
             // Wait for scene loading to complete
             await WaitForSceneLoadingComplete();
-    
+
             // FADE IN: Clear loading state to trigger fade in
             if (!WorldManager.IsRegionTransitioning)
             {
-                NoPeeking.SetIsLoadingState(false);
+                if (scenario.enableFadeOnLoad) NoPeeking.SetIsLoadingState(false);
                 Debug.Log("Scenario transition complete - fading in");
             }
         }
@@ -229,8 +230,8 @@ namespace jeanf.scenemanagement
 
         private static List<string> CompileSceneList(Scenario scenario)
         {
-            var requiredScenes = new List<string> { scenario.scene.SceneName };
-            requiredScenes.AddRange(scenario.dependenciesInThisScenario.Select(dependency => dependency.SceneName));
+            var requiredScenes = new List<string> { scenario.scene.Name };
+            requiredScenes.AddRange(scenario.dependenciesInThisScenario.Select(dependency => dependency.Name));
             return requiredScenes;
         }
     }

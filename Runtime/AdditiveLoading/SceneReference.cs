@@ -1,38 +1,49 @@
-﻿using UnityEditor;
-using UnityEngine;
+﻿using UnityEngine;
+
+#if UNITY_EDITOR
+using UnityEditor.AddressableAssets;
+using UnityEditor;
+#endif
 
 namespace jeanf.scenemanagement
 {
     [System.Serializable]
     public class SceneReference
     {
-        [SerializeField] private Object sceneAsset; // Scene file to drag in Inspector
-        [SerializeField] private string sceneName;  // Automatically extracted scene name
+        [SerializeField] private Object sceneAsset;
+        [SerializeField] private string address;
+        [SerializeField] public string Name;
 
-        // Public getter for the scene name
-        public string SceneName => sceneName;
+        public string Address => address;
 
-        public SceneReference(string sceneName)
+        public SceneReference(string address)
         {
-            this.sceneName = sceneName;
+            this.address = address;
         }
-        
+
         #if UNITY_EDITOR
-        // Méthode pour forcer la mise à jour du nom
-        public void UpdateSceneName()
+        public void UpdateAddress()
         {
-            if (sceneAsset != null && sceneAsset is SceneAsset)
+            if (sceneAsset == null || sceneAsset is not SceneAsset)
             {
-                sceneName = sceneAsset.name;
+                address = "";
+                return;
             }
-            else
+
+            var settings = AddressableAssetSettingsDefaultObject.Settings;
+            if (settings == null)
             {
-                sceneName = "";
+                address = "";
+                return;
             }
+
+            var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(sceneAsset));
+            var entry = settings.FindAssetEntry(guid);
+            address = entry?.address ?? "";
         }
         #endif
     }
-    
+
     #if UNITY_EDITOR
     [CustomPropertyDrawer(typeof(SceneReference))]
     public class SceneReferenceDrawer : PropertyDrawer
@@ -42,34 +53,73 @@ namespace jeanf.scenemanagement
             EditorGUI.BeginProperty(position, label, property);
 
             SerializedProperty sceneAssetProp = property.FindPropertyRelative("sceneAsset");
-            SerializedProperty sceneNameProp = property.FindPropertyRelative("sceneName");
+            SerializedProperty addressProp = property.FindPropertyRelative("address");
 
-            // Vérifier si le nom a changé
             if (sceneAssetProp.objectReferenceValue != null)
             {
-                string currentName = sceneAssetProp.objectReferenceValue.name;
-                if (sceneNameProp.stringValue != currentName)
+                var settings = AddressableAssetSettingsDefaultObject.Settings;
+                if (settings != null)
                 {
-                    sceneNameProp.stringValue = currentName;
+                    var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(sceneAssetProp.objectReferenceValue));
+                    var entry = settings.FindAssetEntry(guid);
+                    var resolvedAddress = entry?.address ?? "";
+
+                    if (addressProp.stringValue != resolvedAddress)
+                        addressProp.stringValue = resolvedAddress;
                 }
             }
 
             position = EditorGUI.PrefixLabel(position, GUIUtility.GetControlID(FocusType.Passive), label);
-        
+
+            float fieldWidth = position.width;
+            float warningWidth = 0f;
+
+            var currentSettings = AddressableAssetSettingsDefaultObject.Settings;
+            bool isNotAddressable = false;
+
+            if (sceneAssetProp.objectReferenceValue != null && currentSettings != null)
+            {
+                var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(sceneAssetProp.objectReferenceValue));
+                isNotAddressable = currentSettings.FindAssetEntry(guid) == null;
+
+                if (isNotAddressable)
+                {
+                    warningWidth = 20f;
+                    fieldWidth -= warningWidth + 4f;
+                }
+            }
+
+            var fieldRect = new Rect(position.x, position.y, fieldWidth, position.height);
+
             EditorGUI.BeginChangeCheck();
-            Object sceneAsset = EditorGUI.ObjectField(position, sceneAssetProp.objectReferenceValue, typeof(SceneAsset), false);
+            Object sceneAsset = EditorGUI.ObjectField(fieldRect, sceneAssetProp.objectReferenceValue, typeof(SceneAsset), false);
 
             if (EditorGUI.EndChangeCheck())
             {
                 sceneAssetProp.objectReferenceValue = sceneAsset;
-                sceneNameProp.stringValue = sceneAsset != null ? sceneAsset.name : "";
+
+                if (sceneAsset != null && currentSettings != null)
+                {
+                    var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(sceneAsset));
+                    var entry = currentSettings.FindAssetEntry(guid);
+                    addressProp.stringValue = entry?.address ?? "";
+                }
+                else
+                {
+                    addressProp.stringValue = "";
+                }
+            }
+
+            if (isNotAddressable)
+            {
+                var warningRect = new Rect(position.x + fieldWidth + 4f, position.y, warningWidth, position.height);
+                EditorGUI.LabelField(warningRect, new GUIContent("⚠", "This scene is not marked as Addressable."));
             }
 
             EditorGUI.EndProperty();
         }
     }
 
-    // AssetPostprocessor pour détecter les renommages de scènes
     public class SceneReferenceAssetPostprocessor : AssetPostprocessor
     {
         private static void OnPostprocessAllAssets(
@@ -80,7 +130,6 @@ namespace jeanf.scenemanagement
         {
             bool sceneRenamed = false;
 
-            // Vérifier si des scènes ont été déplacées/renommées
             for (int i = 0; i < movedAssets.Length; i++)
             {
                 if (movedAssets[i].EndsWith(".unity"))
@@ -91,52 +140,51 @@ namespace jeanf.scenemanagement
             }
 
             if (sceneRenamed)
-            {
-                // Forcer la mise à jour de tous les objets contenant des SceneReference
                 RefreshAllSceneReferences();
-            }
         }
 
         private static void RefreshAllSceneReferences()
         {
-            // Trouver tous les MonoBehaviour et ScriptableObject dans le projet
+            var settings = AddressableAssetSettingsDefaultObject.Settings;
+            if (settings == null) return;
+
             string[] guids = AssetDatabase.FindAssets("t:MonoBehaviour t:ScriptableObject");
-        
+
             foreach (string guid in guids)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 Object obj = AssetDatabase.LoadAssetAtPath<Object>(path);
-            
-                if (obj != null)
+
+                if (obj == null) continue;
+
+                SerializedObject serializedObject = new SerializedObject(obj);
+                SerializedProperty property = serializedObject.GetIterator();
+                bool hasChanges = false;
+
+                while (property.NextVisible(true))
                 {
-                    SerializedObject serializedObject = new SerializedObject(obj);
-                    SerializedProperty property = serializedObject.GetIterator();
-                    bool hasChanges = false;
+                    if (property.type != "SceneReference") continue;
 
-                    while (property.NextVisible(true))
+                    SerializedProperty sceneAssetProp = property.FindPropertyRelative("sceneAsset");
+                    SerializedProperty addressProp = property.FindPropertyRelative("address");
+
+                    if (sceneAssetProp?.objectReferenceValue == null) continue;
+
+                    var assetGuid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(sceneAssetProp.objectReferenceValue));
+                    var entry = settings.FindAssetEntry(assetGuid);
+                    var resolvedAddress = entry?.address ?? "";
+
+                    if (addressProp.stringValue != resolvedAddress)
                     {
-                        if (property.type == "SceneReference")
-                        {
-                            SerializedProperty sceneAssetProp = property.FindPropertyRelative("sceneAsset");
-                            SerializedProperty sceneNameProp = property.FindPropertyRelative("sceneName");
-
-                            if (sceneAssetProp != null && sceneAssetProp.objectReferenceValue != null)
-                            { 
-                                string currentName = sceneAssetProp.objectReferenceValue.name;
-                                if (sceneNameProp.stringValue != currentName)
-                                {
-                                    sceneNameProp.stringValue = currentName;
-                                    hasChanges = true;
-                                }
-                            }
-                        }
+                        addressProp.stringValue = resolvedAddress;
+                        hasChanges = true;
                     }
+                }
 
-                    if (hasChanges)
-                    {
-                        serializedObject.ApplyModifiedProperties();
-                        EditorUtility.SetDirty(obj);
-                    }
+                if (hasChanges)
+                {
+                    serializedObject.ApplyModifiedProperties();
+                    EditorUtility.SetDirty(obj);
                 }
             }
 

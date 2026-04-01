@@ -18,5 +18,7 @@ namespace jeanf.scenemanagement
         public List<SceneReference> dependenciesInThisScenario;
         
         public List<Zone> listOfZonesNeededForThisScenario;
+
+        public bool enableFadeOnLoad = true;
     }
 }

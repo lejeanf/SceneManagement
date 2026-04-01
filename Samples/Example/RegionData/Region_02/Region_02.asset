@@ -33,7 +33,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 744cd968a2eabcc4d98a39fb5d801d12, type: 2}
   dependenciesInThisRegion:
   - sceneAsset: {fileID: 102900000, guid: eca06b9066d8efb4fae7239d6bec44d5, type: 3}
-    sceneName: World_depedency
+    address: Assets/SceneManagement/Samples/Example/Scenes/World_depedency.unity
+    Name: 
   SpawnPosOnRegionChangeRequest:
     position: {x: 2.5, y: 0, z: 2.5}
     rotation: {x: 0, y: 0, z: 0}
@@ -41,3 +42,4 @@ MonoBehaviour:
   SpawnPosOnInit:
     position: {x: -2.5, y: 0, z: -2.5}
     rotation: {x: 12.5, y: 10, z: -2.5}
+  map: {fileID: 0}

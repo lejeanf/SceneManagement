@@ -2,10 +2,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using jeanf.universalplayer;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 using ThreadPriority = System.Threading.ThreadPriority;
 
@@ -18,16 +19,14 @@ namespace jeanf.scenemanagement
         
         [SerializeField] private int maxConcurrentLoads = 2;
         private UnityEngine.ThreadPriority loadingThreadPriority = UnityEngine.ThreadPriority.BelowNormal;
-        [SerializeField] private int maxFrameTimeMs = 16; // Target max time per frame for loading
-        [SerializeField] private int loadCompleteDebounceFrames = 3; // Frames to wait before calling LoadComplete
+        [SerializeField] private int maxFrameTimeMs = 16;
+        [SerializeField] private int loadCompleteDebounceFrames = 3;
         
-        // Background worker thread pool for auxiliary tasks
         private static readonly int BackgroundThreadCount = Math.Max(1, Environment.ProcessorCount / 4);
         private readonly ConcurrentQueue<Action> _backgroundWorkQueue = new();
         private readonly List<Thread> _backgroundThreads = new();
         private volatile bool _isRunning = true;
         
-        // Debounce tracking for LoadComplete
         private int _emptyQueueFrameCount = 3;
         private bool _hasCalledLoadComplete = false;
 
@@ -63,10 +62,9 @@ namespace jeanf.scenemanagement
 
         private readonly ConcurrentQueue<SceneOperation> _loadQueue = new();
         private readonly ConcurrentQueue<SceneOperation> _unloadQueue = new();
-        private readonly HashSet<string> _loadedScenes = new();
+        private readonly Dictionary<string, AsyncOperationHandle<SceneInstance>> _loadedScenes = new();
         private readonly HashSet<string> _processingScenes = new();
         
-        // For validation results from background threads
         private readonly ConcurrentDictionary<string, bool> _sceneValidationCache = new();
         
         private readonly List<UniTask> _operationBuffer = new();
@@ -78,7 +76,7 @@ namespace jeanf.scenemanagement
 
         #if UNITY_EDITOR
         [Tooltip("This is only for devs in the Editor, will not be included in any build, not even alpha.")]
-        [SerializeField] private List<SceneReference> devScenes = new List<SceneReference>();
+        [SerializeField] private List<string> devScenes = new List<string>();
 
         private void Awake()
         {
@@ -86,7 +84,7 @@ namespace jeanf.scenemanagement
             
             foreach (var devScene in devScenes)
             {
-                QueueLoadScene(devScene.SceneName);
+                QueueLoadScene(devScene);
             }
         }
         #else
@@ -133,7 +131,6 @@ namespace jeanf.scenemanagement
                 }
                 else
                 {
-                    // Sleep briefly to avoid spinning
                     Thread.Sleep(10);
                 }
             }
@@ -152,12 +149,11 @@ namespace jeanf.scenemanagement
             Unsubscribe();
             _isRunning = false;
             
-            // Clean up background threads
             foreach (var thread in _backgroundThreads)
             {
                 if (thread.IsAlive)
                 {
-                    thread.Join(1000); // Wait up to 1 second
+                    thread.Join(1000);
                 }
             }
             _backgroundThreads.Clear();
@@ -182,10 +178,8 @@ namespace jeanf.scenemanagement
 
         private void QueueLoadScene(string sceneName)
         {
-            // Reset LoadComplete flag since we're adding new work
             _hasCalledLoadComplete = false;
             
-            // Validate scene name on background thread before queueing
             QueueBackgroundWork(() =>
             {
                 bool isValid = ValidateSceneName(sceneName);
@@ -194,7 +188,6 @@ namespace jeanf.scenemanagement
                 if (isValid)
                 {
                     _loadQueue.Enqueue(new SceneOperation(SceneOperationType.Load, sceneName));
-                    // Trigger processing on main thread
                     UnityMainThreadDispatcher.Enqueue(() => ProcessLoadQueue().Forget());
                 }
                 else if (isDebug)
@@ -206,7 +199,6 @@ namespace jeanf.scenemanagement
 
         private void QueueUnloadScene(string sceneName)
         {
-            // Reset LoadComplete flag since we're adding new work
             _hasCalledLoadComplete = false;
             
             _unloadQueue.Enqueue(new SceneOperation(SceneOperationType.Unload, sceneName));
@@ -215,13 +207,12 @@ namespace jeanf.scenemanagement
         
         private void QueueUnloadAllScenes()
         {
-            // Reset LoadComplete flag since we're adding new work
             _hasCalledLoadComplete = false;
             
             while (_loadQueue.TryDequeue(out _)) { }
             
             _scenesToUnload.Clear();
-            foreach (var sceneName in _loadedScenes)
+            foreach (var sceneName in _loadedScenes.Keys)
             {
                 _scenesToUnload.Add(sceneName);
             }
@@ -236,14 +227,8 @@ namespace jeanf.scenemanagement
 
         private bool ValidateSceneName(string sceneName)
         {
-            // This runs on background thread - do NOT call Unity APIs here
-            // Only do thread-safe validation
             if (string.IsNullOrEmpty(sceneName))
                 return false;
-            
-            // Add your own validation logic here (file checks, name validation, etc.)
-            // For example, you could check if the scene exists in your build settings
-            // by maintaining a cached list
             
             return true;
         }
@@ -267,10 +252,9 @@ namespace jeanf.scenemanagement
                 {
                     _operationBuffer.Clear();
                     
-                    // Process queued operations
                     while (_operationBuffer.Count < maxConcurrentLoads && _loadQueue.TryDequeue(out var operation))
                     {
-                        if (_processingScenes.Contains(operation.SceneName) || _loadedScenes.Contains(operation.SceneName))
+                        if (_processingScenes.Contains(operation.SceneName) || _loadedScenes.ContainsKey(operation.SceneName))
                             continue;
                             
                         _processingScenes.Add(operation.SceneName);
@@ -294,7 +278,6 @@ namespace jeanf.scenemanagement
                         }
                     }
                     
-                    // Yield to prevent frame blocking
                     await UniTask.Yield(PlayerLoopTiming.Update, token);
                     LoadingInformation.LoadingStatus($"");
                 }
@@ -307,7 +290,6 @@ namespace jeanf.scenemanagement
                     IsLoading?.Invoke(false);
                 }
                 
-                // Start monitoring for LoadComplete with debounce
                 MonitorLoadComplete(token).Forget();
             }
         }
@@ -333,7 +315,7 @@ namespace jeanf.scenemanagement
                     
                     while (_operationBuffer.Count < maxConcurrentLoads && _unloadQueue.TryDequeue(out var operation))
                     {
-                        if (!_loadedScenes.Contains(operation.SceneName) || _processingScenes.Contains(operation.SceneName))
+                        if (!_loadedScenes.ContainsKey(operation.SceneName) || _processingScenes.Contains(operation.SceneName))
                             continue;
                             
                         _processingScenes.Add(operation.SceneName);
@@ -345,7 +327,6 @@ namespace jeanf.scenemanagement
                         await UniTask.WhenAll(_operationBuffer);
                     }
                     
-                    // Yield to prevent frame blocking
                     await UniTask.Yield(PlayerLoopTiming.Update, token);
                 }
             }
@@ -363,15 +344,12 @@ namespace jeanf.scenemanagement
         {
             try
             {
-                // Wait until both load and unload queues are done processing
                 await UniTask.WaitUntil(() => !_isProcessingLoadQueue && !_isProcessingUnloadQueue, 
                     cancellationToken: cancellationToken);
                 
-                // Reset the frame counter and flag
                 _emptyQueueFrameCount = 0;
                 _hasCalledLoadComplete = false;
 
-                // Monitor the queues for stability
                 while (!_hasCalledLoadComplete && !cancellationToken.IsCancellationRequested)
                 {
                     bool queuesAreEmpty = _loadQueue.Count == 0 && 
@@ -385,7 +363,6 @@ namespace jeanf.scenemanagement
                         
                         if (_emptyQueueFrameCount >= loadCompleteDebounceFrames)
                         {
-                            // Queues have been empty for enough frames, it's safe to call LoadComplete
                             _hasCalledLoadComplete = true;
                             LoadComplete?.Invoke(true);
                             
@@ -398,25 +375,21 @@ namespace jeanf.scenemanagement
                     }
                     else
                     {
-                        // Something was added back to the queue, reset counter
                         if (_emptyQueueFrameCount > 0 && isDebug)
                         {
                             Debug.Log($"[SceneLoader] Queue stability broken, resetting debounce counter");
                         }
                         _emptyQueueFrameCount = 0;
                         
-                        // Wait for processing to finish again
                         await UniTask.WaitUntil(() => !_isProcessingLoadQueue && !_isProcessingUnloadQueue, 
                             cancellationToken: cancellationToken);
                     }
                     
-                    // Wait one frame before checking again
                     await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
             {
-                // Operation was cancelled, this is expected
                 if (isDebug)
                 {
                     Debug.Log("[SceneLoader] LoadComplete monitoring cancelled");
@@ -434,16 +407,12 @@ namespace jeanf.scenemanagement
             {
                 var startTime = Time.realtimeSinceStartup;
                 
-                // Lower thread priority during loading to reduce main thread impact
                 Application.backgroundLoadingPriority = UnityEngine.ThreadPriority.Low;
                 
-                var loadOperation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
-                loadOperation.allowSceneActivation = false;
-                
-                // Load in background, yielding frequently
-                while (!loadOperation.isDone && loadOperation.progress < 0.9f)
+                var handle = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
+
+                while (!handle.IsDone && handle.PercentComplete < 0.9f)
                 {
-                    // Check frame time and yield if we're taking too long
                     if ((Time.realtimeSinceStartup - startTime) * 1000 > maxFrameTimeMs)
                     {
                         await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
@@ -455,21 +424,12 @@ namespace jeanf.scenemanagement
                     }
                 }
                 
-                // Wait an extra frame before activation to ensure smooth transition
                 await UniTask.NextFrame(cancellationToken);
                 
-                // Activate the scene
-                loadOperation.allowSceneActivation = true;
+                await handle.Result.ActivateAsync().ToUniTask(cancellationToken: cancellationToken);
+
+                _loadedScenes[sceneName] = handle;
                 
-                // Wait for activation to complete
-                while (!loadOperation.isDone)
-                {
-                    await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
-                }
-                
-                _loadedScenes.Add(sceneName);
-                
-                // Restore thread priority
                 Application.backgroundLoadingPriority = UnityEngine.ThreadPriority.Normal;
                 
                 if (isDebug)
@@ -500,10 +460,15 @@ namespace jeanf.scenemanagement
         {
             try
             {
-                var unloadOperation = SceneManager.UnloadSceneAsync(sceneName);
+                if (!_loadedScenes.TryGetValue(sceneName, out var handle))
+                {
+                    if (isDebug) Debug.LogWarning($"[SceneLoader] No handle found for scene: {sceneName}");
+                    return;
+                }
+
+                var unloadHandle = Addressables.UnloadSceneAsync(handle);
                 
-                // Monitor unload progress and yield to prevent blocking
-                while (unloadOperation != null && !unloadOperation.isDone)
+                while (!unloadHandle.IsDone)
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
                 }
@@ -554,7 +519,6 @@ namespace jeanf.scenemanagement
         }
     }
 
-    // Helper class to dispatch work back to Unity's main thread
     public static class UnityMainThreadDispatcher
     {
         private static readonly ConcurrentQueue<Action> _executionQueue = new();

@@ -463,11 +463,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   isDebug: 0
   isMovingChannel: {fileID: 11400000, guid: 36f1ba17ffcd8b045a3737ff8f4a0ff9, type: 2}
-  GeneralPauseEvent: {fileID: 0}
+  GeneralPauseEvent: {fileID: 11400000, guid: 33d13d03d679efd42bde17573556eca8, type: 2}
   footstepInterval: 0.5
   groundLayer:
     serializedVersion: 2
-    m_Bits: 8192
+    m_Bits: 0
   rayDistance: 0.3
   materialCacheDuration: 0.2
   stereoPan: -0.25
@@ -2572,6 +2572,11 @@ PrefabInstance:
         type: 3}
       propertyPath: worldDependencies.Array.size
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8979075195523201058, guid: e87a4cab69290cb40805f373b8ccd8d7,
+        type: 3}
+      propertyPath: worldDependencies.Array.data[0].address
+      value: Assets/Scenes/Interaction_Demo.unity
       objectReference: {fileID: 0}
     - target: {fileID: 8979075195523201058, guid: e87a4cab69290cb40805f373b8ccd8d7,
         type: 3}
@@ -5603,8 +5608,9 @@ MonoBehaviour:
   player: {fileID: 1757655712}
   cameraOffset: {fileID: 376454066}
   listOfFilters: []
+  fadeInDuration: 0.2
+  fadeOutDuration: 0.2
   cameraResetChannel: {fileID: 11400000, guid: 869cdbdb9de48ea42aa65f9a90dbc1d4, type: 2}
-  FadeEventChannel: {fileID: 0}
 --- !u!4 &1631578571
 Transform:
   m_ObjectHideFlags: 0
