@@ -76,7 +76,7 @@ namespace jeanf.scenemanagement
 
         #if UNITY_EDITOR
         [Tooltip("This is only for devs in the Editor, will not be included in any build, not even alpha.")]
-        [SerializeField] private List<string> devScenes = new List<string>();
+        [SerializeField] private List<SceneReference> devScenes = new List<SceneReference>();
 
         private void Awake()
         {
@@ -84,7 +84,7 @@ namespace jeanf.scenemanagement
             
             foreach (var devScene in devScenes)
             {
-                QueueLoadScene(devScene);
+                QueueLoadScene(devScene.Address);
             }
         }
         #else
