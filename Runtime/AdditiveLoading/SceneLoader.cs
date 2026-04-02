@@ -179,22 +179,16 @@ namespace jeanf.scenemanagement
         private void QueueLoadScene(string sceneName)
         {
             _hasCalledLoadComplete = false;
-            
-            QueueBackgroundWork(() =>
+
+            if (!ValidateSceneName(sceneName))
             {
-                bool isValid = ValidateSceneName(sceneName);
-                _sceneValidationCache[sceneName] = isValid;
-                
-                if (isValid)
-                {
-                    _loadQueue.Enqueue(new SceneOperation(SceneOperationType.Load, sceneName));
-                    UnityMainThreadDispatcher.Enqueue(() => ProcessLoadQueue().Forget());
-                }
-                else if (isDebug)
-                {
-                    Debug.LogWarning($"[SceneLoader] Scene validation failed: {sceneName}");
-                }
-            });
+                if (isDebug) Debug.LogWarning($"[SceneLoader] Scene validation failed: {sceneName}");
+                return;
+            }
+
+            _sceneValidationCache[sceneName] = true;
+            _loadQueue.Enqueue(new SceneOperation(SceneOperationType.Load, sceneName));
+            ProcessLoadQueue().Forget();
         }
 
         private void QueueUnloadScene(string sceneName)
