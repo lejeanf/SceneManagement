@@ -267,7 +267,7 @@ namespace jeanf.scenemanagement
             if (isDebug) Debug.Log("[WorldManager] Initial load dependencies complete");
 
             // Load initial region if specified
-            if (initialRegion != null && _currentPlayerRegion == null)
+            if (initialRegion != null && !hasGameBeenInitialized)
             {
                 if (isDebug) Debug.Log($"[WorldManager] Loading initial region: {initialRegion.levelName} ({initialRegion.id})");
                 if (isDebug) Debug.Log($"[WorldManager] SpawnPosOnInit: {initialRegion.SpawnPosOnInit.position}");
@@ -573,12 +573,12 @@ namespace jeanf.scenemanagement
                 return;
             }
 
+            _isRegionTransitioning = true;
+
             FadeMask.SetStateLoading();
             if (isDebug) Debug.Log("[WorldManager] Fading to black before region change...");
             await UniTask.Delay(System.TimeSpan.FromSeconds(0.2f));
             FadeEventChannel?.RaiseEvent(true, 0.1f);
-
-            _isRegionTransitioning = true;
 
             _currentPlayerRegion = region;
             _lastNotifiedRegion = region.id;
