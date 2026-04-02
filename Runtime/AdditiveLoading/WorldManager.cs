@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -68,9 +67,6 @@ namespace jeanf.scenemanagement
         private bool firstLoadCompleted = false;
         private bool _isQuitting = false;
 
-        private SpawnPos? _pendingTeleport = null;
-        private bool _isWaitingForScenesToLoad = false;
-        
         public static Zone CurrentPlayerZone 
         { 
             get => Instance?._currentPlayerZone;
@@ -287,8 +283,7 @@ namespace jeanf.scenemanagement
                     if (isDebug) Debug.Log($"[WorldManager] Set initial zone: {initialZone.zoneName} ({initialZone.id})");
                 }
 
-                // OnRegionChange is async void — don't set firstLoadCompleted or fade here,
-                // CompleteRegionTransition handles fade-out after teleport is done
+                // OnRegionChange is async void — it handles teleport, fade, and firstLoadCompleted internally
                 OnRegionChange(initialRegion);
                 return;
             }
@@ -537,37 +532,8 @@ namespace jeanf.scenemanagement
 
         private void OnSceneLoadComplete(bool isComplete)
         {
-            if (isDebug) Debug.Log($"[WorldManager] OnSceneLoadComplete called. isComplete: {isComplete}, _isWaitingForScenesToLoad: {_isWaitingForScenesToLoad}, HasPendingTeleport: {_pendingTeleport.HasValue}");
-
+            if (isDebug) Debug.Log($"[WorldManager] OnSceneLoadComplete called. isComplete: {isComplete}");
             PublishAppList();
-
-            // Check if we have a pending teleport and scenes are done loading
-            if (_isWaitingForScenesToLoad && _pendingTeleport.HasValue)
-            {
-                if (isDebug) Debug.Log($"[WorldManager] Checking scene loader state - IsLoading: {_sceneLoader?.IsCurrentlyLoading()}, Pending: {_sceneLoader?.GetPendingOperationCount()}");
-
-                // Verify all scenes are actually loaded
-                if (_sceneLoader != null && !_sceneLoader.IsCurrentlyLoading() && _sceneLoader.GetPendingOperationCount() == 0)
-                {
-                    if (isDebug) Debug.Log($"[WorldManager] All scenes loaded! Executing pending teleport to: {_pendingTeleport.Value.position}");
-
-                    PerformTeleport(_pendingTeleport.Value);
-
-                    _pendingTeleport = null;
-                    _isWaitingForScenesToLoad = false;
-                }
-                else
-                {
-                    if (isDebug) Debug.Log($"[WorldManager] Cannot teleport yet - scenes still loading. IsLoading: {_sceneLoader?.IsCurrentlyLoading()}, Pending: {_sceneLoader?.GetPendingOperationCount()}");
-                }
-            }
-            else
-            {
-                if (isDebug && (_isWaitingForScenesToLoad || _pendingTeleport.HasValue))
-                {
-                    Debug.Log($"[WorldManager] Not ready to teleport - _isWaitingForScenesToLoad: {_isWaitingForScenesToLoad}, HasPendingTeleport: {_pendingTeleport.HasValue}");
-                }
-            }
         }
 
         private void PerformTeleport(SpawnPos spawnPos)
@@ -595,20 +561,21 @@ namespace jeanf.scenemanagement
         
         private async void OnRegionChange(Region region)
         {
+            if (_isRegionTransitioning)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Region transition already in progress, ignoring request for: {region.id}");
+                return;
+            }
+
             if (_currentPlayerRegion == region && hasGameBeenInitialized)
             {
                 if (isDebug) Debug.Log($"[WorldManager] The player is already in the requested region: {region.id} --- ignoring the request.");
                 return;
             }
 
-            // Fade to black FIRST
             FadeMask.SetStateLoading();
             if (isDebug) Debug.Log("[WorldManager] Fading to black before region change...");
-            
-            // Wait for fade to complete
             await UniTask.Delay(System.TimeSpan.FromSeconds(0.2f));
-
-            // Now start the region change while screen is black
             FadeEventChannel?.RaiseEvent(true, 0.1f);
 
             _isRegionTransitioning = true;
@@ -620,65 +587,40 @@ namespace jeanf.scenemanagement
             PublishCurrentRegion?.Invoke(region);
 
             _tempRegionsToRemove.Clear();
-
             for (int i = 0; i < _activeRegions.Count; i++)
             {
-                var removedRegion = RequestUnLoadForObsoleteRegion(_activeRegions[i]);
-                _tempRegionsToRemove.Add(removedRegion);
+                _tempRegionsToRemove.Add(RequestUnLoadForObsoleteRegion(_activeRegions[i]));
             }
-
             for (int i = 0; i < _tempRegionsToRemove.Count; i++)
             {
                 _activeRegions.Remove(_tempRegionsToRemove[i]);
             }
 
-            var hasLoadRequests = RequestLoadForRegionDependencies(region);
-            var hasActiveOperations = _sceneLoader.IsCurrentlyLoading() || _sceneLoader.GetPendingOperationCount() > 0;
+            RequestLoadForRegionDependencies(region);
+
+            await WaitForSceneOperationsComplete();
 
             var spawnPos = SetTeleportTarget(region, hasGameBeenInitialized);
-
-            if (hasLoadRequests || hasActiveOperations)
-            {
-                _pendingTeleport = spawnPos;
-                _isWaitingForScenesToLoad = true;
-                if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: Pending teleport to {spawnPos.position} set. Waiting for scenes to load...");
-            }
-            else
-            {
-                PerformTeleport(spawnPos);
-                if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: No pending operations, teleporting immediately to {spawnPos.position}");
-            }
+            PerformTeleport(spawnPos);
+            if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: Teleported to {spawnPos.position}");
 
             _activeRegions.Add(region);
 
-            if (firstLoadCompleted)
-            {
-                StartCoroutine(FadeOnRegionChange());
-            }
-            CompleteRegionTransition().Forget();
-        }
-
-        IEnumerator FadeOnRegionChange()
-        {
-            yield return new WaitForSeconds(1.0f);
             FadeEventChannel?.RaiseEvent(false, 1.0f);
-        }
-        private async UniTaskVoid CompleteRegionTransition()
-        {
-            while (_isWaitingForScenesToLoad || _pendingTeleport.HasValue)
-            {
-                await UniTask.Delay(50);
-                if (isDebug) Debug.Log($"[WorldManager] Waiting for teleport to complete before ending region transition...");
-            }
 
             await UniTask.NextFrame();
             await UniTask.NextFrame();
 
             _isRegionTransitioning = false;
-
-            if (isDebug) Debug.Log($"[WorldManager] Region transition complete. Fading back to clear...");
-    
             FadeMask.SetStateClear();
+
+            if (isDebug) Debug.Log($"[WorldManager] Region transition complete.");
+
+            if (!firstLoadCompleted)
+            {
+                firstLoadCompleted = true;
+                SetLoadingComplete(LoadingSource.InitialRegion, true);
+            }
 
             if (_currentPlayerRegion?.zonesInThisRegion != null && _currentPlayerRegion.zonesInThisRegion.Count > 0)
             {
@@ -687,11 +629,24 @@ namespace jeanf.scenemanagement
                 {
                     _currentPlayerZone = firstZone;
                     _lastNotifiedZone = firstZone.id;
-
                     PublishCurrentZoneId?.Invoke(firstZone.id);
                     PublishAppList(firstZone);
                 }
             }
+        }
+
+        private async UniTask WaitForSceneOperationsComplete()
+        {
+            await UniTask.NextFrame();
+
+            while (_sceneLoader.GetBackgroundQueueCount() > 0 ||
+                   _sceneLoader.IsCurrentlyLoading() ||
+                   _sceneLoader.GetPendingOperationCount() > 0)
+            {
+                await UniTask.Yield(PlayerLoopTiming.Update);
+            }
+
+            await UniTask.NextFrame();
         }
 
         private SpawnPos SetTeleportTarget(Region region, bool hasRegionBeenInitialized)
