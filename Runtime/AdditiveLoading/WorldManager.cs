@@ -43,6 +43,11 @@ namespace jeanf.scenemanagement
         private readonly List<string> _tempSceneNames = new List<string>();
         private readonly List<Region> _tempRegionsToRemove = new List<Region>();
 
+        private readonly HashSet<string> _oldSceneSet = new HashSet<string>();
+        private readonly HashSet<string> _newSceneSet = new HashSet<string>();
+        private readonly List<string> _scenesToUnloadDiff = new List<string>();
+        private readonly List<string> _scenesToLoadDiff = new List<string>();
+
         [SerializeField] private StringEventChannelSO regionChangeRequestChannel;
         [SerializeField] private SendTeleportTarget sendTeleportTarget;
 
@@ -586,17 +591,21 @@ namespace jeanf.scenemanagement
             PublishCurrentRegionId?.Invoke(_currentPlayerRegion.id);
             PublishCurrentRegion?.Invoke(region);
 
-            _tempRegionsToRemove.Clear();
-            for (int i = 0; i < _activeRegions.Count; i++)
+            ComputeRegionDiff(region);
+
+            for (int i = 0; i < _scenesToUnloadDiff.Count; i++)
             {
-                _tempRegionsToRemove.Add(RequestUnLoadForObsoleteRegion(_activeRegions[i]));
-            }
-            for (int i = 0; i < _tempRegionsToRemove.Count; i++)
-            {
-                _activeRegions.Remove(_tempRegionsToRemove[i]);
+                if (isDebug) Debug.Log($"[WorldManager] Unloading obsolete scene: {_scenesToUnloadDiff[i]}");
+                _sceneLoader.UnLoadSceneRequest(_scenesToUnloadDiff[i]);
             }
 
-            RequestLoadForRegionDependencies(region);
+            for (int i = 0; i < _scenesToLoadDiff.Count; i++)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Loading new scene: {_scenesToLoadDiff[i]}");
+                _sceneLoader.LoadSceneRequest(_scenesToLoadDiff[i]);
+            }
+
+            _activeRegions.Clear();
 
             await WaitForSceneOperationsComplete();
 
@@ -705,6 +714,43 @@ namespace jeanf.scenemanagement
             }
 
             _broadcastAppList?.Invoke(listToBroadcast);
+        }
+
+        private void ComputeRegionDiff(Region newRegion)
+        {
+            _oldSceneSet.Clear();
+            _newSceneSet.Clear();
+            _scenesToUnloadDiff.Clear();
+            _scenesToLoadDiff.Clear();
+
+            for (int i = 0; i < _activeRegions.Count; i++)
+            {
+                if (_compiledSceneLists.TryGetValue(_activeRegions[i].id, out var oldScenes))
+                {
+                    for (int j = 0; j < oldScenes.Count; j++)
+                        _oldSceneSet.Add(oldScenes[j]);
+                }
+            }
+
+            if (_compiledSceneLists.TryGetValue(newRegion.id, out var newScenes))
+            {
+                for (int i = 0; i < newScenes.Count; i++)
+                    _newSceneSet.Add(newScenes[i]);
+            }
+
+            foreach (var scene in _oldSceneSet)
+            {
+                if (!_newSceneSet.Contains(scene))
+                    _scenesToUnloadDiff.Add(scene);
+            }
+
+            foreach (var scene in _newSceneSet)
+            {
+                if (!_oldSceneSet.Contains(scene))
+                    _scenesToLoadDiff.Add(scene);
+            }
+
+            if (isDebug) Debug.Log($"[WorldManager] Region diff — unload: {_scenesToUnloadDiff.Count}, load: {_scenesToLoadDiff.Count}, shared: {_newSceneSet.Count - _scenesToLoadDiff.Count}");
         }
 
         private bool RequestLoadForRegionDependencies(Region region)
