@@ -69,6 +69,7 @@ namespace jeanf.scenemanagement
         
         private readonly List<UniTask> _operationBuffer = new();
         private readonly List<string> _scenesToUnload = new();
+        private readonly HashSet<string> _pendingUnloads = new();
         
         private bool _isProcessingLoadQueue = false;
         private bool _isProcessingUnloadQueue = false;
@@ -313,7 +314,12 @@ namespace jeanf.scenemanagement
                     
                     while (_operationBuffer.Count < maxConcurrentLoads && _unloadQueue.TryDequeue(out var operation))
                     {
-                        if (!_loadedScenes.ContainsKey(operation.SceneName) || _processingScenes.Contains(operation.SceneName))
+                        if (_processingScenes.Contains(operation.SceneName))
+                        {
+                            _pendingUnloads.Add(operation.SceneName);
+                            continue;
+                        }
+                        if (!_loadedScenes.ContainsKey(operation.SceneName))
                             continue;
                             
                         _processingScenes.Add(operation.SceneName);
@@ -402,13 +408,16 @@ namespace jeanf.scenemanagement
 
         private async UniTask LoadSceneAsync(string sceneName, CancellationToken cancellationToken)
         {
+            var handle = new AsyncOperationHandle<SceneInstance>();
+            var handleValid = false;
             try
             {
                 var startTime = Time.realtimeSinceStartup;
-                
+
                 Application.backgroundLoadingPriority = UnityEngine.ThreadPriority.Low;
-                
-                var handle = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
+
+                handle = Addressables.LoadSceneAsync(sceneName, LoadSceneMode.Additive, activateOnLoad: false);
+                handleValid = true;
 
                 while (!handle.IsDone && handle.PercentComplete < 0.9f)
                 {
@@ -437,9 +446,13 @@ namespace jeanf.scenemanagement
                 await handle.Result.ActivateAsync().ToUniTask(cancellationToken: cancellationToken);
 
                 _loadedScenes[sceneName] = handle;
-                
+                handleValid = false;
+
+                if (_pendingUnloads.Remove(sceneName))
+                    QueueUnloadScene(sceneName);
+
                 Application.backgroundLoadingPriority = UnityEngine.ThreadPriority.Normal;
-                
+
                 if (isDebug)
                 {
                     Debug.Log($"[SceneLoader] Loaded scene: {sceneName}");
@@ -459,6 +472,8 @@ namespace jeanf.scenemanagement
             }
             finally
             {
+                if (handleValid && handle.IsValid())
+                    Addressables.Release(handle);
                 _processingScenes.Remove(sceneName);
                 Application.backgroundLoadingPriority = UnityEngine.ThreadPriority.Normal;
             }
@@ -475,12 +490,18 @@ namespace jeanf.scenemanagement
                 }
 
                 var unloadHandle = Addressables.UnloadSceneAsync(handle);
-                
+
                 while (!unloadHandle.IsDone)
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
                 }
-                
+
+                if (unloadHandle.Status != AsyncOperationStatus.Succeeded)
+                {
+                    Debug.LogError($"[SceneLoader] Failed to unload scene: {sceneName}");
+                    return;
+                }
+
                 _loadedScenes.Remove(sceneName);
                 
                 if (isDebug)
