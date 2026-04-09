@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 269b8ef5a9f02384ea52fa667f2b79cb, type: 3}
+  m_Name: GameInitConfig
+  m_EditorClassIdentifier: jeanf.scenemanagement::jeanf.ContentManagement.GameInitConfig
+  startRegion: {fileID: 11400000, guid: bbabf3e47905c1b4da96100c0b4e4484, type: 2}
+  startZone: {fileID: 11400000, guid: 2b0939a48ac9b554d9da18a49189cb9d, type: 2}
+  systemsConfig: {fileID: 0}

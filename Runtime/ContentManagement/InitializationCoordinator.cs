@@ -3,7 +3,6 @@ using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
-using jeanf.EventSystem;
 using jeanf.scenemanagement;
 using jeanf.universalplayer;
 
@@ -12,7 +11,6 @@ namespace jeanf.ContentManagement
     public class InitializationCoordinator : MonoBehaviour
     {
         [SerializeField] private GameInitConfig _config;
-        [SerializeField] private StringEventChannelSO _loadingMessageChannel;
 
         private static InitializationCoordinator _instance;
 
@@ -49,6 +47,8 @@ namespace jeanf.ContentManagement
         {
             if (_instance == null) return;
             _instance.SetEntry(systemId, LoadingState.Loading, progress);
+            var displayName = _instance._registered.TryGetValue(systemId, out var sys) ? sys.DisplayName : systemId;
+            _instance.BroadcastMessage($"{displayName}... {Mathf.RoundToInt(progress * 100)}%");
         }
 
         public async UniTask Run(ContentRegistry contentRegistry)
@@ -118,6 +118,7 @@ namespace jeanf.ContentManagement
                     _contentRegistry.Cosmetics.Progress,
                     _contentRegistry.Cosmetics.LoadedCount,
                     _contentRegistry.Cosmetics.TotalCount);
+                BroadcastMessage($"Loading content... ({_contentRegistry.Cosmetics.LoadedCount + _contentRegistry.Scenes.LoadedCount} / {_contentRegistry.Cosmetics.TotalCount + _contentRegistry.Scenes.TotalCount})");
             };
 
             _contentRegistry.Scenes.OnProgressChanged += () =>
@@ -126,6 +127,7 @@ namespace jeanf.ContentManagement
                     _contentRegistry.Scenes.Progress,
                     _contentRegistry.Scenes.LoadedCount,
                     _contentRegistry.Scenes.TotalCount);
+                BroadcastMessage($"Loading content... ({_contentRegistry.Cosmetics.LoadedCount + _contentRegistry.Scenes.LoadedCount} / {_contentRegistry.Cosmetics.TotalCount + _contentRegistry.Scenes.TotalCount})");
             };
         }
 
@@ -173,7 +175,7 @@ namespace jeanf.ContentManagement
 
         private void BroadcastMessage(string message)
         {
-            _loadingMessageChannel?.RaiseEvent(message);
+            LoadingInformation.LoadingStatus?.Invoke(message);
         }
     }
 }

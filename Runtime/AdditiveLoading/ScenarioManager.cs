@@ -230,8 +230,8 @@ namespace jeanf.scenemanagement
 
         private static List<string> CompileSceneList(Scenario scenario)
         {
-            var requiredScenes = new List<string> { scenario.scene.Name };
-            requiredScenes.AddRange(scenario.dependenciesInThisScenario.Select(dependency => dependency.Name));
+            var requiredScenes = new List<string> { scenario.scene.Address };
+            requiredScenes.AddRange(scenario.dependenciesInThisScenario.Select(dependency => dependency.Address));
             return requiredScenes;
         }
     }
