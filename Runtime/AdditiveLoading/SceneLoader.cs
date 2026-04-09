@@ -337,7 +337,11 @@ namespace jeanf.scenemanagement
             finally
             {
                 _isProcessingUnloadQueue = false;
-                if (!_isProcessingLoadQueue && _loadQueue.Count == 0)
+                if (_unloadQueue.Count > 0)
+                {
+                    ProcessUnloadQueue().Forget();
+                }
+                else if (!_isProcessingLoadQueue && _loadQueue.Count == 0)
                 {
                     IsLoading?.Invoke(false);
                     MonitorLoadComplete(token).Forget();

@@ -349,6 +349,8 @@ namespace jeanf.scenemanagement
                 Instance._sceneLoader != null &&
                 !Instance._sceneLoader.IsCurrentlyLoading() &&
                 Instance._sceneLoader.GetPendingOperationCount() == 0);
+            Instance._activeRegions.Clear();
+            Instance._activeRegions.Add(region);
         }
 
         public static void SpawnPlayer(SpawnPos spawnPos)
