@@ -449,6 +449,10 @@ namespace jeanf.scenemanagement
 
                 await handle.Result.ActivateAsync().ToUniTask(cancellationToken: cancellationToken);
 
+                #if BAKERY_INCLUDED
+                ftLightmaps.RefreshFull();
+                #endif
+
                 _loadedScenes[sceneName] = handle;
                 handleValid = false;
 
