@@ -75,12 +75,12 @@ namespace jeanf.scenemanagement
         private bool _isProcessingUnloadQueue = false;
         private bool _isFlushingMemory = false;
 
-        #if BAKERY_INCLUDED
         private static System.Reflection.MethodInfo _bakeryRefreshMethod;
         private static bool _bakeryChecked = false;
 
         private static void TryRefreshBakeryLightmaps()
         {
+        #if BAKERY_INCLUDED
             if (!_bakeryChecked)
             {
                 foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
@@ -95,8 +95,8 @@ namespace jeanf.scenemanagement
                 }
             }
             _bakeryRefreshMethod?.Invoke(null, null);
-        }
         #endif
+        }
 
         #if UNITY_EDITOR
         [Tooltip("This is only for devs in the Editor, will not be included in any build, not even alpha.")]
