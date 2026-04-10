@@ -98,6 +98,17 @@ namespace jeanf.scenemanagement
         #endif
         }
 
+        [ContextMenu("Test Bakery Refresh")]
+        private void TestBakeryRefresh()
+        {
+            _bakeryChecked = false;
+            _bakeryRefreshMethod = null;
+            TryRefreshBakeryLightmaps();
+            Debug.Log(_bakeryRefreshMethod != null
+                ? $"[SceneLoader] Bakery: ftLightmaps.RefreshFull found and invoked on {_bakeryRefreshMethod.DeclaringType?.Assembly.GetName().Name}"
+                : "[SceneLoader] Bakery: ftLightmaps not found — check BAKERY_INCLUDED define and Bakery installation");
+        }
+
         #if UNITY_EDITOR
         [Tooltip("This is only for devs in the Editor, will not be included in any build, not even alpha.")]
         [SerializeField] private List<SceneReference> devScenes = new List<SceneReference>();
