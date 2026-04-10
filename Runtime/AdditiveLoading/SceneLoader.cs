@@ -75,6 +75,27 @@ namespace jeanf.scenemanagement
         private bool _isProcessingUnloadQueue = false;
         private bool _isFlushingMemory = false;
 
+        private static System.Reflection.MethodInfo _bakeryRefreshMethod;
+        private static bool _bakeryChecked = false;
+
+        private static void TryRefreshBakeryLightmaps()
+        {
+            if (!_bakeryChecked)
+            {
+                _bakeryChecked = true;
+                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    var type = assembly.GetType("ftLightmaps");
+                    if (type != null)
+                    {
+                        _bakeryRefreshMethod = type.GetMethod("RefreshFull", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                        break;
+                    }
+                }
+            }
+            _bakeryRefreshMethod?.Invoke(null, null);
+        }
+
         #if UNITY_EDITOR
         [Tooltip("This is only for devs in the Editor, will not be included in any build, not even alpha.")]
         [SerializeField] private List<SceneReference> devScenes = new List<SceneReference>();
@@ -449,9 +470,7 @@ namespace jeanf.scenemanagement
 
                 await handle.Result.ActivateAsync().ToUniTask(cancellationToken: cancellationToken);
 
-                #if BAKERY_INCLUDED
-                ftLightmaps.RefreshFull();
-                #endif
+                TryRefreshBakeryLightmaps();
 
                 _loadedScenes[sceneName] = handle;
                 handleValid = false;
