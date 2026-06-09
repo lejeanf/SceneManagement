@@ -23,10 +23,9 @@ jobs:
                   node-version: 24
                   registry-url: https://npmjs.org
 
-            - name: 🛠️ setup unity-cli & upm-cli
+            - name: 🛠️ setup unity upm-cli
               run: |
-                npm install -g @rage-against-the-pixel/unity-cli
-                unity-cli upm-install
+                npx --yes @rage-against-the-pixel/unity-cli upm-install
 
             - name: 🔏 sign unity package
               env:
@@ -34,8 +33,10 @@ jobs:
                 UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
               run: |
-                # The binary is located under the bin/ subfolder of the installation directory
+                # Targets the binary inside the bin/ subfolder
                 ~/.unity-cli/upm/bin/upm package sign .
 
             - name: 🚀 publish
               run: npm publish --access public --provenance
+              env:
+                NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # (Handled automatically by setup-node OIDC)
