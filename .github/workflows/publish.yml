@@ -4,7 +4,7 @@ on:
     push:
         branches:
           - main
-     
+
 permissions:
     id-token: write  # Required for npm OIDC and Provenance
     contents: read
@@ -21,12 +21,11 @@ jobs:
               uses: actions/setup-node@v6
               with:
                   node-version: 24
-                  registry-url: https://npmjs.org
+                  registry-url: https://registry.npmjs.org
 
-            # --- FIXED: Use an explicit public registry fallback to bypass token isolation ---
             - name: 🛠️ setup unity upm-cli
               run: |
-                npm install -g @rage-against-the-pixel/unity-cli --registry=https://npmjs.org
+                npm install -g @rage-against-the-pixel/unity-cli
                 unity-cli upm-install
 
             # --- Sign the package via the native platform path ---
