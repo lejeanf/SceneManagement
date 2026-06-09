@@ -23,27 +23,20 @@ jobs:
                   node-version: 24
                   registry-url: https://npmjs.org
 
-            # --- FIXED: Direct download with explicit asset paths and redirection handling ---
+            # --- FIXED: Use an explicit public registry fallback to bypass token isolation ---
             - name: 🛠️ setup unity upm-cli
               run: |
-                mkdir -p ~/.unity-cli/bin
-                
-                # Fetching the official binary directly from the explicit release payload asset
-                curl -sSL "https://github.com" -o ~/.unity-cli/bin/unity-cli
-                
-                chmod +x ~/.unity-cli/bin/unity-cli
-                
-                # Triggers the self-contained installer tool
-                ~/.unity-cli/bin/unity-cli upm-install
+                npm install -g @rage-against-the-pixel/unity-cli --registry=https://npmjs.org
+                unity-cli upm-install
 
-            # --- Sign the package folder ---
+            # --- Sign the package via the native platform path ---
             - name: 🔏 sign unity package
               env:
                 UPM_ENTERPRISE_ORGANIZATION_ID: ${{ secrets.UNITY_ORG_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
               run: |
-                # Call the validated upm binary directly
+                # Call the validated upm binary path directly
                 ~/.unity-cli/upm/bin/upm package sign .
 
             # --- Publish with npm Provenance ---
