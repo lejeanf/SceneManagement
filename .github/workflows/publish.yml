@@ -21,7 +21,7 @@ jobs:
               uses: actions/setup-node@v6
               with:
                   node-version: 24
-                  registry-url: https://registry.npmjs.org
+                  registry-url: https://npmjs.org
 
             - name: 🛠️ setup unity-cli & upm-cli
               run: |
@@ -34,9 +34,8 @@ jobs:
                 UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
               run: |
-                # Call the upm tool installed to the local environment path
-                ~/.unity-cli/upm package sign .
+                # The binary is located under the bin/ subfolder of the installation directory
+                ~/.unity-cli/upm/bin/upm package sign .
 
-            # --- Publish with npm Provenance ---
             - name: 🚀 publish
               run: npm publish --access public --provenance
