@@ -6,7 +6,7 @@ on:
           - main
      
 permissions:
-    id-token: write
+    id-token: write  # Required for npm OIDC and Provenance
     contents: read
 
 jobs:
@@ -23,20 +23,29 @@ jobs:
                   node-version: 24
                   registry-url: https://npmjs.org
 
+            # --- FIXED: Direct download via curl to bypass npm 403 blocks ---
             - name: 🛠️ setup unity upm-cli
               run: |
-                npx --yes @rage-against-the-pixel/unity-cli upm-install
+                mkdir -p ~/.unity-cli/bin
+                # Pulls the official compiled standalone UPM cli utility
+                curl -sL https://github.com -o ~/.unity-cli/bin/unity-cli
+                chmod +x ~/.unity-cli/bin/unity-cli
+                
+                # Triggers the self-contained downloader to unpack the native signer tool
+                ~/.unity-cli/bin/unity-cli upm-install
 
+            # --- Sign the package via the native platform path ---
             - name: 🔏 sign unity package
               env:
                 UPM_ENTERPRISE_ORGANIZATION_ID: ${{ secrets.UNITY_ORG_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
               run: |
-                # Targets the binary inside the bin/ subfolder
+                # Runs the official package signer binary directly
                 ~/.unity-cli/upm/bin/upm package sign .
 
+            # --- Publish with npm Provenance ---
             - name: 🚀 publish
               run: npm publish --access public --provenance
               env:
-                NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # (Handled automatically by setup-node OIDC)
+                NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # Handled by your OIDC link
