@@ -23,9 +23,10 @@ jobs:
                   node-version: 24
                   registry-url: https://registry.npmjs.org
 
-            - name: 🛠️ setup-unity-upm-cli
+            - name: 🛠️ setup unity-cli & upm-cli
               run: |
-                npm install -g @unity/upm-cli
+                npm install -g @rage-against-the-pixel/unity-cli
+                unity-cli upm-install
 
             - name: 🔏 sign unity package
               env:
@@ -33,8 +34,9 @@ jobs:
                 UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
                 UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
               run: |
-                # Signs the package folder ('.') in-place before npm packs it
-                upm package sign .
+                # Call the upm tool installed to the local environment path
+                ~/.unity-cli/upm package sign .
 
+            # --- Publish with npm Provenance ---
             - name: 🚀 publish
               run: npm publish --access public --provenance
