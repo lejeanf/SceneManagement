@@ -6,7 +6,7 @@ on:
           - main
      
 permissions:
-    id-token: write  # Required for OIDC
+    id-token: write
     contents: read
 
 jobs:
@@ -16,10 +16,25 @@ jobs:
         steps:
             - name: 📚 checkout
               uses: actions/checkout@v6
+
             - name: 🟢 node
               uses: actions/setup-node@v6
               with:
                   node-version: 24
                   registry-url: https://registry.npmjs.org
+
+            - name: 🛠️ setup-unity-upm-cli
+              run: |
+                npm install -g @unity/upm-cli
+
+            - name: 🔏 sign unity package
+              env:
+                UPM_ENTERPRISE_ORGANIZATION_ID: ${{ secrets.UNITY_ORG_ID }}
+                UPM_SERVICE_ACCOUNT_KEY_ID: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_ID }}
+                UPM_SERVICE_ACCOUNT_KEY_SECRET: ${{ secrets.UPM_SERVICE_ACCOUNT_KEY_SECRET }}
+              run: |
+                # Signs the package folder ('.') in-place before npm packs it
+                upm package sign .
+
             - name: 🚀 publish
-              run: npm publish --access public
+              run: npm publish --access public --provenance
