@@ -531,21 +531,32 @@ namespace jeanf.scenemanagement
                     return;
                 }
 
-                var unloadHandle = Addressables.UnloadSceneAsync(handle);
+                // Remove from tracking up-front: the handle is now being consumed by the
+                // unload, so it must not be handed out to another unload request mid-await.
+                _loadedScenes.Remove(sceneName);
+
+                // autoReleaseHandle MUST be false here. With the default (true) the handle is
+                // released the instant the unload completes, so reading .Status below would
+                // throw "Attempting to use an invalid operation handle". We release manually
+                // after reading the status instead.
+                var unloadHandle = Addressables.UnloadSceneAsync(handle, autoReleaseHandle: false);
 
                 while (!unloadHandle.IsDone)
                 {
                     await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
                 }
 
-                if (unloadHandle.Status != AsyncOperationStatus.Succeeded)
+                var succeeded = unloadHandle.Status == AsyncOperationStatus.Succeeded;
+
+                if (unloadHandle.IsValid())
+                    Addressables.Release(unloadHandle);
+
+                if (!succeeded)
                 {
                     Debug.LogError($"[SceneLoader] Failed to unload scene: {sceneName}");
                     return;
                 }
 
-                _loadedScenes.Remove(sceneName);
-                
                 if (isDebug)
                 {
                     Debug.Log($"[SceneLoader] Unloaded scene: {sceneName}");
