@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a1af9ebb5f73d4abe8f7afaf78657d, type: 3}
+  m_Name: RegionAdjacency
+  m_EditorClassIdentifier: jeanf.scenemanagement::jeanf.scenemanagement.RegionAdjacency
+  links:
+  - regionA: {fileID: 11400000, guid: bbabf3e47905c1b4da96100c0b4e4484, type: 2}
+    regionB: {fileID: 11400000, guid: 3be0bdecc77225043bf1a2f89f5cfc8c, type: 2}
+    connectionType: 0
+    touchingZones:
+    - zoneOnA: {fileID: 11400000, guid: 89857cc01bad650448624ec63199b051, type: 2}
+      zoneOnB: {fileID: 11400000, guid: c53d99dee008d44498325c72318d652a, type: 2}
+  - regionA: {fileID: 11400000, guid: 3be0bdecc77225043bf1a2f89f5cfc8c, type: 2}
+    regionB: {fileID: 11400000, guid: 2b8d92f982a2908409fbc1c952eeebf8, type: 2}
+    connectionType: 1
+    touchingZones: []
+  - regionA: {fileID: 11400000, guid: bbabf3e47905c1b4da96100c0b4e4484, type: 2}
+    regionB: {fileID: 11400000, guid: 2b8d92f982a2908409fbc1c952eeebf8, type: 2}
+    connectionType: 1
+    touchingZones: []

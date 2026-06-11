@@ -35,11 +35,12 @@ MonoBehaviour:
   - sceneAsset: {fileID: 102900000, guid: eca06b9066d8efb4fae7239d6bec44d5, type: 3}
     address: Assets/SceneManagement/Samples/Example/Scenes/World_depedency.unity
     Name: 
+  regionAdjacency: {fileID: 11400000, guid: b332b7ec919cd0f45894397c547c4699, type: 2}
   SpawnPosOnRegionChangeRequest:
     position: {x: 2.5, y: 0, z: 2.5}
     rotation: {x: 0, y: 0, z: 0}
   isUsingOnInitSpawnPos: 1
   SpawnPosOnInit:
-    position: {x: -2.5, y: 0, z: -2.5}
-    rotation: {x: 12.5, y: 10, z: -2.5}
+    position: {x: -3.769753, y: 0, z: -12.782505}
+    rotation: {x: 0, y: 9.999994, z: 0}
   map: {fileID: 0}

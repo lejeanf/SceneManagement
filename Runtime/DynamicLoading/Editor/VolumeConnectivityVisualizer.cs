@@ -178,21 +178,45 @@ namespace jeanf.scenemanagement
 
         private static void DrawZoneLinks(RegionConnectivity connectivity, Dictionary<string, List<VolumeAuthoring>> volumesByZone, Zone focusZone)
         {
-            foreach (var connection in connectivity.zoneConnections)
+            foreach (var adjacency in CollectAdjacencyAssets(connectivity))
             {
-                if (connection.zoneA == null || connection.zoneB == null) continue;
-                if (focusZone != null && FocusSelectedOnly && connection.zoneA != focusZone && connection.zoneB != focusZone) continue;
+                foreach (var link in adjacency.links)
+                {
+                    if (link?.touchingZones == null) continue;
 
-                if (!volumesByZone.TryGetValue(connection.zoneA.id.ToString(), out var va)) continue;
-                if (!volumesByZone.TryGetValue(connection.zoneB.id.ToString(), out var vb)) continue;
+                    var linkColor = link.connectionType == RegionConnectionType.Elevator
+                        ? Color.magenta
+                        : Color.cyan;
 
-                var a = CalculateZoneCenter(va);
-                var b = CalculateZoneCenter(vb);
-                if (!InRange(a) && !InRange(b)) continue;
+                    foreach (var pair in link.touchingZones)
+                    {
+                        if (pair?.zoneOnA == null || pair.zoneOnB == null) continue;
+                        if (focusZone != null && FocusSelectedOnly && pair.zoneOnA != focusZone && pair.zoneOnB != focusZone) continue;
 
-                Handles.color = connection.isBidirectional ? Color.cyan : new Color(1f, 0.5f, 0f);
-                Handles.DrawDottedLine(a, b, 4f);
+                        if (!volumesByZone.TryGetValue(pair.zoneOnA.id.ToString(), out var va)) continue;
+                        if (!volumesByZone.TryGetValue(pair.zoneOnB.id.ToString(), out var vb)) continue;
+
+                        var a = CalculateZoneCenter(va);
+                        var b = CalculateZoneCenter(vb);
+                        if (!InRange(a) && !InRange(b)) continue;
+
+                        Handles.color = linkColor;
+                        Handles.DrawDottedLine(a, b, 4f);
+                    }
+                }
             }
+        }
+
+        internal static List<RegionAdjacency> CollectAdjacencyAssets(RegionConnectivity connectivity)
+        {
+            var result = new List<RegionAdjacency>();
+            if (connectivity == null) return result;
+            foreach (var region in connectivity.activeRegions)
+            {
+                if (region?.regionAdjacency == null) continue;
+                if (!result.Contains(region.regionAdjacency)) result.Add(region.regionAdjacency);
+            }
+            return result;
         }
 
         private static void DrawLandingLinks(RegionConnectivity connectivity, Dictionary<string, List<VolumeAuthoring>> volumesByZone,
@@ -405,16 +429,16 @@ namespace jeanf.scenemanagement
                 EditorGUILayout.LabelField($"Region: {currentRegion.levelName}", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField($"Zone: {currentZone.zoneName}");
 
-                var neighbors = _foundConnectivity.GetNeighborsForZone(currentZone);
-                if (neighbors.Count > 0)
+                var crossLinks = GetCrossRegionLinksForZone(currentRegion, currentZone);
+                if (crossLinks.Count > 0)
                 {
-                    EditorGUILayout.LabelField($"Adjacent to {neighbors.Count} zones:");
-                    foreach (var zone in neighbors)
-                        if (zone != null) EditorGUILayout.LabelField($"  - {zone.zoneName}");
+                    EditorGUILayout.LabelField($"Connects across {crossLinks.Count} border(s):");
+                    foreach (var s in crossLinks)
+                        EditorGUILayout.LabelField($"  - {s}");
                 }
                 else
                 {
-                    EditorGUILayout.HelpBox("No explicit zone connections. Add entries in RegionConnectivity > Zone Connections.", MessageType.Info);
+                    EditorGUILayout.HelpBox("This zone has no cross-region link. Add a touching-zone pair in the region's RegionAdjacency asset.", MessageType.Info);
                 }
 
                 var landingConnections = _foundConnectivity.landingZones.Where(l => l.landingZone == currentZone).ToList();
@@ -438,6 +462,35 @@ namespace jeanf.scenemanagement
                 EditorGUILayout.LabelField("1. The Region ScriptableObject contains this zone", EditorStyles.miniLabel);
                 EditorGUILayout.LabelField("2. The Region is added to the RegionConnectivity 'activeRegions' list", EditorStyles.miniLabel);
             }
+        }
+
+        private static List<string> GetCrossRegionLinksForZone(Region currentRegion, Zone currentZone)
+        {
+            var result = new List<string>();
+            if (currentRegion == null || currentRegion.regionAdjacency == null) return result;
+
+            foreach (var link in currentRegion.regionAdjacency.links)
+            {
+                if (link?.touchingZones == null) continue;
+
+                Region other = link.regionA == currentRegion ? link.regionB
+                    : (link.regionB == currentRegion ? link.regionA : null);
+                if (other == null) continue;
+
+                foreach (var pair in link.touchingZones)
+                {
+                    if (pair == null) continue;
+
+                    Zone theirs = null;
+                    if (pair.zoneOnA == currentZone) theirs = pair.zoneOnB;
+                    else if (pair.zoneOnB == currentZone) theirs = pair.zoneOnA;
+                    if (theirs == null) continue;
+
+                    var typeLabel = link.connectionType == RegionConnectionType.Elevator ? "elevator" : "doorway";
+                    result.Add($"{theirs.zoneName} in {other.levelName} [{typeLabel}]");
+                }
+            }
+            return result;
         }
 
         private void OnSceneGUI()

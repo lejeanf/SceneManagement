@@ -59,6 +59,7 @@ MonoBehaviour:
     - 0354b9b9-bc2e-4cfe-b8b6-9e0f2a79e386
     - 1154242a-6e6b-470a-ba62-a45c12e159e9
     - dd79d0b0-579b-4f9c-96ae-dab4e9b4ab16
+    - efb37b94-4cdd-4313-9b66-3368a18a4eaf
     - cc436b1c-c13d-46b0-8928-1d48ac8de2c2
     - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
   - primaryZoneId: 26ad823c-62b1-4cf7-975e-71818f8ea8f3
@@ -143,6 +144,7 @@ MonoBehaviour:
     - f3f3fc1c-0242-48d4-8ba7-cc3f83523894
     - 1d3578f6-9617-495b-a47c-4fce263165fe
     - 16786bfd-0b9b-4f01-b4e8-6a3c00325edd
+    - 166f40b1-2c5b-4352-a59d-5f44b679a1d9
     - bfa98e5d-a7ac-42d1-9d9a-722030c903c9
     - 4ee6665f-c171-4a8c-b16c-3b6e1f23d37e
   - primaryZoneId: 6f87f997-5bd6-4eb8-b8b1-3f2feae8b2d2
@@ -355,6 +357,6 @@ MonoBehaviour:
   - zoneId: 7ae31390-180a-4bc4-ac71-7369452b3075
     regionId: 3684dbc5-143b-4b2b-9195-5ab04402213e
   sourceRegionConnectivityAsset: Assets/SceneManagement/Samples/Example/RegionConnectivity.asset
-  generatedDateTime: 2025-06-02 20:00:29
+  generatedDateTime: 2026-06-11 14:14:31
   totalZones: 24
   totalRegions: 3

@@ -43,6 +43,7 @@ namespace jeanf.scenemanagement
         private readonly List<string> _tempSceneNames = new List<string>();
         private readonly List<Region> _tempRegionsToRemove = new List<Region>();
         private readonly List<Region> _activeRegionSetBuffer = new List<Region>();
+        private readonly List<Region> _adjacentRegionBuffer = new List<Region>();
 
         private readonly HashSet<string> _oldSceneSet = new HashSet<string>();
         private readonly HashSet<string> _newSceneSet = new HashSet<string>();
@@ -54,6 +55,7 @@ namespace jeanf.scenemanagement
 
         [propertyDrawer.ReadOnly] [SerializeField] private Zone _currentPlayerZone;
         [propertyDrawer.ReadOnly] [SerializeField] private Region _currentPlayerRegion;
+        [propertyDrawer.ReadOnly] [SerializeField] private List<Region> _loadedRegions = new List<Region>();
         [SerializeField] private BoolFloatEventChannelSO FadeEventChannel;
         private static WorldManager Instance;
         public static bool IsRegionTransitioning => _isRegionTransitioning;
@@ -715,11 +717,12 @@ namespace jeanf.scenemanagement
 
             _activeRegionSetBuffer.Add(current);
 
-            if (current.adjacentRegions != null)
+            if (current.regionAdjacency != null)
             {
-                for (int i = 0; i < current.adjacentRegions.Count; i++)
+                current.regionAdjacency.GetCoLoadedRegions(current, _adjacentRegionBuffer);
+                for (int i = 0; i < _adjacentRegionBuffer.Count; i++)
                 {
-                    var adjacent = current.adjacentRegions[i];
+                    var adjacent = _adjacentRegionBuffer[i];
                     if (adjacent == null || adjacent == current) continue;
                     if (!_regionDictionary.ContainsKey(adjacent.id)) continue;
                     if (!_activeRegionSetBuffer.Contains(adjacent)) _activeRegionSetBuffer.Add(adjacent);
@@ -748,6 +751,9 @@ namespace jeanf.scenemanagement
 
             _activeRegions.Clear();
             _activeRegions.AddRange(newSet);
+
+            _loadedRegions.Clear();
+            _loadedRegions.AddRange(newSet);
         }
 
         private void ComputeRegionDiff(List<Region> newRegions)

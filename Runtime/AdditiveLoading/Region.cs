@@ -21,8 +21,8 @@ namespace jeanf.scenemanagement
         public List<Zone> zonesInThisRegion;
         public List<SceneReference> dependenciesInThisRegion;
         [Header("Adjacency")]
-        [Tooltip("Regions kept loaded at the same time as this one. Their dependency scenes load together so adjacent areas are ready before the player crosses over.")]
-        public List<Region> adjacentRegions = new List<Region>();
+        [Tooltip("Shared adjacency asset. Regions linked to this one are kept loaded together, and their touching zones drive cross-region detection.")]
+        public RegionAdjacency regionAdjacency;
         [Header("Player spawn settings")]
         [Tooltip("used when a manual region change request is emitted (eg: in the elevator).")]
         public SpawnPos SpawnPosOnRegionChangeRequest;
