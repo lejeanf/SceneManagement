@@ -20,6 +20,9 @@ namespace jeanf.scenemanagement
         public List<Scenario> scenariosInThisRegion;
         public List<Zone> zonesInThisRegion;
         public List<SceneReference> dependenciesInThisRegion;
+        [Header("Adjacency")]
+        [Tooltip("Regions kept loaded at the same time as this one. Their dependency scenes load together so adjacent areas are ready before the player crosses over.")]
+        public List<Region> adjacentRegions = new List<Region>();
         [Header("Player spawn settings")]
         [Tooltip("used when a manual region change request is emitted (eg: in the elevator).")]
         public SpawnPos SpawnPosOnRegionChangeRequest;

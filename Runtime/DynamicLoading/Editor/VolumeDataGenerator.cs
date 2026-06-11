@@ -12,6 +12,7 @@ namespace jeanf.scenemanagement
         private PrecomputedVolumeData targetPrecomputedData;
         private string savePath = "Assets/ScriptableObjects/";
         private string fileName = "PrecomputedVolumeData";
+        private bool useExplicitConnectionsOnly = false;
         
         private Vector2 scrollPosition;
         private bool showPreview = false;
@@ -75,6 +76,121 @@ namespace jeanf.scenemanagement
             }
             EditorGUILayout.LabelField($"• Total Zones: {totalZones}");
             EditorGUILayout.EndVertical();
+
+            var sharedZones = FindZonesInMultipleRegions(sourceRegionConnectivity);
+            if (sharedZones.Count > 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "These zones belong to more than one region, so region detection is ambiguous (last region wins):\n  • " +
+                    string.Join("\n  • ", sharedZones),
+                    MessageType.Warning);
+            }
+
+            DrawRegionConnectivityAnalysis(sourceRegionConnectivity);
+        }
+
+        private void DrawRegionConnectivityAnalysis(RegionConnectivity connectivity)
+        {
+            var zoneToRegion = BuildZoneToRegion(connectivity);
+
+            var landingTargets = new List<string>();
+            var landingRegions = new HashSet<Region>();
+            foreach (var landing in connectivity.landingZones)
+            {
+                if (landing?.landingZone == null) continue;
+                zoneToRegion.TryGetValue(landing.landingZone.id.ToString(), out var target);
+                var targetName = target != null ? target.levelName
+                    : (landing.region != null ? landing.region.levelName : "<unmapped>");
+                if (target != null) landingRegions.Add(target);
+                landingTargets.Add($"any → {targetName}  (landing '{landing.landingZone.zoneName}')");
+            }
+
+            var crossRegion = new List<string>();
+            var crossPairs = new HashSet<(Region, Region)>();
+            foreach (var conn in connectivity.zoneConnections)
+            {
+                if (conn.zoneA == null || conn.zoneB == null) continue;
+                zoneToRegion.TryGetValue(conn.zoneA.id.ToString(), out var ra);
+                zoneToRegion.TryGetValue(conn.zoneB.id.ToString(), out var rb);
+                if (ra == null || rb == null || ra == rb) continue;
+                crossPairs.Add((ra, rb));
+                crossRegion.Add($"{ra.levelName} ↔ {rb.levelName}  (zones '{conn.zoneA.zoneName}'/'{conn.zoneB.zoneName}')");
+            }
+
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+            EditorGUILayout.LabelField("Region Connections (detection paths):", EditorStyles.boldLabel);
+            if (landingTargets.Count == 0 && crossRegion.Count == 0)
+            {
+                EditorGUILayout.LabelField("• none — regions are only detectable at startup");
+            }
+            foreach (var s in landingTargets) EditorGUILayout.LabelField($"• {s}");
+            foreach (var s in crossRegion) EditorGUILayout.LabelField($"• {s}");
+            EditorGUILayout.EndVertical();
+
+            var warnings = new List<string>();
+            foreach (var region in connectivity.activeRegions)
+            {
+                if (region?.adjacentRegions == null) continue;
+                foreach (var adjacent in region.adjacentRegions)
+                {
+                    if (adjacent == null) continue;
+                    var reachable = landingRegions.Contains(adjacent)
+                        || crossPairs.Contains((region, adjacent))
+                        || crossPairs.Contains((adjacent, region));
+                    if (!reachable)
+                        warnings.Add($"{region.levelName} → {adjacent.levelName}: scenes load, but entering {adjacent.levelName} won't be detected (no landing zone or cross-region zone connection).");
+                }
+            }
+
+            if (warnings.Count > 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "Adjacent regions without a detection link:\n  • " + string.Join("\n  • ", warnings),
+                    MessageType.Warning);
+            }
+        }
+
+        private static Dictionary<string, Region> BuildZoneToRegion(RegionConnectivity connectivity)
+        {
+            var map = new Dictionary<string, Region>();
+            foreach (var region in connectivity.activeRegions)
+            {
+                if (region?.zonesInThisRegion == null) continue;
+                foreach (var zone in region.zonesInThisRegion)
+                {
+                    if (zone == null) continue;
+                    map[zone.id.ToString()] = region;
+                }
+            }
+            return map;
+        }
+
+        private static List<string> FindZonesInMultipleRegions(RegionConnectivity connectivity)
+        {
+            var owners = new Dictionary<string, HashSet<string>>();
+            foreach (var region in connectivity.activeRegions)
+            {
+                if (region?.zonesInThisRegion == null) continue;
+                foreach (var zone in region.zonesInThisRegion)
+                {
+                    if (zone == null) continue;
+                    var key = $"{zone.zoneName} ({zone.id})";
+                    if (!owners.TryGetValue(key, out var set))
+                    {
+                        set = new HashSet<string>();
+                        owners[key] = set;
+                    }
+                    set.Add(region.levelName);
+                }
+            }
+
+            var result = new List<string>();
+            foreach (var kvp in owners)
+            {
+                if (kvp.Value.Count > 1)
+                    result.Add($"{kvp.Key} → {string.Join(", ", kvp.Value)}");
+            }
+            return result;
         }
         
         private void DrawTargetSelection()
@@ -105,7 +221,12 @@ namespace jeanf.scenemanagement
         private void DrawGenerationControls()
         {
             EditorGUILayout.LabelField("Generation Options", EditorStyles.boldLabel);
-            
+
+            useExplicitConnectionsOnly = EditorGUILayout.Toggle(
+                new GUIContent("Explicit Connections Only",
+                    "Off (default): every zone in a region is checkable from every other (full mesh) — guarantees detection without authoring connections, but bloats the per-frame check set.\nOn: checkable neighbors come only from the Zone Connections list (plus landing zones). Requires authoring zone adjacency, but keeps detection cheap."),
+                useExplicitConnectionsOnly);
+
             showPreview = EditorGUILayout.Toggle("Show Preview", showPreview);
             
             EditorGUILayout.BeginHorizontal();
@@ -161,7 +282,7 @@ namespace jeanf.scenemanagement
 
             previewData.Clear();
             _zoneDisplayNames.Clear();
-            var generator = new VolumeDataProcessor(sourceRegionConnectivity);
+            var generator = new VolumeDataProcessor(sourceRegionConnectivity, useExplicitConnectionsOnly);
 
             foreach (var region in sourceRegionConnectivity.activeRegions)
             {
@@ -188,7 +309,7 @@ namespace jeanf.scenemanagement
             if (sourceRegionConnectivity == null) return;
 
             var asset = CreateInstance<PrecomputedVolumeData>();
-            var generator = new VolumeDataProcessor(sourceRegionConnectivity);
+            var generator = new VolumeDataProcessor(sourceRegionConnectivity, useExplicitConnectionsOnly);
             generator.PopulatePrecomputedData(asset);
 
             string fullPath = $"{savePath}{fileName}.asset";
@@ -213,8 +334,8 @@ namespace jeanf.scenemanagement
         private void UpdateExistingAsset()
         {
             if (sourceRegionConnectivity == null || targetPrecomputedData == null) return;
-            
-            var generator = new VolumeDataProcessor(sourceRegionConnectivity);
+
+            var generator = new VolumeDataProcessor(sourceRegionConnectivity, useExplicitConnectionsOnly);
             generator.PopulatePrecomputedData(targetPrecomputedData);
             
             EditorUtility.SetDirty(targetPrecomputedData);
@@ -227,13 +348,15 @@ namespace jeanf.scenemanagement
     public class VolumeDataProcessor
     {
         private RegionConnectivity sourceData;
+        private bool explicitConnectionsOnly;
         private Dictionary<string, string> zoneToRegionMap = new Dictionary<string, string>();
         private Dictionary<string, HashSet<string>> zoneNeighborsMap = new Dictionary<string, HashSet<string>>();
         private HashSet<string> landingZoneIds = new HashSet<string>();
-        
-        public VolumeDataProcessor(RegionConnectivity source)
+
+        public VolumeDataProcessor(RegionConnectivity source, bool explicitConnectionsOnly = false)
         {
             sourceData = source;
+            this.explicitConnectionsOnly = explicitConnectionsOnly;
             BuildMappings();
         }
         
@@ -262,29 +385,32 @@ namespace jeanf.scenemanagement
         
         private void BuildZoneNeighborsMapping()
         {
-            // Build neighbors from region membership
-            foreach (var region in sourceData.activeRegions)
+            if (!explicitConnectionsOnly)
             {
-                if (region?.zonesInThisRegion == null) continue;
-                
-                foreach (var zoneA in region.zonesInThisRegion)
+                // Build neighbors from region membership
+                foreach (var region in sourceData.activeRegions)
                 {
-                    if (zoneA == null) continue;
-                    
-                    var zoneAId = zoneA.id.ToString();
-                    if (!zoneNeighborsMap.ContainsKey(zoneAId))
+                    if (region?.zonesInThisRegion == null) continue;
+
+                    foreach (var zoneA in region.zonesInThisRegion)
                     {
-                        zoneNeighborsMap[zoneAId] = new HashSet<string>();
-                    }
-                    
-                    foreach (var zoneB in region.zonesInThisRegion)
-                    {
-                        if (zoneB == null || zoneA.id.ToString() == zoneB.id.ToString()) continue;
-                        zoneNeighborsMap[zoneAId].Add(zoneB.id.ToString());
+                        if (zoneA == null) continue;
+
+                        var zoneAId = zoneA.id.ToString();
+                        if (!zoneNeighborsMap.ContainsKey(zoneAId))
+                        {
+                            zoneNeighborsMap[zoneAId] = new HashSet<string>();
+                        }
+
+                        foreach (var zoneB in region.zonesInThisRegion)
+                        {
+                            if (zoneB == null || zoneA.id.ToString() == zoneB.id.ToString()) continue;
+                            zoneNeighborsMap[zoneAId].Add(zoneB.id.ToString());
+                        }
                     }
                 }
             }
-            
+
             // Add explicit zone connections
             foreach (var connection in sourceData.zoneConnections)
             {

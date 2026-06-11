@@ -42,6 +42,7 @@ namespace jeanf.scenemanagement
         
         private readonly List<string> _tempSceneNames = new List<string>();
         private readonly List<Region> _tempRegionsToRemove = new List<Region>();
+        private readonly List<Region> _activeRegionSetBuffer = new List<Region>();
 
         private readonly HashSet<string> _oldSceneSet = new HashSet<string>();
         private readonly HashSet<string> _newSceneSet = new HashSet<string>();
@@ -344,13 +345,13 @@ namespace jeanf.scenemanagement
         public static async UniTask LoadRegion(Region region)
         {
             if (Instance == null) return;
-            Instance.RequestLoadForRegionDependencies(region);
+            Instance.ApplyLoadedRegionDiff(region);
+            Instance._currentPlayerRegion = region;
+            Instance._lastNotifiedRegion = region.id;
             await UniTask.WaitUntil(() =>
                 Instance._sceneLoader != null &&
                 !Instance._sceneLoader.IsCurrentlyLoading() &&
                 Instance._sceneLoader.GetPendingOperationCount() == 0);
-            Instance._activeRegions.Clear();
-            Instance._activeRegions.Add(region);
         }
 
         public static void SpawnPlayer(SpawnPos spawnPos)
@@ -517,16 +518,21 @@ namespace jeanf.scenemanagement
         private void OnRegionChangedFromECS(FixedString128Bytes id)
         {
             var regionId = id.ToString();
-            if (regionId == _lastNotifiedRegion) return;
             if (string.IsNullOrEmpty(regionId)) return;
             if (!_regionDictionary.TryGetValue(regionId, out var region)) return;
+
+            var regionChanged = regionId != _lastNotifiedRegion;
 
             _lastNotifiedRegion  = regionId;
             _currentPlayerRegion = region;
 
-            PublishCurrentRegionId?.Invoke(region.id);
-            PublishCurrentRegion?.Invoke(region);
-            RequestLoadForRegionDependencies(region);
+            if (regionChanged)
+            {
+                PublishCurrentRegionId?.Invoke(region.id);
+                PublishCurrentRegion?.Invoke(region);
+            }
+
+            ApplyLoadedRegionDiff(region);
         }
         
         private void OnZoneOverridesChanged(string zoneId)
@@ -593,29 +599,13 @@ namespace jeanf.scenemanagement
             PublishCurrentRegionId?.Invoke(_currentPlayerRegion.id);
             PublishCurrentRegion?.Invoke(region);
 
-            ComputeRegionDiff(region);
-
-            for (int i = 0; i < _scenesToUnloadDiff.Count; i++)
-            {
-                if (isDebug) Debug.Log($"[WorldManager] Unloading obsolete scene: {_scenesToUnloadDiff[i]}");
-                _sceneLoader.UnLoadSceneRequest(_scenesToUnloadDiff[i]);
-            }
-
-            for (int i = 0; i < _scenesToLoadDiff.Count; i++)
-            {
-                if (isDebug) Debug.Log($"[WorldManager] Loading new scene: {_scenesToLoadDiff[i]}");
-                _sceneLoader.LoadSceneRequest(_scenesToLoadDiff[i]);
-            }
-
-            _activeRegions.Clear();
+            ApplyLoadedRegionDiff(region);
 
             await WaitForSceneOperationsComplete();
 
             var spawnPos = SetTeleportTarget(region, hasGameBeenInitialized);
             PerformTeleport(spawnPos);
             if (isDebug) Debug.Log($"[WorldManager] OnRegionChange: Teleported to {spawnPos.position}");
-
-            _activeRegions.Add(region);
 
             FadeEventChannel?.RaiseEvent(false, 1.0f);
 
@@ -718,7 +708,49 @@ namespace jeanf.scenemanagement
             _broadcastAppList?.Invoke(listToBroadcast);
         }
 
-        private void ComputeRegionDiff(Region newRegion)
+        private List<Region> ComputeActiveRegionSet(Region current)
+        {
+            _activeRegionSetBuffer.Clear();
+            if (current == null) return _activeRegionSetBuffer;
+
+            _activeRegionSetBuffer.Add(current);
+
+            if (current.adjacentRegions != null)
+            {
+                for (int i = 0; i < current.adjacentRegions.Count; i++)
+                {
+                    var adjacent = current.adjacentRegions[i];
+                    if (adjacent == null || adjacent == current) continue;
+                    if (!_regionDictionary.ContainsKey(adjacent.id)) continue;
+                    if (!_activeRegionSetBuffer.Contains(adjacent)) _activeRegionSetBuffer.Add(adjacent);
+                }
+            }
+
+            return _activeRegionSetBuffer;
+        }
+
+        private void ApplyLoadedRegionDiff(Region current)
+        {
+            var newSet = ComputeActiveRegionSet(current);
+            ComputeRegionDiff(newSet);
+
+            for (int i = 0; i < _scenesToUnloadDiff.Count; i++)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Unloading obsolete scene: {_scenesToUnloadDiff[i]}");
+                _sceneLoader.UnLoadSceneRequest(_scenesToUnloadDiff[i]);
+            }
+
+            for (int i = 0; i < _scenesToLoadDiff.Count; i++)
+            {
+                if (isDebug) Debug.Log($"[WorldManager] Loading new scene: {_scenesToLoadDiff[i]}");
+                _sceneLoader.LoadSceneRequest(_scenesToLoadDiff[i]);
+            }
+
+            _activeRegions.Clear();
+            _activeRegions.AddRange(newSet);
+        }
+
+        private void ComputeRegionDiff(List<Region> newRegions)
         {
             _oldSceneSet.Clear();
             _newSceneSet.Clear();
@@ -734,10 +766,13 @@ namespace jeanf.scenemanagement
                 }
             }
 
-            if (_compiledSceneLists.TryGetValue(newRegion.id, out var newScenes))
+            for (int i = 0; i < newRegions.Count; i++)
             {
-                for (int i = 0; i < newScenes.Count; i++)
-                    _newSceneSet.Add(newScenes[i]);
+                if (_compiledSceneLists.TryGetValue(newRegions[i].id, out var newScenes))
+                {
+                    for (int j = 0; j < newScenes.Count; j++)
+                        _newSceneSet.Add(newScenes[j]);
+                }
             }
 
             foreach (var scene in _oldSceneSet)
@@ -752,7 +787,7 @@ namespace jeanf.scenemanagement
                     _scenesToLoadDiff.Add(scene);
             }
 
-            if (isDebug) Debug.Log($"[WorldManager] Region diff — unload: {_scenesToUnloadDiff.Count}, load: {_scenesToLoadDiff.Count}, shared: {_newSceneSet.Count - _scenesToLoadDiff.Count}");
+            if (isDebug) Debug.Log($"[WorldManager] Region diff — regions: {newRegions.Count}, unload: {_scenesToUnloadDiff.Count}, load: {_scenesToLoadDiff.Count}, shared: {_newSceneSet.Count - _scenesToLoadDiff.Count}");
         }
 
         private bool RequestLoadForRegionDependencies(Region region)
