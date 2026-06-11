@@ -1,8 +1,11 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace jeanf.scenemanagement
 {
@@ -86,6 +89,88 @@ namespace jeanf.scenemanagement
             }
 
             DrawRegionConnectivityAnalysis(sourceRegionConnectivity);
+            DrawDependencyAddressableCheck(sourceRegionConnectivity);
+        }
+
+        private void DrawDependencyAddressableCheck(RegionConnectivity connectivity)
+        {
+            var settings = AddressableAssetSettingsDefaultObject.Settings;
+
+            var notAddressable = new List<(Region region, SceneReference sref)>();
+            var unassigned = new List<string>();
+
+            foreach (var region in connectivity.activeRegions)
+            {
+                if (region?.dependenciesInThisRegion == null) continue;
+
+                for (int i = 0; i < region.dependenciesInThisRegion.Count; i++)
+                {
+                    var sref = region.dependenciesInThisRegion[i];
+                    if (sref == null) continue;
+
+                    var asset = sref.EditorSceneAsset;
+                    if (asset == null)
+                    {
+                        unassigned.Add($"{region.levelName} dependency #{i}");
+                        continue;
+                    }
+
+                    if (settings == null) continue;
+                    var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(asset));
+                    if (settings.FindAssetEntry(guid) == null)
+                        notAddressable.Add((region, sref));
+                }
+            }
+
+            if (unassigned.Count > 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "Dependencies with no scene assigned (will never load):\n  • " + string.Join("\n  • ", unassigned),
+                    MessageType.Error);
+            }
+
+            if (notAddressable.Count > 0)
+            {
+                var lines = notAddressable.Select(d => $"{d.region.levelName}: {d.sref.EditorSceneAsset.name}");
+                EditorGUILayout.HelpBox(
+                    "Dependency scenes not marked Addressable (they are silently skipped at load):\n  • " + string.Join("\n  • ", lines),
+                    MessageType.Warning);
+
+                using (new EditorGUI.DisabledScope(settings == null))
+                {
+                    if (GUILayout.Button($"Make {notAddressable.Count} scene(s) Addressable"))
+                        MakeDependenciesAddressable(notAddressable, settings);
+                }
+
+                if (settings == null)
+                    EditorGUILayout.HelpBox("No Addressable settings found. Open Window > Asset Management > Addressables > Groups first.", MessageType.Info);
+            }
+        }
+
+        private void MakeDependenciesAddressable(List<(Region region, SceneReference sref)> items, AddressableAssetSettings settings)
+        {
+            var group = settings.DefaultGroup;
+            if (group == null)
+            {
+                Debug.LogError("No default Addressable group set.");
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                var path = AssetDatabase.GetAssetPath(item.sref.EditorSceneAsset);
+                var guid = AssetDatabase.AssetPathToGUID(path);
+                var entry = settings.CreateOrMoveEntry(guid, group);
+                if (entry == null) continue;
+
+                entry.SetAddress(Path.GetFileNameWithoutExtension(path));
+                item.sref.UpdateAddress();
+                EditorUtility.SetDirty(item.region);
+            }
+
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[VolumeDataGenerator] Marked {items.Count} dependency scene(s) Addressable in group '{group.name}'.");
         }
 
         private void DrawRegionConnectivityAnalysis(RegionConnectivity connectivity)

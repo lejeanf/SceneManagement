@@ -22,6 +22,8 @@ namespace jeanf.scenemanagement
         }
 
         #if UNITY_EDITOR
+        public Object EditorSceneAsset => sceneAsset;
+
         public void UpdateAddress()
         {
             if (sceneAsset == null || sceneAsset is not SceneAsset)

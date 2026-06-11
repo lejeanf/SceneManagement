@@ -465,11 +465,21 @@ namespace jeanf.scenemanagement
         
         private void PrecompileSceneList(Region region)
         {
-            var sceneNames = new List<string>(region.dependenciesInThisRegion.Count);
-            
-            for (int i = 0; i < region.dependenciesInThisRegion.Count; i++)
+            var dependencies = region.dependenciesInThisRegion;
+            var sceneNames = new List<string>(dependencies.Count);
+
+            for (int i = 0; i < dependencies.Count; i++)
             {
-                sceneNames.Add(region.dependenciesInThisRegion[i].Address);
+                var dependency = dependencies[i];
+                var address = dependency?.Address;
+
+                if (string.IsNullOrEmpty(address))
+                {
+                    Debug.LogError($"[WorldManager] Region '{region.levelName}' dependency #{i} ('{dependency?.Name}') has no Addressable address and will NOT load. Mark the scene as Addressable.", region);
+                    continue;
+                }
+
+                sceneNames.Add(address);
             }
             _compiledSceneLists[region.id] = sceneNames;
         }
