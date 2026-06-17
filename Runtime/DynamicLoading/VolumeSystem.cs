@@ -268,8 +268,12 @@ namespace jeanf.scenemanagement
                 if (!ShouldCheckVolume(checkableZones, volume.ZoneId))
                     continue;
 
-                var worldToLocal = math.inverse(transform.Value);
+                var pos = transform.Position;
+                var rot = math.quaternion(transform.Value);
+                var rotationOnly = float4x4.TRS(pos, rot, new float3(1f, 1f, 1f));
+                var worldToLocal = math.inverse(rotationOnly);
                 var localPlayerPos = math.transform(worldToLocal, playerPosition);
+
                 var range = volume.Scale * 0.5f;
                 var distance = math.abs(localPlayerPos);
                 var insideAxis = distance < range;
@@ -289,7 +293,6 @@ namespace jeanf.scenemanagement
 
             return newPlayerZone;
         }
-        
         [BurstCompile]
         private void CheckForZoneAndRegionChange(FixedString128Bytes newPlayerZone)
         {
