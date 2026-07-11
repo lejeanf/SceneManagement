@@ -17,9 +17,11 @@ MonoBehaviour:
   scenarioName: Scenario 1
   scene:
     sceneAsset: {fileID: 102900000, guid: b46bacd016a4bc743b0527b3acfbadd1, type: 3}
-    sceneName: Scenario_1
+    address: Assets/SceneManagement/Samples/Example/Scenes/Scenario_1.unity
+    Name: 
   ZoneOverrides:
   - {fileID: 11400000, guid: 01b0add3391799c4180d881d7e85004d, type: 2}
   - {fileID: 11400000, guid: 043f875b76260964c90b25dfdd9f64ec, type: 2}
   dependenciesInThisScenario: []
   listOfZonesNeededForThisScenario: []
+  enableFadeOnLoad: 1
