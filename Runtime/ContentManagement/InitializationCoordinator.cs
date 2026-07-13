@@ -159,7 +159,7 @@ namespace jeanf.ContentManagement
             foreach (var entry in _config.systemsConfig.requiredSystems)
             {
                 if (!_readySystems.Contains(entry.systemId))
-                    BroadcastMessage(entry.loadingMessage);
+                    BroadcastLoadingMessage(entry.loadingMessage);
             }
 
             await UniTask.WaitUntil(() => required.All(id => _readySystems.Contains(id)));
@@ -173,7 +173,8 @@ namespace jeanf.ContentManagement
             OnInitComplete?.Invoke();
         }
 
-        private void BroadcastMessage(string message)
+        // Not named BroadcastMessage: that would shadow Component.BroadcastMessage.
+        private void BroadcastLoadingMessage(string message)
         {
             LoadingInformation.LoadingStatus?.Invoke(message);
         }

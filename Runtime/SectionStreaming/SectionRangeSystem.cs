@@ -121,7 +121,6 @@ namespace jeanf.SceneManagement
             _sectionsToLoad.Clear();
 
             var ecb = new EntityCommandBuffer(Allocator.Temp);
-            bool interceptedNewSections = false;
 
             for (int i = 0; i < sectionEntities.Length; i++)
             {
@@ -155,7 +154,6 @@ namespace jeanf.SceneManagement
                 if (isNewSection)
                 {
                     s_InterceptMarker.Begin();
-                    interceptedNewSections = true;
 
                     if (!shouldBeLoaded)
                     {

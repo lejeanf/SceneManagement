@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using jeanf.validationTools;
 
 namespace jeanf.scenemanagement
 {
@@ -9,6 +10,7 @@ namespace jeanf.scenemanagement
         public delegate void LoadingStatusDelegate(string status);
         public static LoadingStatusDelegate LoadingStatus;
 
+        [Validation("A TextMeshProUGUI is required — loading status text cannot be displayed without it.")]
         [SerializeField] private TextMeshProUGUI tmp;
         private bool _missingTmpWarned;
 

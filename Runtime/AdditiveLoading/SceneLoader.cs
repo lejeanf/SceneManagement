@@ -76,7 +76,9 @@ namespace jeanf.scenemanagement
         private bool _isFlushingMemory = false;
 
         private static System.Reflection.MethodInfo _bakeryRefreshMethod;
+#if BAKERY_INCLUDED
         private static bool _bakeryChecked = false;
+#endif
 
         private static void TryRefreshBakeryLightmaps()
         {
@@ -101,7 +103,9 @@ namespace jeanf.scenemanagement
         [ContextMenu("Test Bakery Refresh")]
         private void TestBakeryRefresh()
         {
+#if BAKERY_INCLUDED
             _bakeryChecked = false;
+#endif
             _bakeryRefreshMethod = null;
             TryRefreshBakeryLightmaps();
             Debug.Log(_bakeryRefreshMethod != null

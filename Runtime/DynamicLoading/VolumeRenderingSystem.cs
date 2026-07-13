@@ -4,7 +4,9 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 
 namespace jeanf.scenemanagement
@@ -33,7 +35,9 @@ namespace jeanf.scenemanagement
             if (currentSelectionCount != s_lastSelectionCount)
             {
                 s_lastSelectionCount = currentSelectionCount;
-                s_cachedInstanceIDs = Selection.instanceIDs;
+                var selectedIds = Selection.entityIds;
+                s_cachedInstanceIDs = new int[selectedIds.Length];
+                for (int i = 0; i < selectedIds.Length; i++) s_cachedInstanceIDs[i] = selectedIds[i];
             }
     
             for (int i = 0; i < s_cachedInstanceIDs.Length; i++)
