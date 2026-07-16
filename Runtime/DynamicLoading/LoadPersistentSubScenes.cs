@@ -25,12 +25,19 @@ namespace jeanf.scenemanagement
             PersistentLoadingComplete?.Invoke(false);
             await UniTask.Delay(100);
             world = World.DefaultGameObjectInjectionWorld.Unmanaged;
-            
+
+            // Subscenes give no percentage of their own, but the LIST is known — so
+            // completed/total is real progress, not a guess.
+            var total = Mathf.Max(1, subScenes.Count);
+            var completed = 0;
+            LoadingInformation.ReportProgress(0f);
+
             if (isLoadSequential)
             {
                 foreach (var s in subScenes)
                 {
                     await LoadSubScene(s, world);
+                    LoadingInformation.ReportProgress((float)++completed / total);
                 }
             }
             else
@@ -38,12 +45,14 @@ namespace jeanf.scenemanagement
                 var loadTasks = new List<UniTask>();
                 foreach (var s in subScenes)
                 {
-                    loadTasks.Add(LoadSubScene(s, world));
+                    loadTasks.Add(LoadSubSceneTracked(s, world, () =>
+                        LoadingInformation.ReportProgress((float)System.Threading.Interlocked.Increment(ref completed) / total)));
                 }
                 await UniTask.WhenAll(loadTasks);
             }
-        
+
             LoadingInformation.LoadingStatus?.Invoke($"All subScenes loaded successfully.");
+            LoadingInformation.ReportProgress(1f);
             PersistentLoadingComplete?.Invoke(true);
         }
 
@@ -63,6 +72,14 @@ namespace jeanf.scenemanagement
                     break;
                 }
             }
+        }
+
+        /// <summary>LoadSubScene plus a completion tick, so the parallel path can report
+        /// progress as each subscene lands (order of completion is irrelevant — it counts).</summary>
+        private async UniTask LoadSubSceneTracked(SubScene subScene, WorldUnmanaged world, Action onDone)
+        {
+            await LoadSubScene(subScene, world);
+            onDone?.Invoke();
         }
 
         private async UniTask LoadSubScene(SubScene subScene, WorldUnmanaged world)

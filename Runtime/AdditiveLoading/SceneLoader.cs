@@ -75,6 +75,16 @@ namespace jeanf.scenemanagement
         private bool _isProcessingUnloadQueue = false;
         private bool _isFlushingMemory = false;
 
+        // Real load progress for the current load SESSION (from the first queued scene
+        // until the queue drains). Per-scene numbers come straight from Addressables'
+        // PercentComplete, so this is measured, not estimated:
+        //   progress = (scenes finished + sum of in-flight PercentComplete) / scenes total
+        // The total can grow if more scenes are queued mid-session — the bar then moves
+        // back, which is honest: there is genuinely more to load.
+        private readonly ConcurrentDictionary<string, float> _inflightProgress = new();
+        private int _sessionTotalScenes;
+        private int _sessionCompletedScenes;
+
         private static System.Reflection.MethodInfo _bakeryRefreshMethod;
 #if BAKERY_INCLUDED
         private static bool _bakeryChecked = false;
@@ -278,21 +288,27 @@ namespace jeanf.scenemanagement
             var token = _queueCts.Token;
             
             IsLoading?.Invoke(true);
+            BeginProgressSession();
 
             try
             {
                 while (_loadQueue.Count > 0 && !token.IsCancellationRequested)
                 {
                     _operationBuffer.Clear();
-                    
+
                     while (_operationBuffer.Count < maxConcurrentLoads && _loadQueue.TryDequeue(out var operation))
                     {
                         if (_processingScenes.Contains(operation.SceneName) || _loadedScenes.ContainsKey(operation.SceneName))
                             continue;
-                            
+
                         _processingScenes.Add(operation.SceneName);
+                        // Register BEFORE starting the task: LoadSceneAsync runs up to its
+                        // first await synchronously and already reports into _inflightProgress.
+                        _sessionTotalScenes++;
+                        _inflightProgress[operation.SceneName] = 0f;
                         _operationBuffer.Add(LoadSceneAsync(operation.SceneName, token));
                         LoadingInformation.LoadingStatus($"Loading: {operation.SceneName}");
+                        ReportSessionProgress();
                     }
 
                     if (_operationBuffer.Count > 0)
@@ -325,6 +341,8 @@ namespace jeanf.scenemanagement
                 }
                 else
                 {
+                    // Session drained: the bar is genuinely full.
+                    LoadingInformation.ReportProgress(1f);
                     IsLoading?.Invoke(false);
                     MonitorLoadComplete(token).Forget();
                 }
@@ -448,6 +466,32 @@ namespace jeanf.scenemanagement
             }
         }
 
+        // ---- load progress (measured, straight from Addressables) ----
+
+        private void BeginProgressSession()
+        {
+            _inflightProgress.Clear();
+            _sessionTotalScenes = 0;
+            _sessionCompletedScenes = 0;
+            LoadingInformation.ReportProgress(0f);
+        }
+
+        private void ReportSessionProgress()
+        {
+            if (_sessionTotalScenes <= 0) return;
+            var inflight = 0f;
+            foreach (var value in _inflightProgress.Values) inflight += value;
+            LoadingInformation.ReportProgress((_sessionCompletedScenes + inflight) / _sessionTotalScenes);
+        }
+
+        /// <summary>A scene left the flight — counted whether it succeeded, failed or was
+        /// cancelled, so a failure can never strand the bar mid-way.</summary>
+        private void CompleteSceneProgress(string sceneName)
+        {
+            if (_inflightProgress.TryRemove(sceneName, out _)) _sessionCompletedScenes++;
+            ReportSessionProgress();
+        }
+
         private async UniTask LoadSceneAsync(string sceneName, CancellationToken cancellationToken)
         {
             var handle = new AsyncOperationHandle<SceneInstance>();
@@ -463,6 +507,11 @@ namespace jeanf.scenemanagement
 
                 while (!handle.IsDone && handle.PercentComplete < 0.9f)
                 {
+                    // Addressables' own measured progress for this scene — this is what
+                    // makes the loading bar real rather than a guess.
+                    _inflightProgress[sceneName] = handle.PercentComplete;
+                    ReportSessionProgress();
+
                     if ((Time.realtimeSinceStartup - startTime) * 1000 > maxFrameTimeMs)
                     {
                         await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken);
@@ -476,6 +525,8 @@ namespace jeanf.scenemanagement
 
                 while (!handle.IsDone)
                 {
+                    _inflightProgress[sceneName] = handle.PercentComplete;
+                    ReportSessionProgress();
                     await UniTask.NextFrame(cancellationToken);
                 }
 
@@ -518,6 +569,10 @@ namespace jeanf.scenemanagement
             }
             finally
             {
+                // Always retire this scene's slice of the bar — success, failure or
+                // cancellation — so a single bad scene can never freeze progress.
+                CompleteSceneProgress(sceneName);
+
                 if (handleValid && handle.IsValid())
                     Addressables.Release(handle);
                 _processingScenes.Remove(sceneName);
