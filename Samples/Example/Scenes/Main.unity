@@ -1775,12 +1775,6 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 38991e7165a71a540a6455b54c7c00bb,
         type: 2}
-    - target: {fileID: 7523403568087710761, guid: 3b71689896aa2124092a905f967617eb,
-        type: 3}
-      propertyPath: channels
-      value: 
-      objectReference: {fileID: 11400000, guid: 361bf80c182c1c643b1bb83f9f72e06d,
-        type: 2}
     - target: {fileID: 7576668503239243436, guid: 3b71689896aa2124092a905f967617eb,
         type: 3}
       propertyPath: m_Layer
@@ -1994,6 +1988,18 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: 3b71689896aa2124092a905f967617eb, type: 3}
+--- !u!4 &428798747 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3597691920571057703, guid: 3b71689896aa2124092a905f967617eb,
+    type: 3}
+  m_PrefabInstance: {fileID: 428798746}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &428798748 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3280950842851132197, guid: 3b71689896aa2124092a905f967617eb,
+    type: 3}
+  m_PrefabInstance: {fileID: 428798746}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &433413455
 GameObject:
   m_ObjectHideFlags: 0
@@ -4236,6 +4242,12 @@ PrefabInstance:
         type: 3}
     - target: {fileID: 2221766193365738132, guid: e198c52c18c6b3f4d9dfbd7383227835,
         type: 3}
+      propertyPath: currentZone
+      value: 
+      objectReference: {fileID: 11400000, guid: 2b0939a48ac9b554d9da18a49189cb9d,
+        type: 2}
+    - target: {fileID: 2221766193365738132, guid: e198c52c18c6b3f4d9dfbd7383227835,
+        type: 3}
       propertyPath: iconOnRight
       value: 0
       objectReference: {fileID: 0}
@@ -4874,8 +4886,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   _isDebug: 1
-  player: {fileID: 0}
-  cameraOffset: {fileID: 0}
+  player: {fileID: 428798748}
+  cameraOffset: {fileID: 428798747}
   listOfFilters: []
   fadeInDuration: 0.2
 --- !u!4 &1631578571
