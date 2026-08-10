@@ -376,6 +376,37 @@ Transform:
   - {fileID: 23218711}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!1 &1307281074
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1307281075}
+  m_Layer: 0
+  m_Name: HandSupportAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1307281075
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307281074}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.01, y: 1.029, z: -0.492}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1978571848}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1506437939
 GameObject:
   m_ObjectHideFlags: 0
@@ -584,9 +615,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: jeanf.universalplayer::jeanf.universalplayer.Seat
   sitAnchor: {fileID: 1598123304}
   exitAnchor: {fileID: 1506437940}
+  handSupportAnchor: {fileID: 1307281075}
   eyeHeightAboveSeat: 0.7
-  handSupportAnchor: {fileID: 0}
-  autoConfigureXrInteractable: 1
 --- !u!65 &1978571845
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -680,6 +710,7 @@ Transform:
   m_Children:
   - {fileID: 1598123304}
   - {fileID: 1506437940}
+  - {fileID: 1307281075}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
