@@ -268,17 +268,7 @@ namespace jeanf.scenemanagement
                 if (!ShouldCheckVolume(checkableZones, volume.ZoneId))
                     continue;
 
-                var pos = transform.Position;
-                var rot = math.quaternion(transform.Value);
-                var rotationOnly = float4x4.TRS(pos, rot, new float3(1f, 1f, 1f));
-                var worldToLocal = math.inverse(rotationOnly);
-                var localPlayerPos = math.transform(worldToLocal, playerPosition);
-
-                var range = volume.Scale * 0.5f;
-                var distance = math.abs(localPlayerPos);
-                var insideAxis = distance < range;
-
-                if (insideAxis is not { x: true, y: true, z: true }) continue;
+                if (!VolumeMath.ContainsPoint(transform.Value, volume.Scale, playerPosition)) continue;
                 _activeVolumes.Add(entity);
 
                 if (!volume.ZoneId.IsEmpty)
