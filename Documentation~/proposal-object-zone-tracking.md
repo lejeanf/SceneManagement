@@ -332,7 +332,33 @@ phase 4.
    previous zone's page" bug (§2.4-6, §3.5).
 8. New capability for free: `ZoneChanged` C# event usable by tooltip/AI/audio systems.
 
-## 7. Open questions — resolved 2026-08-12
+## 7. T1/T2 results — 2026-08-12 (phase-2 evidence)
+
+First runs of the migration tools (T1 census over 25 prefab instances, T2 coverage over 175
+volumes / 118 `IZoneId` carriers in the open scenes):
+
+- **T2: 0 coverage gaps, 6 soft.** The volume geometry fully covers the old boundary boxes —
+  the single-source-of-truth switch is safe. All 6 SOFT items are logic objects
+  (`SettingBinder`, `ScenarioListManager`, `DiscussionTreeBuilder`, `Bedroom`, 2× `Assistant`)
+  sitting at y ≈ 3.34–3.50, at/above the top face of their 3 m volumes. Fix: lower those six
+  pivots, NOT the volumes' height — the same volumes drive player detection and taller boxes on
+  stacked floors risk cross-floor bleed. The runtime epsilon pass covers them meanwhile.
+- **T1: the scale bug (§2.4-2) is live in 3 places.** `Floor_01_Office`, `Floor_05_Corridor`,
+  `Bedroom102` have buggy overlap boxes of (1,1,1) vs true colliders up to (3,3,30.5): their
+  overlap path scans ~1 m³, statics there are effectively undetected today.
+- **T1: broken configs the census surfaced:** `Room_419`/`Room_420` have no Zone asset (NRE in
+  `SetRoomIDToFoundObjects` when their overlap fires); `Floor_02_Office` has layer mask "none"
+  (detects nothing); `Bedroom102` has neither zone nor region (`IsPlayerInSameRegion` NREs on
+  every region change) — relic confirmed, delete at cutover.
+- **T1: `setCustomList` is False on all 25 instances** → the `CustomVisibility` proximity path
+  is dead code in production. The §3.3 proximity-parity row collapses: nothing to wire at
+  cutover; the bridge's proximity output stays available but unused.
+- **T1: 27 `IZoneId` implementers outside the `AbstractInteractableObject` hierarchy** (the
+  `GameManager*` family + `uvs.Interactions` zone tools + 2 legacy classes). Remaining wiring
+  before cutover: guarded `Register` calls in their shared bases (needs the versionDefine gate
+  on `uvs.Scenarios` / `uvs.Interactions`) or `ZoneTrackedObject` components on their prefabs.
+
+## 8. Open questions — resolved 2026-08-12
 
 1. ~~Is ≤ 0.2 s zone-change latency acceptable for carried objects?~~ **Yes** — confirmed
    acceptable, no constraint here.
