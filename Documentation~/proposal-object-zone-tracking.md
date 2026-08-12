@@ -340,9 +340,13 @@ volumes / 118 `IZoneId` carriers in the open scenes):
 - **T2: 0 coverage gaps, 6 soft.** The volume geometry fully covers the old boundary boxes —
   the single-source-of-truth switch is safe. All 6 SOFT items are logic objects
   (`SettingBinder`, `ScenarioListManager`, `DiscussionTreeBuilder`, `Bedroom`, 2× `Assistant`)
-  sitting at y ≈ 3.34–3.50, at/above the top face of their 3 m volumes. Fix: lower those six
-  pivots, NOT the volumes' height — the same volumes drive player detection and taller boxes on
-  stacked floors risk cross-floor bleed. The runtime epsilon pass covers them meanwhile.
+  sitting at y ≈ 3.34–3.50, at/above the top face of their 3 m volumes. Cause (confirmed):
+  they were **deliberately ceiling-mounted to keep their colliders out of the player's way**
+  under the old physics-overlap system. The new system needs no colliders, so after cutover
+  they can return to natural heights — until then the runtime epsilon pass assigns them
+  correctly (with a soft-assignment log line each). Do NOT grow the volumes' height as a fix:
+  the same volumes drive player detection and taller boxes on stacked floors risk cross-floor
+  bleed.
 - **T1: the scale bug (§2.4-2) is live in 3 places.** `Floor_01_Office`, `Floor_05_Corridor`,
   `Bedroom102` have buggy overlap boxes of (1,1,1) vs true colliders up to (3,3,30.5): their
   overlap path scans ~1 m³, statics there are effectively undetected today.
@@ -350,9 +354,12 @@ volumes / 118 `IZoneId` carriers in the open scenes):
   `SetRoomIDToFoundObjects` when their overlap fires); `Floor_02_Office` has layer mask "none"
   (detects nothing); `Bedroom102` has neither zone nor region (`IsPlayerInSameRegion` NREs on
   every region change) — relic confirmed, delete at cutover.
-- **T1: `setCustomList` is False on all 25 instances** → the `CustomVisibility` proximity path
-  is dead code in production. The §3.3 proximity-parity row collapses: nothing to wire at
-  cutover; the bridge's proximity output stays available but unused.
+- **T1: `setCustomList` is False on all 25 *prefab* instances.** NOT yet a dead-code verdict:
+  the first census run only tabulated prefabs — scene-hosted instances (Main, 05_UVCHIR,
+  Cata-01, and anything a scenario loads additively) were not read. T1 now also tabulates
+  open-scene instances; rerun it per scenario (triage etc.) before concluding anything about
+  the `CustomVisibility` path. If a scenario instance does use it, the bridge's proximity
+  output (`onProximityChanged` + threshold at registration) is the replacement wiring.
 - **T1: 27 `IZoneId` implementers outside the `AbstractInteractableObject` hierarchy** (the
   `GameManager*` family + `uvs.Interactions` zone tools + 2 legacy classes). Remaining wiring
   before cutover: guarded `Register` calls in their shared bases (needs the versionDefine gate
