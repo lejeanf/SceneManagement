@@ -181,6 +181,19 @@ namespace jeanf.scenemanagement
             return _objectsByZone.TryGetValue(zoneId, out var list) ? list : EmptyZoneList;
         }
 
+        /// <summary>Zone ids that currently have at least one assigned object (debug/inspector).</summary>
+        public IEnumerable<string> ZoneIdsWithObjects
+        {
+            get
+            {
+                foreach (var kv in _objectsByZone)
+                    if (kv.Value.Count > 0) yield return kv.Key;
+            }
+        }
+
+        /// <summary>Total registered objects (debug/inspector).</summary>
+        public int TrackedObjectCount => _entries.Count;
+
         /// <summary>Objects that matched no volume yet — the coverage-gap alarm list.</summary>
         public IEnumerable<GameObject> PendingObjects
         {
