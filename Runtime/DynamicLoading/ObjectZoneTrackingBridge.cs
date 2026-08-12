@@ -46,11 +46,23 @@ namespace jeanf.scenemanagement
         [SerializeField] private float coverageTolerance = 0.25f;
         [Tooltip("Nearest-candidate pass: max distance to the closest volume for a fallback assignment. <= 0 disables.")]
         [SerializeField] private float maxFallbackDistance = 2f;
+        [Header("Zone-scoped proximity visibility:")]
+        [Tooltip("Objects assigned to these zones get proximity visibility toggled by player distance (ProximityVisibilityChanged). Replaces the old per-boundary checkForProximity + setCustomList config (e.g. the RueDesCapucines street zone, threshold 3).")]
+        [SerializeField] private List<ProximityZoneConfig> proximityVisibilityZones = new List<ProximityZoneConfig>();
+
+        [Serializable]
+        public struct ProximityZoneConfig
+        {
+            public Zone zone;
+            [Range(0.1f, 10f)] public float threshold;
+        }
 
         /// <summary>Fired on real assignment changes, Active mode only: (object, oldZone, newZone).</summary>
         public static event Action<GameObject, Zone, Zone> ZoneChanged;
         /// <summary>Fired in every mode whenever an assignment is computed (changed or not) — parity/T3 hook.</summary>
         public static event Action<GameObject, string, MatchKind> AssignmentComputed;
+        /// <summary>Zone-scoped proximity visibility (the CustomVisibility replacement), Active mode only.</summary>
+        public static event Action<GameObject, bool> ProximityVisibilityChanged;
 
         public BridgeMode Mode { get => mode; set => mode = value; }
 
@@ -96,6 +108,8 @@ namespace jeanf.scenemanagement
         private bool _candidatesValid;
 
         private readonly Dictionary<string, string> _zoneToRegion = new Dictionary<string, string>(64);
+        private readonly Dictionary<string, float> _proximityZoneSqr = new Dictionary<string, float>(8);
+        private readonly HashSet<string> _candidateZoneIds = new HashSet<string>();
 
         private EntityManager _em;
         private EntityQuery _volumeQuery;
@@ -192,9 +206,27 @@ namespace jeanf.scenemanagement
         {
             WorldManager.PublishCurrentRegionId += OnRegionChanged;
             WorldManager.PublishCurrentZoneId += OnPlayerZoneChanged;
+            RebuildProximityZoneLookup();
             TryInitWorld();
             DrainPreRegistrations();
         }
+
+        private void RebuildProximityZoneLookup()
+        {
+            _proximityZoneSqr.Clear();
+            foreach (var cfg in proximityVisibilityZones)
+            {
+                if (cfg.zone == null || cfg.threshold <= 0f) continue;
+                _proximityZoneSqr[$"{cfg.zone.id}"] = cfg.threshold * cfg.threshold;
+            }
+        }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            if (Application.isPlaying) RebuildProximityZoneLookup();
+        }
+#endif
 
         private void OnDisable()
         {
@@ -415,6 +447,8 @@ namespace jeanf.scenemanagement
             _volScale = new NativeArray<float3>(keptScale.ToArray(), Allocator.Persistent);
             _volZoneIds = keptZoneIds.ToArray();
             _volZones = keptZones.ToArray();
+            _candidateZoneIds.Clear();
+            foreach (var id in keptZoneIds) _candidateZoneIds.Add(id);
             _candidatesValid = true;
 
             if (isDebug) Debug.Log($"{LogPrefix} ObjectZoneTrackingBridge: {_volZoneIds.Length} candidate volume(s) for region '{_currentRegionId}'.", this);
@@ -597,23 +631,44 @@ namespace jeanf.scenemanagement
 
         /// <summary>
         /// Proximity visibility — independent of assignment by construction: reads player
-        /// distance only, writes visibility only. Evaluated on the interval for registered
-        /// proximity listeners whose zone is the player's current zone.
+        /// distance only, writes visibility only. Two config paths: per-registration callback
+        /// (explicit threshold) and zone-scoped config (proximityVisibilityZones → static
+        /// ProximityVisibilityChanged, the CustomVisibility replacement). Gated on the entry's
+        /// zone being in the current candidate set — same scope as the old
+        /// isPlayerInSameRegion gate.
         /// </summary>
         private void UpdateProximity()
         {
             if (_player == null) return;
             if (Time.time - _lastProximityPass < checkInterval) return;
             _lastProximityPass = Time.time;
+
+            var playerPos = _player.position;
             foreach (var e in _entries)
             {
-                if (e.OnProximityChanged == null || e.ProximitySqr <= 0f || e.Tf == null) continue;
+                if (e.Tf == null || string.IsNullOrEmpty(e.ZoneId)) continue;
 
-                var inZone = !string.IsNullOrEmpty(e.ZoneId) && e.ZoneId == _currentZoneId;
-                var visible = inZone && (e.Tf.position - _player.position).sqrMagnitude <= e.ProximitySqr;
+                var thresholdSqr = 0f;
+                var viaZoneConfig = false;
+                if (e.OnProximityChanged != null && e.ProximitySqr > 0f)
+                {
+                    thresholdSqr = e.ProximitySqr;
+                }
+                else if (_proximityZoneSqr.TryGetValue(e.ZoneId, out var zoneSqr))
+                {
+                    thresholdSqr = zoneSqr;
+                    viaZoneConfig = true;
+                }
+                if (thresholdSqr <= 0f) continue;
+
+                var inRegion = _candidateZoneIds.Contains(e.ZoneId);
+                var visible = inRegion && (e.Tf.position - playerPos).sqrMagnitude <= thresholdSqr;
                 if (visible == e.ProximityVisible) continue;
                 e.ProximityVisible = visible;
-                if (mode == BridgeMode.Active) e.OnProximityChanged.Invoke(visible);
+
+                if (mode != BridgeMode.Active) continue;
+                if (viaZoneConfig) ProximityVisibilityChanged?.Invoke(e.Go, visible);
+                else e.OnProximityChanged?.Invoke(visible);
             }
         }
 

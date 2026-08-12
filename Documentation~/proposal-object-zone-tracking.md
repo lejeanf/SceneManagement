@@ -354,12 +354,20 @@ volumes / 118 `IZoneId` carriers in the open scenes):
   `SetRoomIDToFoundObjects` when their overlap fires); `Floor_02_Office` has layer mask "none"
   (detects nothing); `Bedroom102` has neither zone nor region (`IsPlayerInSameRegion` NREs on
   every region change) — relic confirmed, delete at cutover.
-- **T1: `setCustomList` is False on all 25 *prefab* instances.** NOT yet a dead-code verdict:
-  the first census run only tabulated prefabs — scene-hosted instances (Main, 05_UVCHIR,
-  Cata-01, and anything a scenario loads additively) were not read. T1 now also tabulates
-  open-scene instances; rerun it per scenario (triage etc.) before concluding anything about
-  the `CustomVisibility` path. If a scenario instance does use it, the bridge's proximity
-  output (`onProximityChanged` + threshold at registration) is the replacement wiring.
+- **T1: `setCustomList` is False on all 25 *prefab* instances — but the in-play rerun found a
+  live user.** The Main-scene instance of `Collider_Zone_RueDesCapucines` (street zone,
+  Region_001) overrides the prefab with `Proximity=True, Threshold=3, CustomList=True`: in the
+  86×22 m outdoor zone the iPad lists only interactables within 3 m. The dead-code verdict was
+  a prefab-table false positive. **Replacement implemented (v1.3.1):** the bridge's
+  `proximityVisibilityZones` config (per-zone threshold, serialized on the bridge) drives a
+  static `ProximityVisibilityChanged` event which `AbstractListInteractable` feeds into its
+  existing `UpdateElementVisibility` — same semantics (region-gated, distance-toggled),
+  change-only instead of re-fired every tick. Cutover setup: add the street zone @ 3 m to the
+  bridge's list. Scenario reruns (triage etc.) may add more zones to that list.
+- **T1 rerun: `Room_122`'s Main-scene instance diverges from its prefab** — buggy overlap box
+  (8.56, 3, 6.80) vs true collider (4.40, 3, 6.01): a fourth live scale-bug site, this one
+  over-detecting into neighboring space on the overlap path while the trigger covers about
+  half the room.
 - **T1: 27 `IZoneId` implementers outside the `AbstractInteractableObject` hierarchy** (the
   `GameManager*` family + `uvs.Interactions` zone tools + 2 legacy classes). Remaining wiring
   before cutover: guarded `Register` calls in their shared bases (needs the versionDefine gate
