@@ -231,6 +231,55 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 23218710}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &526906318
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 526906320}
+  - component: {fileID: 526906319}
+  m_Layer: 0
+  m_Name: SitPlayerOnEnable
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &526906319
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 526906318}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e633fc2e8554bb2bf3f08132d556a80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: jeanf.universalplayer::jeanf.universalplayer.SitPlayerOnEnable
+  seat: {fileID: 1978571844}
+  seatId: 0
+  fadeToBlackForPlacement: 1
+  holdBlackSeconds: 0.15
+  waitTimeout: 10
+--- !u!4 &526906320
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 526906318}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -13.8407, y: 0.01, z: 11.44107}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &611646986
 GameObject:
   m_ObjectHideFlags: 0
@@ -617,6 +666,7 @@ MonoBehaviour:
   exitAnchor: {fileID: 1506437940}
   handSupportAnchor: {fileID: 1307281075}
   eyeHeightAboveSeat: 0.7
+  seatId: 0
 --- !u!65 &1978571845
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -720,3 +770,4 @@ SceneRoots:
   - {fileID: 611646990}
   - {fileID: 1978571848}
   - {fileID: 984702889}
+  - {fileID: 526906320}
