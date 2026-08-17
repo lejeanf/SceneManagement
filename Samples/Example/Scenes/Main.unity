@@ -972,6 +972,54 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: 85ff82bd5e2ff7c4d8b5481df64c7215, type: 2}
   m_BuildHeightMesh: 0
+--- !u!1 &407866872
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 407866874}
+  - component: {fileID: 407866873}
+  m_Layer: 0
+  m_Name: StaticColliderBridge
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &407866873
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407866872}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 69235d7dd171cc34aa7e1dcee20e58e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: jeanf.scenemanagement::jeanf.scenemanagement.StaticColliderBridge
+  isDebug: 0
+  refreshInterval: 0.25
+  cullingDistance: 30
+  maxProxies: 64
+--- !u!4 &407866874
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 407866872}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &428798746
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6584,5 +6632,6 @@ SceneRoots:
   - {fileID: 271398512}
   - {fileID: 1958047923}
   - {fileID: 551796611}
+  - {fileID: 407866874}
   - {fileID: 1153128504}
   - {fileID: 917510144}

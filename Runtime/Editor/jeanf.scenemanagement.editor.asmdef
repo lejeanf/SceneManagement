@@ -4,7 +4,9 @@
     "references": [
         "GUID:734d92eba21c94caba915361bd5ac177",
         "GUID:1452a237ba3e260438cebeb9963c680c",
-        "GUID:e0cd26848372d4e5c891c569017e11f1"
+        "GUID:e0cd26848372d4e5c891c569017e11f1",
+        "Unity.Mathematics",
+        "Unity.Scenes"
     ],
     "includePlatforms": [
         "Editor"

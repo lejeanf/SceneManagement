@@ -39,6 +39,45 @@ How to use:
 
 
 ------------------------------------------------------------------------------------------------------
+Collisions on props (guide for 3D artists):
+
+Why this is needed:
+When a prop is placed inside a SUBSCENE, Unity converts it to entities and DELETES its collider
+components. The mesh still renders, but the player walks straight through it. Chairs, tables, crates —
+anything solid — needs the step below or it will not be solid in game.
+(Props placed in a normal additively-loaded scene are unaffected: their colliders already work,
+and following this guide there does no harm.)
+
+How to make a prop solid:
+1: Add your collider(s) to the prop prefab as usual.
+   Supported: Box Collider, Sphere Collider, Capsule Collider. Use as many as you need.
+   NOT supported: Mesh Collider — it will be ignored and the prop stays non-solid.
+   Approximate the shape with boxes/capsules instead.
+2: Add the "Static Collider Authoring" component to the prop prefab.
+   It can go on ANY object in the prefab — root or a child, it does not matter.
+   Leave "Include Children" ON so it picks up colliders anywhere under it.
+3: Put the colliders on a layer that collides with the Player layer
+   (Project Settings > Physics > Layer Collision Matrix). A collider on a layer that collides with
+   nothing will spawn correctly and still block nobody.
+4: Save the prefab. Moving, rotating or scaling the prop later needs NO extra work — the collision
+   follows the prop automatically. There is no separate invisible collider object to maintain.
+
+How to check your work:
+- Run "Tools > SceneManagement > Validate Static Colliders". It scans every prefab and reports
+  props with no usable collider, unsupported Mesh Colliders, and unusable layers.
+- Warnings also appear in the Console when a subscene is baked.
+
+One-time setup (programmer, once per project):
+- A "Static Collider Bridge" component must exist on an always-loaded object in the main scene.
+  Without it NO baked prop is solid, no matter how well the prefabs are set up. Entering play mode
+  logs a warning if it is missing.
+
+Good to know:
+- Only props near the player get real colliders (default: within 30 m, up to 128 props at once).
+  Both values are adjustable on the Static Collider Bridge if a dense room needs more.
+- Trigger colliders are skipped by default — this system is for blocking the player.
+
+------------------------------------------------------------------------------------------------------
 Acknowledgment:
 - Inspired by EntityComponentSystemSamples project
 https://github.com/Unity-Technologies/EntityComponentSystemSamples
