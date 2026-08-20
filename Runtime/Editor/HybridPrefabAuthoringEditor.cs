@@ -18,16 +18,21 @@ namespace jeanf.scenemanagement.editor
     {
         public override void OnInspectorGUI()
         {
+            // A [CustomEditor] replaces the validationTools fallback inspector, so restore the
+            // framework's orange issues banner explicitly (hierarchy dot / console log still work).
+            jeanf.validationTools.ValidationUi.DrawIssuesBanner(target as Component);
             DrawDefaultInspector();
 
             var authoring = (HybridPrefabAuthoring)target;
 
             EditorGUILayout.Space();
+            var spawnRoots = new List<Transform>();
+            HybridPrefabScan.CollectSpawnRoots(authoring.transform, authoring, spawnRoots);
+
             if (authoring.prefab != null)
             {
-                EditorGUILayout.HelpBox("Placement-marker mode: the assigned prefab is spawned at this pose. " +
-                                        "No sweep, no stripping — children of this object bake normally.", MessageType.Info);
-                return;
+                EditorGUILayout.HelpBox($"Explicit prefab: '{authoring.prefab.name}' is spawned at this object's " +
+                                        "pose, in addition to the swept subtrees below.", MessageType.Info);
             }
 
             if (!authoring.IsValid)
@@ -37,15 +42,15 @@ namespace jeanf.scenemanagement.editor
                     MessageType.Error);
             }
 
-            var spawnRoots = new List<Transform>();
-            HybridPrefabScan.CollectSpawnRoots(authoring.transform, authoring, spawnRoots);
-
             EditorGUILayout.LabelField($"Respawned in the main world ({spawnRoots.Count})", EditorStyles.boldLabel);
             if (spawnRoots.Count == 0)
             {
-                EditorGUILayout.HelpBox("The sweep found nothing (a qualifying subtree contains a Canvas or an " +
-                                        "AudioSource and no Renderer). Add subtrees to Additional Subtrees if " +
-                                        "something must be respawned anyway.", MessageType.Warning);
+                EditorGUILayout.HelpBox("The sweep found nothing. It auto-detects subtrees that contain a Canvas " +
+                                        "or an AudioSource and no Renderer; 'Additional Subtrees' force-includes a " +
+                                        "subtree it cannot detect (e.g. an empty SteamAudioDynamicObject proxy), " +
+                                        "'Excluded Subtrees' vetoes a detection so it bakes normally. Both lists " +
+                                        "can usually stay empty.",
+                    authoring.prefab != null ? MessageType.Info : MessageType.Warning);
             }
             foreach (var root in spawnRoots)
             {

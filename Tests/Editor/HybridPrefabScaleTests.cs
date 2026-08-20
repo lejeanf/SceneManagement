@@ -5,6 +5,10 @@ using UnityEngine;
 
 namespace jeanf.scenemanagement.Tests
 {
+    /// <summary>Stand-in for SteamAudio's component: the sweep matches it by TYPE NAME (the
+    /// package has no SteamAudio dependency), so a same-named local class is the real contract.</summary>
+    public class SteamAudioDynamicObject : MonoBehaviour { }
+
     /// <summary>
     /// Locks the two pure parts of hybrid prefab spawning: the sweep (which subtrees leave the
     /// baked world and get respawned — get it wrong and audio/UI silently vanish or exist twice)
@@ -84,6 +88,19 @@ namespace jeanf.scenemanagement.Tests
         }
 
         [Test]
+        public void Sweep_DetectsSteamAudioDynamicObjectProxyByTypeName()
+        {
+            var authoring = BuildElevatorLike(out var audio, out var ui, out _);
+            var proxy = New("SteamAudio_CageProxy", authoring.transform).transform;
+            proxy.gameObject.AddComponent<SteamAudioDynamicObject>();
+
+            var results = new List<Transform>();
+            HybridPrefabScan.CollectSpawnRoots(authoring.transform, authoring, results);
+
+            Assert.That(results, Is.EquivalentTo(new[] { audio, ui, proxy }));
+        }
+
+        [Test]
         public void Sweep_AdditionalSubtreeIsTakenEvenWithoutTriggerComponents()
         {
             var authoring = BuildElevatorLike(out var audio, out var ui, out _);
@@ -94,6 +111,21 @@ namespace jeanf.scenemanagement.Tests
             HybridPrefabScan.CollectSpawnRoots(authoring.transform, authoring, results);
 
             Assert.That(results, Is.EquivalentTo(new[] { audio, ui, proxy }));
+        }
+
+        [Test]
+        public void Sweep_StillRunsWhenExplicitPrefabIsAssigned()
+        {
+            var authoring = BuildElevatorLike(out var audio, out var ui, out _);
+            authoring.prefab = new GameObject("SomeMarkerPrefab");
+            _spawned.Add(authoring.prefab);
+
+            var results = new List<Transform>();
+            HybridPrefabScan.CollectSpawnRoots(authoring.transform, authoring, results);
+
+            // The explicit prefab is a separate spawn record added by the baker; the sweep composes
+            // with it rather than being switched off.
+            Assert.That(results, Is.EquivalentTo(new[] { audio, ui }));
         }
 
         [Test]

@@ -61,8 +61,11 @@ namespace jeanf.scenemanagement
     /// components remain in baked territory (SteamAudioGeometry on meshes, for instance) so
     /// nothing disappears silently.
     ///
-    /// Alternative mode: assign <see cref="prefab"/> and this object is just a placement marker
-    /// for that prefab, TooltipAuthoring-style — no sweep, no stripping.
+    /// Additionally, <see cref="prefab"/> spawns an explicit prefab at this object's pose,
+    /// TooltipAuthoring-style. It COMPOSES with the sweep: a childless marker object just spawns
+    /// the prefab, while a prefab root can carry both an explicit prefab and swept subtrees.
+    /// (Don't assign a prefab whose content also lives under this object — that spawns it twice;
+    /// exclude or delete the live subtree instead.)
     ///
     /// Caveat of the sweep: per-instance overrides on a swept subtree are NOT spawned — the
     /// prefab-asset counterpart is. Apply overrides to the prefab itself.
@@ -70,31 +73,38 @@ namespace jeanf.scenemanagement
     [DisallowMultipleComponent]
     public class HybridPrefabAuthoring : MonoBehaviour, IValidatable
     {
-        [Tooltip("Leave empty (recommended): sweep this hierarchy for GameObject-world subtrees and respawn " +
-                 "their prefab-asset counterparts — requires this object to be part of a prefab. " +
-                 "Assigned: no sweep; this object is only a placement marker and the referenced prefab is spawned here.")]
+        [Tooltip("Optional explicit prefab to spawn at this object's pose, in ADDITION to the sweep below. " +
+                 "On a childless placement marker this is the only spawn; on a prefab root it composes with " +
+                 "the swept subtrees. Don't reference a prefab whose content also lives under this object — " +
+                 "that would spawn it twice.")]
         public GameObject prefab;
 
-        [Tooltip("Subtrees the sweep cannot detect (no Canvas/AudioSource inside) that must still be respawned " +
-                 "in the main world — e.g. an empty proxy carrying a SteamAudioDynamicObject.")]
+        [Tooltip("Subtrees the sweep cannot detect (no Canvas, AudioSource or SteamAudioDynamicObject inside) " +
+                 "that must still be respawned in the main world. Usually stays empty.")]
         public List<Transform> additionalSubtrees = new List<Transform>();
 
         [Tooltip("Detected subtrees that must NOT be respawned. The sweep skips them and they bake normally.")]
         public List<Transform> excludedSubtrees = new List<Transform>();
 
         /// <summary>
-        /// Valid when a spawn source is resolvable: an explicit prefab, or (sweep mode) membership
-        /// in a prefab so the asset counterparts exist at bake time. Detection results and stranded
-        /// GameObject-world components are surfaced by the custom inspector, not here.
+        /// Valid when every spawn source is resolvable: swept subtrees need this object to be part
+        /// of a prefab (their asset counterparts must exist at bake time), while an explicit prefab
+        /// needs nothing. Detection results and stranded GameObject-world components are surfaced
+        /// by the custom inspector, not here.
         /// </summary>
         public bool IsValid
         {
             get
             {
 #if UNITY_EDITOR
-                if (prefab != null) return true;
                 if (UnityEditor.PrefabUtility.IsPartOfPrefabInstance(gameObject)) return true;
-                return UnityEditor.SceneManagement.PrefabStageUtility.GetPrefabStage(gameObject) != null;
+                if (UnityEditor.SceneManagement.PrefabStageUtility.GetPrefabStage(gameObject) != null) return true;
+
+                // Not part of a prefab: only the explicit-prefab record can spawn, so this is valid
+                // exactly when the sweep has nothing to respawn and a prefab is assigned.
+                var spawnRoots = new List<Transform>();
+                HybridPrefabScan.CollectSpawnRoots(transform, this, spawnRoots);
+                return spawnRoots.Count == 0 && prefab != null;
 #else
                 return true;
 #endif
@@ -116,7 +126,7 @@ namespace jeanf.scenemanagement
                 var entity = GetEntity(TransformUsageFlags.Renderable);
                 var spawns = AddBuffer<HybridPrefabSpawnElement>(entity);
 
-                // Marker mode: one record, no sweep, no stripping.
+                // Explicit prefab: one marker record at this pose. Composes with the sweep below.
                 if (authoring.prefab != null)
                 {
                     DependsOn(authoring.prefab);
@@ -126,17 +136,20 @@ namespace jeanf.scenemanagement
                         LocalFromRoot = float4x4.identity,
                         ComposePrefabScale = 1,
                     });
-                    return;
                 }
 
-                // Sweep mode.
+                // Sweep: always runs, so a prefab root can carry both kinds of spawn.
                 var spawnRoots = new List<Transform>();
                 HybridPrefabScan.CollectSpawnRoots(authoring.transform, authoring, spawnRoots);
                 if (spawnRoots.Count == 0)
                 {
-                    Debug.LogWarning($"{HybridPrefabBake.LogPrefix} HybridPrefabAuthoring on '{authoring.name}': the sweep " +
-                        "found no GameObject-world subtree (Canvas or AudioSource, no Renderer) and no additionalSubtrees " +
-                        "are set — nothing will be respawned in the main world.", authoring.gameObject);
+                    if (authoring.prefab == null)
+                    {
+                        Debug.LogWarning($"{HybridPrefabBake.LogPrefix} HybridPrefabAuthoring on '{authoring.name}': the sweep " +
+                            "found no GameObject-world subtree (Canvas or AudioSource, no Renderer), no additionalSubtrees " +
+                            "are set and no explicit prefab is assigned — nothing will be respawned in the main world.",
+                            authoring.gameObject);
+                    }
                     return;
                 }
 
@@ -219,13 +232,20 @@ namespace jeanf.scenemanagement
         /// <summary>
         /// A subtree belongs wholly to the GameObject world when it renders nothing that baking
         /// keeps (no Renderer anywhere — CanvasRenderer is not a Renderer, so UI passes) and
-        /// contains at least one component baking is known to break: a Canvas or an AudioSource.
+        /// contains at least one component baking is known to break: a Canvas, an AudioSource, or
+        /// a SteamAudioDynamicObject (an empty proxy carrying exported Steam Audio geometry —
+        /// matched by type name, this package has no SteamAudio dependency).
         /// </summary>
         public static bool SubtreeQualifies(Transform node)
         {
             if (node.GetComponentInChildren<Renderer>(true) != null) return false;
-            return node.GetComponentInChildren<Canvas>(true) != null
-                || node.GetComponentInChildren<AudioSource>(true) != null;
+            if (node.GetComponentInChildren<Canvas>(true) != null) return true;
+            if (node.GetComponentInChildren<AudioSource>(true) != null) return true;
+
+            foreach (var component in node.GetComponentsInChildren<Component>(true))
+                if (component != null && component.GetType().Name == "SteamAudioDynamicObject")
+                    return true;
+            return false;
         }
 
         /// <summary>

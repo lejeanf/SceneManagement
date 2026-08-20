@@ -25,11 +25,13 @@ streamed in. Plus one new move: every respawned subtree is **removed from the ba
 `BakingOnlyEntityAuthoring` uses) so it cannot exist twice.
 
 - `HybridPrefabAuthoring` — ONE per prefab root. At bake it **sweeps** the hierarchy: every
-  highest subtree containing a `Canvas` or an `AudioSource` and **no `Renderer`** is recorded
-  (prefab-asset counterpart + pose relative to the root) and stripped from the bake.
-  `additionalSubtrees` force-includes subtrees the sweep can't see (e.g. an empty proxy carrying
-  a `SteamAudioDynamicObject`); `excludedSubtrees` vetoes detections. Assigning the `prefab`
-  field instead turns the object into a plain placement marker (TooltipAuthoring-style, no sweep).
+  highest subtree containing a `Canvas`, an `AudioSource` or a `SteamAudioDynamicObject`
+  (type-name match — no SteamAudio dependency) and **no `Renderer`** is recorded (prefab-asset
+  counterpart + pose relative to the root) and stripped from the bake. `additionalSubtrees`
+  force-includes subtrees the sweep can't see; `excludedSubtrees` vetoes detections — both
+  usually stay empty. The `prefab` field additionally spawns an explicit prefab at this pose
+  (TooltipAuthoring-style marker); it COMPOSES with the sweep, so a childless marker and a
+  swept prefab root are the same component.
 - `HybridPrefabBridge` — singleton on a persistent GameObject; reconciles every `refreshInterval`
   (default 0.25 s): for each root entity, spawns every record at `rootL2W × LocalFromRoot` under
   a `SubSceneHybridPrefabs` container; streaming out destroys them.
@@ -60,9 +62,11 @@ mesh, an `AudioSource` sharing a GameObject with a Renderer) so nothing vanishes
 - **SteamAudio on baked geometry** is out of this component's reach: a `SteamAudioGeometry` on a
   baked mesh is stripped (its editor-time bake data still exports, but subscenes never load as
   Unity scenes at runtime, so scene-level static geometry does not load). Options: carry room
-  response in the additive dependency scene, or give the geometry a `SteamAudioDynamicObject`
-  with exported serialized data on an empty proxy child and add it to `additionalSubtrees`.
-  Door meshes that move under ECS need their SteamAudio handled by the door system's pools.
+  response in the additive dependency scene, or export the geometry as a dynamic object and put
+  the `SteamAudioDynamicObject` (asset assigned) on an empty proxy child — the sweep detects it
+  automatically. Door meshes that move under ECS get their SteamAudio geometry from the
+  AutomaticDoorSystem collider pool (2.5.0+), baked straight from the panel's own
+  `SteamAudioDynamicObject`.
 - The spawned instance is force-activated; spawns are static (placed once, never followed).
 - No scene references inside a swept subtree — everything must be prefab-local or self-wiring,
   same rule as tooltips and trash.
