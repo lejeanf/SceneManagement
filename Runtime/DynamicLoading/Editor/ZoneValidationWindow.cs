@@ -121,9 +121,26 @@ namespace jeanf.scenemanagement
                 var key = $"ZoneVal_group_{group.Name}";
                 var expanded = SessionState.GetBool(key, group.Broken > 0);
                 var header = $"{group.Name} — Broken: {group.Broken}   OK: {group.Rows.Count - group.Broken}";
-                var next = EditorGUILayout.Foldout(expanded, header, true,
-                    group.Broken > 0 ? EditorStyles.foldoutHeader : EditorStyles.foldout);
-                if (next != expanded) SessionState.SetBool(key, next);
+                bool next;
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    next = EditorGUILayout.Foldout(expanded, header, true,
+                        group.Broken > 0 ? EditorStyles.foldoutHeader : EditorStyles.foldout);
+                    if (next != expanded) SessionState.SetBool(key, next);
+
+                    var dirtyScenes = group.Rows.Where(r => r.Target != null)
+                        .Select(r => r.Target.gameObject.scene).Distinct().Where(s => s.isDirty).ToList();
+                    var scenarioDirty = group.Scenario != null && EditorUtility.IsDirty(group.Scenario);
+                    using (new EditorGUI.DisabledScope(dirtyScenes.Count == 0 && !scenarioDirty))
+                        if (GUILayout.Button(new GUIContent(
+                                dirtyScenes.Count > 1 ? $"Save {dirtyScenes.Count} scenes" : "Save",
+                                "Saves this group's modified scene(s), and the scenario asset when 'Add zone' changed it."),
+                                GUILayout.Width(100)))
+                        {
+                            foreach (var scene in dirtyScenes) EditorSceneManager.SaveScene(scene);
+                            if (scenarioDirty) AssetDatabase.SaveAssetIfDirty(group.Scenario);
+                        }
+                }
                 if (!next) continue;
 
                 using (new EditorGUI.IndentLevelScope())
