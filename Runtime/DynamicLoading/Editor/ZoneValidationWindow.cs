@@ -3,23 +3,29 @@ using System.Collections.Generic;
 using System.Linq;
 using Unity.Mathematics;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace jeanf.scenemanagement
 {
     /// <summary>
-    /// Edit-mode audit of play-mode zone detection: every <see cref="IZoneTrackedObject"/> in the
-    /// open scenes is resolved against the open volumes with the bridge's exact failsafe chain
-    /// (<see cref="EditorZoneResolver"/>) and classified binary:
-    ///  - BROKEN — resolves to no zone at all (pending at runtime), or to a zone that is not among
-    ///    the ones the governing <see cref="Scenario"/> requires (listOfZonesNeededForThisScenario);
-    ///  - OK — resolves to a scenario-consistent zone. How it resolved (edge/lifted/fallback) is
-    ///    kept as informational detail, not a status.
-    /// Rows offer Select (ping in hierarchy) and, when the pivot is not exactly inside its correct
-    /// volume, Fix — the minimal per-axis snap of the object into that volume (undoable).
-    /// The governing scenario is auto-detected from the open scenes (Scenario.scene or its
-    /// dependencies) and can be overridden manually.
+    /// Edit-mode audit of play-mode zone detection, grouped per scenario. Every
+    /// <see cref="IZoneTrackedObject"/> in the open scenes is resolved once against the open
+    /// volumes with the bridge's exact failsafe chain (<see cref="EditorZoneResolver"/>), then
+    /// classified under every <see cref="Scenario"/> whose scene or dependencies include the scene
+    /// the object lives in (the same object can be OK for one scenario and broken for another):
+    ///  - BROKEN — resolves to no zone at all (pending at runtime), or to a zone the scenario's
+    ///    listOfZonesNeededForThisScenario does not include;
+    ///  - OK — resolves to a scenario-consistent zone; how it resolved (edge/lifted/fallback) is
+    ///    informational detail, not a status.
+    /// Objects living in scenes no scenario owns are grouped separately and only checked for
+    /// volume coverage. 'Load scenario scenes + scan' opens every scenario's scene and
+    /// dependencies (only the override's when one is set) additively and audits all of them at
+    /// once. Row actions: Select (ping + frame), Fix (minimal per-axis snap into the correct
+    /// volume, undoable), Add zone (append the detected zone to that scenario's
+    /// listOfZonesNeededForThisScenario when the object is correctly placed and the scenario list
+    /// is what's incomplete).
     /// </summary>
     public class ZoneValidationWindow : EditorWindow
     {
@@ -31,15 +37,26 @@ namespace jeanf.scenemanagement
             public Status Status;
             public string ZoneLabel;
             public string Detail;
+            public Zone DetectedZone;
             /// <summary>Volume to snap the object into with Fix; null when no fix applies.</summary>
             public VolumeAuthoring FixVolume;
+            /// <summary>Scenario 'Add zone' would modify; null outside scenario groups.</summary>
+            public Scenario TargetScenario;
         }
 
-        private readonly List<Row> _rows = new List<Row>();
-        private readonly List<string> _scenarioNames = new List<string>();
+        private class Group
+        {
+            public Scenario Scenario;
+            public string Name;
+            public readonly List<Row> Rows = new List<Row>();
+            public int Broken;
+        }
+
+        private readonly List<Group> _groups = new List<Group>();
         private Scenario _scenarioOverride;
         private bool _showOk = true;
         private int _volumeCount;
+        private int _objectCount;
         private bool _scanned;
         private Vector2 _scroll;
 
@@ -53,10 +70,17 @@ namespace jeanf.scenemanagement
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Scan open scenes", GUILayout.Height(24))) Scan();
+                var loadLabel = _scenarioOverride != null
+                    ? $"Load '{_scenarioOverride.scenarioName}' scenes + scan"
+                    : "Load ALL scenario scenes + scan";
+                if (GUILayout.Button(new GUIContent(loadLabel,
+                        "Opens every scenario's scene and dependencies additively (only the override's when one " +
+                        "is set), then audits all of them at once."), GUILayout.Height(24), GUILayout.Width(230)))
+                    LoadScenarioScenesAndScan();
                 _showOk = GUILayout.Toggle(_showOk, "show OK", GUILayout.Width(80));
             }
             _scenarioOverride = (Scenario)EditorGUILayout.ObjectField(
-                new GUIContent("Scenario override", "Leave empty to auto-detect the scenario governing the open scenes."),
+                new GUIContent("Scenario override", "Leave empty to audit every scenario; set to restrict the audit to one."),
                 _scenarioOverride, typeof(Scenario), false);
 
             if (Application.isPlaying)
@@ -73,50 +97,39 @@ namespace jeanf.scenemanagement
                 return;
             }
 
-            var scenarioLabel = _scenarioNames.Count > 0 ? string.Join(", ", _scenarioNames) : "none detected";
-            var broken = _rows.Count(r => r.Status == Status.Broken);
-            EditorGUILayout.LabelField($"Volumes: {_volumeCount}   Objects: {_rows.Count}   Scenario: {scenarioLabel}");
+            var broken = _groups.Sum(g => g.Broken);
+            var total = _groups.Sum(g => g.Rows.Count);
+            EditorGUILayout.LabelField($"Volumes: {_volumeCount}   Objects: {_objectCount}   Scenarios: {_groups.Count(g => g.Scenario != null)}");
             using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField($"Broken: {broken}   OK: {_rows.Count - broken}", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"Broken: {broken}   OK: {total - broken}", EditorStyles.boldLabel);
                 using (new EditorGUI.DisabledScope(broken == 0))
                     if (GUILayout.Button($"Select broken ({broken})", GUILayout.Width(140)))
-                        Selection.objects = _rows.Where(r => r.Status == Status.Broken && r.Target != null)
-                            .Select(r => (Object)r.Target.gameObject).ToArray();
+                        Selection.objects = _groups.SelectMany(g => g.Rows)
+                            .Where(r => r.Status == Status.Broken && r.Target != null)
+                            .Select(r => (Object)r.Target.gameObject).Distinct().ToArray();
             }
             EditorGUILayout.Space(2);
 
             var rescanNeeded = false;
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
-            foreach (var row in _rows)
+            foreach (var group in _groups)
             {
-                if (row.Status == Status.Ok && !_showOk) continue;
-                if (row.Target == null) continue;
+                var key = $"ZoneVal_group_{group.Name}";
+                var expanded = SessionState.GetBool(key, group.Broken > 0);
+                var header = $"{group.Name} — Broken: {group.Broken}   OK: {group.Rows.Count - group.Broken}";
+                var next = EditorGUILayout.Foldout(expanded, header, true,
+                    group.Broken > 0 ? EditorStyles.foldoutHeader : EditorStyles.foldout);
+                if (next != expanded) SessionState.SetBool(key, next);
+                if (!next) continue;
 
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    var icon = row.Status == Status.Broken ? "console.erroricon.sml" : "TestPassed";
-                    GUILayout.Label(EditorGUIUtility.IconContent(icon), GUILayout.Width(20), GUILayout.Height(18));
-                    using (new EditorGUI.DisabledScope(true))
-                        EditorGUILayout.ObjectField(row.Target.gameObject, typeof(GameObject), true, GUILayout.MinWidth(140));
-                    if (GUILayout.Button("Select", GUILayout.Width(50)))
+                using (new EditorGUI.IndentLevelScope())
+                    foreach (var row in group.Rows)
                     {
-                        Selection.activeGameObject = row.Target.gameObject;
-                        EditorGUIUtility.PingObject(row.Target.gameObject);
-                        SceneView.lastActiveSceneView?.Frame(new Bounds(row.Target.position, Vector3.one * 2f), false);
+                        if (row.Status == Status.Ok && !_showOk) continue;
+                        if (row.Target == null) continue;
+                        if (DrawRow(row)) rescanNeeded = true;
                     }
-                    using (new EditorGUI.DisabledScope(row.FixVolume == null))
-                        if (GUILayout.Button(new GUIContent("Fix",
-                                row.FixVolume != null
-                                    ? $"Snap into '{row.FixVolume.zone.zoneName}' with the minimal per-axis move (undoable)."
-                                    : "No target volume to snap into."), GUILayout.Width(36)))
-                        {
-                            SnapIntoVolume(row.Target, row.FixVolume);
-                            rescanNeeded = true;
-                        }
-                    EditorGUILayout.LabelField(row.ZoneLabel, GUILayout.Width(170));
-                    EditorGUILayout.LabelField(row.Detail);
-                }
             }
             EditorGUILayout.EndScrollView();
             if (rescanNeeded)
@@ -127,10 +140,51 @@ namespace jeanf.scenemanagement
                 "'Simulate proximity' in its inspector to tune thresholds in the Scene view without entering play mode.", MessageType.None);
         }
 
+        /// <summary>Draws one result row; returns true when an action changed the scene/assets.</summary>
+        private bool DrawRow(in Row row)
+        {
+            var changed = false;
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                var icon = row.Status == Status.Broken ? "console.erroricon.sml" : "TestPassed";
+                GUILayout.Label(EditorGUIUtility.IconContent(icon), GUILayout.Width(20), GUILayout.Height(18));
+                using (new EditorGUI.DisabledScope(true))
+                    EditorGUILayout.ObjectField(row.Target.gameObject, typeof(GameObject), true, GUILayout.MinWidth(140));
+                if (GUILayout.Button("Select", GUILayout.Width(50)))
+                {
+                    Selection.activeGameObject = row.Target.gameObject;
+                    EditorGUIUtility.PingObject(row.Target.gameObject);
+                    SceneView.lastActiveSceneView?.Frame(new Bounds(row.Target.position, Vector3.one * 2f), false);
+                }
+                using (new EditorGUI.DisabledScope(row.FixVolume == null))
+                    if (GUILayout.Button(new GUIContent("Fix",
+                            row.FixVolume != null
+                                ? $"Snap into '{row.FixVolume.zone.zoneName}' with the minimal per-axis move (undoable)."
+                                : "No target volume to snap into."), GUILayout.Width(36)))
+                    {
+                        SnapIntoVolume(row.Target, row.FixVolume);
+                        changed = true;
+                    }
+                if (row.Status == Status.Broken && row.DetectedZone != null && row.TargetScenario != null)
+                {
+                    if (GUILayout.Button(new GUIContent("Add zone",
+                            $"The object is correctly placed — add '{row.DetectedZone.zoneName}' to " +
+                            $"'{row.TargetScenario.name}'.listOfZonesNeededForThisScenario instead of moving it (undoable)."),
+                            GUILayout.Width(70)))
+                    {
+                        AddZoneToScenario(row.TargetScenario, row.DetectedZone);
+                        changed = true;
+                    }
+                }
+                EditorGUILayout.LabelField(row.ZoneLabel, GUILayout.Width(170));
+                EditorGUILayout.LabelField(row.Detail);
+            }
+            return changed;
+        }
+
         private void Scan()
         {
-            _rows.Clear();
-            _scenarioNames.Clear();
+            _groups.Clear();
             _scanned = true;
 
             var volumes = EditorZoneResolver.GatherVolumes();
@@ -138,52 +192,147 @@ namespace jeanf.scenemanagement
             if (_volumeCount == 0) return;
 
             var chain = EditorZoneResolver.SceneChainParams();
-            var expectedZoneIds = CollectExpectedZoneIds();
             var proximityByZone = CollectProximityThresholds();
+            var scenarios = CollectScenarios();
 
-            foreach (var target in EditorZoneResolver.GatherTrackedObjects())
+            // Resolve every object once; classification varies per scenario.
+            var resolved = EditorZoneResolver.GatherTrackedObjects()
+                .Select(t => (Target: t, Res: EditorZoneResolver.Resolve(t.position, volumes, chain)))
+                .ToList();
+            _objectCount = resolved.Count;
+
+            var claimed = new HashSet<Transform>();
+            foreach (var scenario in scenarios)
             {
-                var res = EditorZoneResolver.Resolve(target.position, volumes, chain);
-                var row = new Row { Target = target };
+                var paths = new HashSet<string>(ScenarioScenePaths(scenario));
+                var members = resolved.Where(r => paths.Contains(r.Target.gameObject.scene.path)).ToList();
+                if (members.Count == 0) continue;
 
-                if (!res.HasZone)
-                {
-                    row.Status = Status.Broken;
-                    row.ZoneLabel = "— no volume —";
-                    row.Detail = "outside every volume (all failsafes miss): pending forever at runtime.";
-                    row.FixVolume = NearestVolume(target.position, volumes, expectedZoneIds);
-                }
-                else
-                {
-                    row.ZoneLabel = $"{res.Zone.zoneName} ({res.Zone.id})";
-                    var kindNote = res.Kind switch
-                    {
-                        ObjectZoneTrackingBridge.MatchKind.Soft => $"pivot on the volume edge (±{chain.Tolerance}m). ",
-                        ObjectZoneTrackingBridge.MatchKind.Lifted => $"pivot {res.Distance:F2}m above the volume (ceiling-lift). ",
-                        ObjectZoneTrackingBridge.MatchKind.Fallback => $"pivot outside, nearest volume at {res.Distance:F2}m. ",
-                        _ => "",
-                    };
+                var group = new Group { Scenario = scenario, Name = scenario.scenarioName ?? scenario.name };
+                var expectedZoneIds = new HashSet<string>();
+                if (scenario.listOfZonesNeededForThisScenario != null)
+                    foreach (var zone in scenario.listOfZonesNeededForThisScenario)
+                        if (zone != null) expectedZoneIds.Add($"{zone.id}");
 
-                    if (expectedZoneIds.Count > 0 && !expectedZoneIds.Contains($"{res.Zone.id}"))
-                    {
-                        row.Status = Status.Broken;
-                        row.Detail = $"zone not required by the scenario — wrong room. {kindNote}";
-                        row.FixVolume = NearestVolume(target.position, volumes, expectedZoneIds);
-                    }
-                    else
-                    {
-                        row.Status = Status.Ok;
-                        if (proximityByZone.TryGetValue($"{res.Zone.id}", out var threshold))
-                            kindNote += $"proximity-gated, threshold {threshold}m.";
-                        row.Detail = kindNote;
-                        // Not exactly inside its own volume: works at runtime, but offer the snap.
-                        if (res.Kind != ObjectZoneTrackingBridge.MatchKind.Exact) row.FixVolume = res.Volume;
-                    }
+                foreach (var (target, res) in members)
+                {
+                    claimed.Add(target);
+                    group.Rows.Add(Classify(target, res, expectedZoneIds, scenario, volumes, chain, proximityByZone));
                 }
-                _rows.Add(row);
+                Finish(group);
             }
 
-            _rows.Sort((a, b) => a.Status.CompareTo(b.Status));
+            // Scenes no scenario owns (persistent scene, tools…): coverage check only.
+            var orphans = resolved.Where(r => !claimed.Contains(r.Target)).ToList();
+            if (orphans.Count > 0 && _scenarioOverride == null)
+            {
+                var group = new Group { Scenario = null, Name = "No scenario (persistent/unowned scenes)" };
+                var none = new HashSet<string>();
+                foreach (var (target, res) in orphans)
+                    group.Rows.Add(Classify(target, res, none, null, volumes, chain, proximityByZone));
+                Finish(group);
+            }
+
+            _groups.Sort((a, b) => (b.Broken - a.Broken) != 0 ? b.Broken.CompareTo(a.Broken)
+                : string.Compare(a.Name, b.Name, System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void Finish(Group group)
+        {
+            group.Rows.Sort((a, b) => a.Status.CompareTo(b.Status));
+            group.Broken = group.Rows.Count(r => r.Status == Status.Broken);
+        }
+
+        private Row Classify(Transform target, in EditorZoneResolver.Resolution res, HashSet<string> expectedZoneIds,
+            Scenario scenario, List<VolumeAuthoring> volumes, in EditorZoneResolver.ChainParams chain,
+            Dictionary<string, float> proximityByZone)
+        {
+            var row = new Row { Target = target, DetectedZone = res.Zone, TargetScenario = scenario };
+
+            if (!res.HasZone)
+            {
+                row.Status = Status.Broken;
+                row.ZoneLabel = "— no volume —";
+                row.Detail = "outside every volume (all failsafes miss): pending forever at runtime.";
+                row.FixVolume = NearestVolume(target.position, volumes, expectedZoneIds);
+                return row;
+            }
+
+            row.ZoneLabel = $"{res.Zone.zoneName} ({res.Zone.id})";
+            var kindNote = res.Kind switch
+            {
+                ObjectZoneTrackingBridge.MatchKind.Soft => $"pivot on the volume edge (±{chain.Tolerance}m). ",
+                ObjectZoneTrackingBridge.MatchKind.Lifted => $"pivot {res.Distance:F2}m above the volume (ceiling-lift). ",
+                ObjectZoneTrackingBridge.MatchKind.Fallback => $"pivot outside, nearest volume at {res.Distance:F2}m. ",
+                _ => "",
+            };
+
+            if (expectedZoneIds.Count > 0 && !expectedZoneIds.Contains($"{res.Zone.id}"))
+            {
+                row.Status = Status.Broken;
+                row.Detail = $"zone not required by the scenario — wrong room, or add it to the scenario. {kindNote}";
+                row.FixVolume = NearestVolume(target.position, volumes, expectedZoneIds);
+            }
+            else
+            {
+                row.Status = Status.Ok;
+                if (proximityByZone.TryGetValue($"{res.Zone.id}", out var threshold))
+                    kindNote += $"proximity-gated, threshold {threshold}m.";
+                row.Detail = kindNote;
+                // Not exactly inside its own volume: works at runtime, but offer the snap.
+                if (res.Kind != ObjectZoneTrackingBridge.MatchKind.Exact) row.FixVolume = res.Volume;
+            }
+            return row;
+        }
+
+        /// <summary>The override scenario alone, or every Scenario asset in the project.</summary>
+        private List<Scenario> CollectScenarios()
+        {
+            var scenarios = new List<Scenario>();
+            if (_scenarioOverride != null) { scenarios.Add(_scenarioOverride); return scenarios; }
+            foreach (var guid in AssetDatabase.FindAssets("t:Scenario"))
+            {
+                var scenario = AssetDatabase.LoadAssetAtPath<Scenario>(AssetDatabase.GUIDToAssetPath(guid));
+                if (scenario != null) scenarios.Add(scenario);
+            }
+            return scenarios;
+        }
+
+        private static IEnumerable<string> ScenarioScenePaths(Scenario scenario)
+        {
+            var asset = scenario.scene?.EditorSceneAsset;
+            if (asset != null) yield return AssetDatabase.GetAssetPath(asset);
+            if (scenario.dependenciesInThisScenario == null) yield break;
+            foreach (var dependency in scenario.dependenciesInThisScenario)
+            {
+                var dependencyAsset = dependency?.EditorSceneAsset;
+                if (dependencyAsset != null) yield return AssetDatabase.GetAssetPath(dependencyAsset);
+            }
+        }
+
+        /// <summary>Opens the audited scenarios' scenes additively, then scans all of them at once.</summary>
+        private void LoadScenarioScenesAndScan()
+        {
+            var opened = 0;
+            foreach (var path in CollectScenarios().SelectMany(ScenarioScenePaths).Distinct())
+            {
+                if (string.IsNullOrEmpty(path)) continue;
+                var scene = SceneManager.GetSceneByPath(path);
+                if (scene.IsValid() && scene.isLoaded) continue;
+                EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                opened++;
+            }
+            Debug.Log($"[ZoneValidation] Opened {opened} scenario scene(s) additively.");
+            Scan();
+        }
+
+        private static void AddZoneToScenario(Scenario scenario, Zone zone)
+        {
+            Undo.RecordObject(scenario, "Add zone to scenario");
+            scenario.listOfZonesNeededForThisScenario ??= new List<Zone>();
+            if (!scenario.listOfZonesNeededForThisScenario.Contains(zone))
+                scenario.listOfZonesNeededForThisScenario.Add(zone);
+            EditorUtility.SetDirty(scenario);
         }
 
         /// <summary>Nearest volume the object SHOULD be in: nearest among the scenario's expected
@@ -224,52 +373,6 @@ namespace jeanf.scenemanagement
             Undo.RecordObject(target, "Snap into zone volume");
             target.position = math.transform(frame, clamped);
             EditorUtility.SetDirty(target);
-        }
-
-        /// <summary>Zone ids required by the governing scenario(s): the manual override, or every
-        /// Scenario asset whose scene or dependencies are among the open scenes.</summary>
-        private HashSet<string> CollectExpectedZoneIds()
-        {
-            var expected = new HashSet<string>();
-            var scenarios = new List<Scenario>();
-
-            if (_scenarioOverride != null) scenarios.Add(_scenarioOverride);
-            else
-            {
-                var openPaths = new HashSet<string>();
-                for (var i = 0; i < SceneManager.sceneCount; i++) openPaths.Add(SceneManager.GetSceneAt(i).path);
-
-                foreach (var guid in AssetDatabase.FindAssets("t:Scenario"))
-                {
-                    var scenario = AssetDatabase.LoadAssetAtPath<Scenario>(AssetDatabase.GUIDToAssetPath(guid));
-                    if (scenario == null) continue;
-                    if (ReferencesAnOpenScene(scenario, openPaths)) scenarios.Add(scenario);
-                }
-            }
-
-            foreach (var scenario in scenarios)
-            {
-                _scenarioNames.Add(scenario.scenarioName ?? scenario.name);
-                if (scenario.listOfZonesNeededForThisScenario == null) continue;
-                foreach (var zone in scenario.listOfZonesNeededForThisScenario)
-                    if (zone != null) expected.Add($"{zone.id}");
-            }
-            return expected;
-        }
-
-        private static bool ReferencesAnOpenScene(Scenario scenario, HashSet<string> openPaths)
-        {
-            if (SceneRefMatches(scenario.scene, openPaths)) return true;
-            if (scenario.dependenciesInThisScenario == null) return false;
-            foreach (var dependency in scenario.dependenciesInThisScenario)
-                if (SceneRefMatches(dependency, openPaths)) return true;
-            return false;
-        }
-
-        private static bool SceneRefMatches(SceneReference reference, HashSet<string> openPaths)
-        {
-            var asset = reference?.EditorSceneAsset;
-            return asset != null && openPaths.Contains(AssetDatabase.GetAssetPath(asset));
         }
 
         private Dictionary<string, float> CollectProximityThresholds()

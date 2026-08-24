@@ -140,18 +140,23 @@ namespace jeanf.scenemanagement
             return new Resolution(null, ObjectZoneTrackingBridge.MatchKind.None, null, 0f, ambiguous);
         }
 
-        /// <summary>Transforms of every <see cref="IZoneTrackedObject"/> in the open scenes (one entry per GameObject).</summary>
+        /// <summary>Transforms of every <see cref="IZoneTrackedObject"/> in the open scenes (one
+        /// entry per GameObject), minus GameObjects carrying an <see cref="IZoneValidationExempt"/>
+        /// component (position-irrelevant managers).</summary>
         public static List<Transform> GatherTrackedObjects()
         {
             var behaviours = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            var seen = new HashSet<GameObject>();
+            var tracked = new HashSet<GameObject>();
+            var exempt = new HashSet<GameObject>();
             var result = new List<Transform>();
             foreach (var behaviour in behaviours)
             {
+                if (behaviour is IZoneValidationExempt) exempt.Add(behaviour.gameObject);
                 if (behaviour is not IZoneTrackedObject) continue;
-                if (!seen.Add(behaviour.gameObject)) continue;
+                if (!tracked.Add(behaviour.gameObject)) continue;
                 result.Add(behaviour.transform);
             }
+            if (exempt.Count > 0) result.RemoveAll(t => exempt.Contains(t.gameObject));
             return result;
         }
     }
