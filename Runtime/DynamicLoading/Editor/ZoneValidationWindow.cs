@@ -71,13 +71,15 @@ namespace jeanf.scenemanagement
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Scan open scenes", GUILayout.Height(24))) Scan();
-                var loadLabel = _scenarioOverride != null
-                    ? $"Load '{_scenarioOverride.scenarioName}' scenes + scan"
-                    : "Load ALL scenario scenes + scan";
-                if (GUILayout.Button(new GUIContent(loadLabel,
-                        "Opens every scenario's scene and dependencies additively (only the override's when one " +
-                        "is set), then audits all of them at once."), GUILayout.Height(24), GUILayout.Width(230)))
-                    LoadScenarioScenesAndScan();
+                if (_scenarioOverride != null &&
+                    GUILayout.Button(new GUIContent($"Load '{_scenarioOverride.scenarioName}' + scan",
+                        "Opens this scenario's scene and dependencies additively, then scans."),
+                        GUILayout.Height(24), GUILayout.Width(200)))
+                    LoadScenarioScenesAndScan(allScenarios: false);
+                if (GUILayout.Button(new GUIContent("Load ALL scenarios + scan",
+                        "Opens every scenario's scene and dependencies additively, clears the override, and audits " +
+                        "the whole project at once — one group per scenario."), GUILayout.Height(24), GUILayout.Width(180)))
+                    LoadScenarioScenesAndScan(allScenarios: true);
                 _showOk = GUILayout.Toggle(_showOk, "show OK", GUILayout.Width(80));
             }
             _scenarioOverride = (Scenario)EditorGUILayout.ObjectField(
@@ -356,18 +358,21 @@ namespace jeanf.scenemanagement
         }
 
         /// <summary>Opens the audited scenarios' scenes additively, then scans all of them at once.</summary>
-        private void LoadScenarioScenesAndScan()
+        private void LoadScenarioScenesAndScan(bool allScenarios)
         {
-            var opened = 0;
-            foreach (var path in CollectScenarios().SelectMany(ScenarioScenePaths).Distinct())
-            {
-                if (string.IsNullOrEmpty(path)) continue;
-                var scene = SceneManager.GetSceneByPath(path);
-                if (scene.IsValid() && scene.isLoaded) continue;
-                EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
-                opened++;
-            }
-            Debug.Log($"[ZoneValidation] Opened {opened} scenario scene(s) additively.");
+            if (allScenarios) _scenarioOverride = null; // group per scenario, audit everything
+
+            var toOpen = CollectScenarios().SelectMany(ScenarioScenePaths).Distinct()
+                .Where(path => !string.IsNullOrEmpty(path))
+                .Where(path => { var s = SceneManager.GetSceneByPath(path); return !s.IsValid() || !s.isLoaded; })
+                .ToList();
+
+            if (toOpen.Count > 10 && !EditorUtility.DisplayDialog("Zone Validation",
+                    $"This will open {toOpen.Count} scenario scenes additively. Continue?", "Open + scan", "Cancel"))
+                return;
+
+            foreach (var path in toOpen) EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+            Debug.Log($"[ZoneValidation] Opened {toOpen.Count} scenario scene(s) additively.");
             Scan();
         }
 
