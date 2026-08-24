@@ -48,6 +48,7 @@ namespace jeanf.scenemanagement
         {
             public Scenario Scenario;
             public string Name;
+            public string Note;
             public readonly List<Row> Rows = new List<Row>();
             public int Broken;
         }
@@ -124,12 +125,16 @@ namespace jeanf.scenemanagement
                 if (!next) continue;
 
                 using (new EditorGUI.IndentLevelScope())
+                {
+                    if (!string.IsNullOrEmpty(group.Note))
+                        EditorGUILayout.HelpBox(group.Note, MessageType.Info);
                     foreach (var row in group.Rows)
                     {
                         if (row.Status == Status.Ok && !_showOk) continue;
                         if (row.Target == null) continue;
                         if (DrawRow(row)) rescanNeeded = true;
                     }
+                }
             }
             EditorGUILayout.EndScrollView();
             if (rescanNeeded)
@@ -176,6 +181,7 @@ namespace jeanf.scenemanagement
                         changed = true;
                     }
                 }
+                EditorGUILayout.LabelField(row.Target.gameObject.scene.name, GUILayout.Width(120));
                 EditorGUILayout.LabelField(row.ZoneLabel, GUILayout.Width(170));
                 EditorGUILayout.LabelField(row.Detail);
             }
@@ -201,14 +207,36 @@ namespace jeanf.scenemanagement
                 .ToList();
             _objectCount = resolved.Count;
 
+            var openPaths = new HashSet<string>();
+            for (var i = 0; i < SceneManager.sceneCount; i++) openPaths.Add(SceneManager.GetSceneAt(i).path);
+
             var claimed = new HashSet<Transform>();
             foreach (var scenario in scenarios)
             {
+                // Match by asset path AND by scene name — SceneReference assets can go stale while
+                // the name still identifies the open scene unambiguously.
                 var paths = new HashSet<string>(ScenarioScenePaths(scenario));
-                var members = resolved.Where(r => paths.Contains(r.Target.gameObject.scene.path)).ToList();
-                if (members.Count == 0) continue;
+                var names = new HashSet<string>(paths.Select(System.IO.Path.GetFileNameWithoutExtension));
+                if (!string.IsNullOrEmpty(scenario.scene?.Name)) names.Add(scenario.scene.Name);
+                var members = resolved.Where(r => paths.Contains(r.Target.gameObject.scene.path)
+                                               || names.Contains(r.Target.gameObject.scene.name)).ToList();
+
+                // Skip scenarios with no presence at all; keep the override and any scenario whose
+                // scenes are open, so an empty result is visible instead of silently vanishing.
+                if (members.Count == 0 && scenario != _scenarioOverride && !paths.Overlaps(openPaths)) continue;
 
                 var group = new Group { Scenario = scenario, Name = scenario.scenarioName ?? scenario.name };
+                if (members.Count == 0)
+                {
+                    var perScene = resolved.GroupBy(r => r.Target.gameObject.scene.name)
+                        .Select(g => $"{g.Key}:{g.Count()}");
+                    group.Note = $"No tracked objects matched this scenario's scenes [{string.Join(", ", names)}]. " +
+                                 $"Tracked objects live in: {string.Join(", ", perScene)}.";
+                    Debug.Log($"[ZoneValidation] '{group.Name}': 0 objects matched. Scenario scene paths: " +
+                              $"[{string.Join(" | ", paths)}]. Open scenes: [{string.Join(" | ", openPaths)}]. " +
+                              $"Objects per scene: {string.Join(", ", perScene)}");
+                }
+
                 var expectedZoneIds = new HashSet<string>();
                 if (scenario.listOfZonesNeededForThisScenario != null)
                     foreach (var zone in scenario.listOfZonesNeededForThisScenario)
@@ -222,9 +250,9 @@ namespace jeanf.scenemanagement
                 Finish(group);
             }
 
-            // Scenes no scenario owns (persistent scene, tools…): coverage check only.
+            // Objects in scenes no audited scenario owns (persistent scene, tools…): coverage check only.
             var orphans = resolved.Where(r => !claimed.Contains(r.Target)).ToList();
-            if (orphans.Count > 0 && _scenarioOverride == null)
+            if (orphans.Count > 0)
             {
                 var group = new Group { Scenario = null, Name = "No scenario (persistent/unowned scenes)" };
                 var none = new HashSet<string>();
@@ -300,14 +328,29 @@ namespace jeanf.scenemanagement
 
         private static IEnumerable<string> ScenarioScenePaths(Scenario scenario)
         {
-            var asset = scenario.scene?.EditorSceneAsset;
-            if (asset != null) yield return AssetDatabase.GetAssetPath(asset);
+            var main = ScenePathOf(scenario.scene);
+            if (main != null) yield return main;
             if (scenario.dependenciesInThisScenario == null) yield break;
             foreach (var dependency in scenario.dependenciesInThisScenario)
             {
-                var dependencyAsset = dependency?.EditorSceneAsset;
-                if (dependencyAsset != null) yield return AssetDatabase.GetAssetPath(dependencyAsset);
+                var path = ScenePathOf(dependency);
+                if (path != null) yield return path;
             }
+        }
+
+        /// <summary>Asset path of the referenced scene; falls back to the addressable address when
+        /// it is itself an asset path (the common case in this project).</summary>
+        private static string ScenePathOf(SceneReference reference)
+        {
+            if (reference == null) return null;
+            var asset = reference.EditorSceneAsset;
+            if (asset != null)
+            {
+                var path = AssetDatabase.GetAssetPath(asset);
+                if (!string.IsNullOrEmpty(path)) return path;
+            }
+            var address = reference.Address;
+            return !string.IsNullOrEmpty(address) && address.EndsWith(".unity") ? address : null;
         }
 
         /// <summary>Opens the audited scenarios' scenes additively, then scans all of them at once.</summary>
