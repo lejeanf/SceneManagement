@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -10,18 +11,19 @@ namespace jeanf.scenemanagement
     /// <summary>
     /// Edit-mode audit of play-mode zone detection: every <see cref="IZoneTrackedObject"/> in the
     /// open scenes is resolved against the open volumes with the bridge's exact failsafe chain
-    /// (<see cref="EditorZoneResolver"/>) and classified:
-    ///  - BROKEN — matches no volume (pending at runtime), or its detected zone is not among the
-    ///    zones the governing <see cref="Scenario"/> requires (listOfZonesNeededForThisScenario);
-    ///  - SUSPECT — assigned only via the soft/lifted/fallback failsafe, or the pivot sits within
-    ///    tolerance of more than one volume (ambiguous — a resized room can silently flip it);
-    ///  - OK — exact, unambiguous, and consistent with the scenario.
+    /// (<see cref="EditorZoneResolver"/>) and classified binary:
+    ///  - BROKEN — resolves to no zone at all (pending at runtime), or to a zone that is not among
+    ///    the ones the governing <see cref="Scenario"/> requires (listOfZonesNeededForThisScenario);
+    ///  - OK — resolves to a scenario-consistent zone. How it resolved (edge/lifted/fallback) is
+    ///    kept as informational detail, not a status.
+    /// Rows offer Select (ping in hierarchy) and, when the pivot is not exactly inside its correct
+    /// volume, Fix — the minimal per-axis snap of the object into that volume (undoable).
     /// The governing scenario is auto-detected from the open scenes (Scenario.scene or its
     /// dependencies) and can be overridden manually.
     /// </summary>
     public class ZoneValidationWindow : EditorWindow
     {
-        private enum Status { Broken, Suspect, Ok }
+        private enum Status { Broken, Ok }
 
         private struct Row
         {
@@ -29,7 +31,8 @@ namespace jeanf.scenemanagement
             public Status Status;
             public string ZoneLabel;
             public string Detail;
-            public float ProximityThreshold; // 0 = not proximity-gated
+            /// <summary>Volume to snap the object into with Fix; null when no fix applies.</summary>
+            public VolumeAuthoring FixVolume;
         }
 
         private readonly List<Row> _rows = new List<Row>();
@@ -72,11 +75,18 @@ namespace jeanf.scenemanagement
 
             var scenarioLabel = _scenarioNames.Count > 0 ? string.Join(", ", _scenarioNames) : "none detected";
             var broken = _rows.Count(r => r.Status == Status.Broken);
-            var suspect = _rows.Count(r => r.Status == Status.Suspect);
             EditorGUILayout.LabelField($"Volumes: {_volumeCount}   Objects: {_rows.Count}   Scenario: {scenarioLabel}");
-            EditorGUILayout.LabelField($"Broken: {broken}   Suspect: {suspect}   OK: {_rows.Count - broken - suspect}", EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField($"Broken: {broken}   OK: {_rows.Count - broken}", EditorStyles.boldLabel);
+                using (new EditorGUI.DisabledScope(broken == 0))
+                    if (GUILayout.Button($"Select broken ({broken})", GUILayout.Width(140)))
+                        Selection.objects = _rows.Where(r => r.Status == Status.Broken && r.Target != null)
+                            .Select(r => (Object)r.Target.gameObject).ToArray();
+            }
             EditorGUILayout.Space(2);
 
+            var rescanNeeded = false;
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             foreach (var row in _rows)
             {
@@ -85,20 +95,32 @@ namespace jeanf.scenemanagement
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    var icon = row.Status switch
-                    {
-                        Status.Broken => "console.erroricon.sml",
-                        Status.Suspect => "console.warnicon.sml",
-                        _ => "TestPassed",
-                    };
+                    var icon = row.Status == Status.Broken ? "console.erroricon.sml" : "TestPassed";
                     GUILayout.Label(EditorGUIUtility.IconContent(icon), GUILayout.Width(20), GUILayout.Height(18));
                     using (new EditorGUI.DisabledScope(true))
                         EditorGUILayout.ObjectField(row.Target.gameObject, typeof(GameObject), true, GUILayout.MinWidth(140));
+                    if (GUILayout.Button("Select", GUILayout.Width(50)))
+                    {
+                        Selection.activeGameObject = row.Target.gameObject;
+                        EditorGUIUtility.PingObject(row.Target.gameObject);
+                        SceneView.lastActiveSceneView?.Frame(new Bounds(row.Target.position, Vector3.one * 2f), false);
+                    }
+                    using (new EditorGUI.DisabledScope(row.FixVolume == null))
+                        if (GUILayout.Button(new GUIContent("Fix",
+                                row.FixVolume != null
+                                    ? $"Snap into '{row.FixVolume.zone.zoneName}' with the minimal per-axis move (undoable)."
+                                    : "No target volume to snap into."), GUILayout.Width(36)))
+                        {
+                            SnapIntoVolume(row.Target, row.FixVolume);
+                            rescanNeeded = true;
+                        }
                     EditorGUILayout.LabelField(row.ZoneLabel, GUILayout.Width(170));
                     EditorGUILayout.LabelField(row.Detail);
                 }
             }
             EditorGUILayout.EndScrollView();
+            if (rescanNeeded)
+                EditorApplication.delayCall += () => { Scan(); Repaint(); };
 
             EditorGUILayout.Space(2);
             EditorGUILayout.HelpBox("Proximity: select the ObjectZoneTrackingBridge (Core prefab) and enable " +
@@ -128,43 +150,80 @@ namespace jeanf.scenemanagement
                 {
                     row.Status = Status.Broken;
                     row.ZoneLabel = "— no volume —";
-                    row.Detail = "matches no volume even after all failsafes: pending forever at runtime.";
+                    row.Detail = "outside every volume (all failsafes miss): pending forever at runtime.";
+                    row.FixVolume = NearestVolume(target.position, volumes, expectedZoneIds);
                 }
                 else
                 {
                     row.ZoneLabel = $"{res.Zone.zoneName} ({res.Zone.id})";
-                    if (proximityByZone.TryGetValue($"{res.Zone.id}", out var threshold)) row.ProximityThreshold = threshold;
+                    var kindNote = res.Kind switch
+                    {
+                        ObjectZoneTrackingBridge.MatchKind.Soft => $"pivot on the volume edge (±{chain.Tolerance}m). ",
+                        ObjectZoneTrackingBridge.MatchKind.Lifted => $"pivot {res.Distance:F2}m above the volume (ceiling-lift). ",
+                        ObjectZoneTrackingBridge.MatchKind.Fallback => $"pivot outside, nearest volume at {res.Distance:F2}m. ",
+                        _ => "",
+                    };
 
                     if (expectedZoneIds.Count > 0 && !expectedZoneIds.Contains($"{res.Zone.id}"))
                     {
                         row.Status = Status.Broken;
-                        row.Detail = $"detected zone is NOT required by the scenario ({res.Kind}) — object is in the wrong room for this scenario.";
-                    }
-                    else if (res.Kind != ObjectZoneTrackingBridge.MatchKind.Exact)
-                    {
-                        row.Status = Status.Suspect;
-                        row.Detail = res.Kind switch
-                        {
-                            ObjectZoneTrackingBridge.MatchKind.Soft => $"only inside with ±{chain.Tolerance}m tolerance — enlarge the volume or move the object.",
-                            ObjectZoneTrackingBridge.MatchKind.Lifted => $"pivot {res.Distance:F2}m above the volume top — lower the object (ceiling-lift relic).",
-                            _ => $"fallback: nearest volume at {res.Distance:F2}m — coverage gap, fix the volume.",
-                        };
-                    }
-                    else if (res.AmbiguousMatches > 1)
-                    {
-                        row.Status = Status.Suspect;
-                        row.Detail = $"within {chain.Tolerance}m of {res.AmbiguousMatches} volumes — a small room resize can flip the zone.";
+                        row.Detail = $"zone not required by the scenario — wrong room. {kindNote}";
+                        row.FixVolume = NearestVolume(target.position, volumes, expectedZoneIds);
                     }
                     else
                     {
                         row.Status = Status.Ok;
-                        row.Detail = row.ProximityThreshold > 0f ? $"proximity-gated, threshold {row.ProximityThreshold}m." : "";
+                        if (proximityByZone.TryGetValue($"{res.Zone.id}", out var threshold))
+                            kindNote += $"proximity-gated, threshold {threshold}m.";
+                        row.Detail = kindNote;
+                        // Not exactly inside its own volume: works at runtime, but offer the snap.
+                        if (res.Kind != ObjectZoneTrackingBridge.MatchKind.Exact) row.FixVolume = res.Volume;
                     }
                 }
                 _rows.Add(row);
             }
 
             _rows.Sort((a, b) => a.Status.CompareTo(b.Status));
+        }
+
+        /// <summary>Nearest volume the object SHOULD be in: nearest among the scenario's expected
+        /// zones when any are known, nearest overall otherwise.</summary>
+        private static VolumeAuthoring NearestVolume(Vector3 position, List<VolumeAuthoring> volumes, HashSet<string> expectedZoneIds)
+        {
+            VolumeAuthoring best = null;
+            var bestDistSq = float.MaxValue;
+            foreach (var volume in volumes)
+            {
+                if (expectedZoneIds.Count > 0 && !expectedZoneIds.Contains($"{volume.zone.id}")) continue;
+                var t = volume.transform;
+                var distSq = VolumeMath.DistanceSq(float4x4.TRS(t.position, t.rotation, new float3(1f)), t.localScale, position);
+                if (distSq >= bestDistSq) continue;
+                bestDistSq = distSq;
+                best = volume;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Moves the object into the volume with the minimal per-axis correction: the pivot is
+        /// expressed in the volume's rotation-only local frame and clamped (with a small inset)
+        /// into the box — axes already inside don't move, so the common case is a straight move
+        /// along one axis toward the volume. Undoable.
+        /// </summary>
+        private static void SnapIntoVolume(Transform target, VolumeAuthoring volume)
+        {
+            var t = volume.transform;
+            var frame = float4x4.TRS(t.position, t.rotation, new float3(1f));
+            var local = VolumeMath.ToLocal(frame, target.position);
+            var extents = (float3)t.localScale * 0.5f;
+            var inset = math.min(new float3(0.1f), extents * 0.25f);
+            var limit = math.max(extents - inset, new float3(0f));
+            var clamped = math.clamp(local, -limit, limit);
+            if (math.all(clamped == local)) return; // already inside
+
+            Undo.RecordObject(target, "Snap into zone volume");
+            target.position = math.transform(frame, clamped);
+            EditorUtility.SetDirty(target);
         }
 
         /// <summary>Zone ids required by the governing scenario(s): the manual override, or every
