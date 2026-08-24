@@ -68,6 +68,13 @@ namespace jeanf.scenemanagement
 
         public BridgeMode Mode { get => mode; set => mode = value; }
 
+        // Read-only views of the failsafe-chain and proximity config, for the editor
+        // validation tools (EditorZoneResolver mirrors the chain with these values).
+        public float CoverageTolerance => coverageTolerance;
+        public float MaxLiftAboveVolume => maxLiftAbove;
+        public float MaxFallbackDist => maxFallbackDistance;
+        public IReadOnlyList<ProximityZoneConfig> ProximityZones => proximityVisibilityZones;
+
         private class Entry
         {
             public Transform Tf;
