@@ -248,6 +248,7 @@ namespace jeanf.scenemanagement
                     group.Rows.Add(Classify(target, res, expectedZoneIds, scenario, volumes, chain, proximityByZone));
                 }
                 Finish(group);
+                _groups.Add(group);
             }
 
             // Objects in scenes no audited scenario owns (persistent scene, tools…): coverage check only.
@@ -259,6 +260,7 @@ namespace jeanf.scenemanagement
                 foreach (var (target, res) in orphans)
                     group.Rows.Add(Classify(target, res, none, null, volumes, chain, proximityByZone));
                 Finish(group);
+                _groups.Add(group);
             }
 
             _groups.Sort((a, b) => (b.Broken - a.Broken) != 0 ? b.Broken.CompareTo(a.Broken)
