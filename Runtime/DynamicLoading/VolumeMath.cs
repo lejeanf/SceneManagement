@@ -42,6 +42,22 @@ namespace jeanf.scenemanagement
             return math.all(distance < range);
         }
 
+        /// <summary>
+        /// Vertical overshoot (meters, volume-local up) of the point above the box top when its
+        /// X/Z footprint is inside the box — the ceiling-lifted-object case. Returns
+        /// <see cref="float.PositiveInfinity"/> when the footprint misses the box; zero or
+        /// negative when the point is not above the top (exact containment covers those).
+        /// Downward overshoot is deliberately not forgiven: an object under a box belongs to
+        /// the storey below, not to that box.
+        /// </summary>
+        public static float LiftAbove(in float4x4 localToWorld, in float3 scale, in float3 worldPoint)
+        {
+            var local = ToLocal(localToWorld, worldPoint);
+            var range = scale * 0.5f;
+            if (math.abs(local.x) >= range.x || math.abs(local.z) >= range.z) return float.PositiveInfinity;
+            return local.y - range.y;
+        }
+
         /// <summary>Squared metric distance from the point to the box surface; 0 when inside.</summary>
         public static float DistanceSq(in float4x4 localToWorld, in float3 scale, in float3 worldPoint)
         {

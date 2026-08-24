@@ -29,7 +29,7 @@ namespace jeanf.scenemanagement
         private const string LogPrefix = "[SceneManagement]";
 
         public enum BridgeMode { Shadow, Active }
-        public enum MatchKind : byte { None = 0, Exact = 1, Soft = 2, Fallback = 3 }
+        public enum MatchKind : byte { None = 0, Exact = 1, Soft = 2, Fallback = 3, Lifted = 4 }
 
         public static ObjectZoneTrackingBridge Instance { get; private set; }
 
@@ -46,6 +46,8 @@ namespace jeanf.scenemanagement
         [SerializeField] private float coverageTolerance = 0.25f;
         [Tooltip("Nearest-candidate pass: max distance to the closest volume for a fallback assignment. <= 0 disables.")]
         [SerializeField] private float maxFallbackDistance = 2f;
+        [Tooltip("Lifted pass: max meters an object's pivot may sit above a volume's top (X/Z footprint inside) and still be assigned to it. Covers logic objects lifted toward the ceiling to dodge the old physics-based detection. <= 0 disables.")]
+        [SerializeField] private float maxLiftAbove = 4f;
         [Header("Zone-scoped proximity visibility:")]
         [Tooltip("Objects assigned to these zones get proximity visibility toggled by player distance (ProximityVisibilityChanged). Replaces the old per-boundary checkForProximity + setCustomList config (e.g. the RueDesCapucines street zone, threshold 3).")]
         [SerializeField] private List<ProximityZoneConfig> proximityVisibilityZones = new List<ProximityZoneConfig>();
@@ -493,6 +495,7 @@ namespace jeanf.scenemanagement
             [ReadOnly] public NativeArray<float4x4> VolL2W;
             [ReadOnly] public NativeArray<float3> VolScale;
             public float Tolerance;
+            public float MaxLiftAbove;
             public float MaxFallbackDistSq;
 
             public NativeArray<int> ResultVolume;
@@ -523,7 +526,28 @@ namespace jeanf.scenemanagement
                     }
                 }
 
-                // 3) nearest candidate within limit
+                // 3) lifted pass: X/Z footprint inside a volume, pivot above its top
+                //    (ceiling-lifted logic objects). Smallest overshoot wins.
+                if (MaxLiftAbove > 0f)
+                {
+                    var bestLift = -1;
+                    var bestOvershoot = MaxLiftAbove;
+                    for (var v = 0; v < VolL2W.Length; v++)
+                    {
+                        var overshoot = VolumeMath.LiftAbove(VolL2W[v], VolScale[v], p);
+                        if (overshoot <= 0f || overshoot >= bestOvershoot) continue;
+                        bestOvershoot = overshoot;
+                        bestLift = v;
+                    }
+                    if (bestLift >= 0)
+                    {
+                        ResultVolume[index] = bestLift;
+                        ResultKind[index] = (byte)MatchKind.Lifted;
+                        return;
+                    }
+                }
+
+                // 4) nearest candidate within limit
                 if (MaxFallbackDistSq > 0f)
                 {
                     var best = -1;
@@ -543,7 +567,7 @@ namespace jeanf.scenemanagement
                     }
                 }
 
-                // 4) pending + alarm (handled on dispatch)
+                // 5) pending + alarm (handled on dispatch)
                 ResultVolume[index] = -1;
                 ResultKind[index] = (byte)MatchKind.None;
             }
@@ -568,6 +592,7 @@ namespace jeanf.scenemanagement
                 VolL2W = _volL2W,
                 VolScale = _volScale,
                 Tolerance = coverageTolerance,
+                MaxLiftAbove = maxLiftAbove,
                 MaxFallbackDistSq = maxFallbackDistance > 0f ? maxFallbackDistance * maxFallbackDistance : 0f,
                 ResultVolume = resultVolume,
                 ResultKind = resultKind,
@@ -605,6 +630,9 @@ namespace jeanf.scenemanagement
             if (kind == MatchKind.Soft)
                 Debug.Log($"{LogPrefix} ObjectZoneTrackingBridge: soft assignment '{e.Tf.name}' → '{zoneId}' " +
                           $"(within {coverageTolerance}m tolerance) — consider enlarging the volume.", e.Tf);
+            else if (kind == MatchKind.Lifted)
+                Debug.LogWarning($"{LogPrefix} ObjectZoneTrackingBridge: lifted assignment '{e.Tf.name}' → '{zoneId}' " +
+                                 $"(pivot above the volume top, within {maxLiftAbove}m) — lower the object or raise the volume.", e.Tf);
             else if (kind == MatchKind.Fallback)
                 Debug.LogWarning($"{LogPrefix} ObjectZoneTrackingBridge: fallback assignment '{e.Tf.name}' → '{zoneId}' " +
                                  $"(nearest volume within {maxFallbackDistance}m) — coverage gap, fix the volume.", e.Tf);
@@ -675,7 +703,11 @@ namespace jeanf.scenemanagement
                 if (thresholdSqr <= 0f) continue;
 
                 var inRegion = _candidateZoneIds.Contains(e.ZoneId);
-                var visible = inRegion && (e.Tf.position - playerPos).sqrMagnitude <= thresholdSqr;
+                // Horizontal distance only: "near this object" must not depend on how high the
+                // logic object's pivot sits (ceiling-lifted objects added 2-3m of dead offset).
+                var delta = e.Tf.position - playerPos;
+                delta.y = 0f;
+                var visible = inRegion && delta.sqrMagnitude <= thresholdSqr;
                 if (visible == e.ProximityVisible) continue;
                 e.ProximityVisible = visible;
 

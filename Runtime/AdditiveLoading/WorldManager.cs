@@ -60,6 +60,7 @@ namespace jeanf.scenemanagement
         private static WorldManager Instance;
         public static bool IsRegionTransitioning => _isRegionTransitioning;
         private static bool _isRegionTransitioning = false;
+        private static FixedString128Bytes _zoneHeldDuringTransition;
 
         [Header("Loading Coordination")]
         [SerializeField] private bool trackInitialLoading = true;
@@ -381,6 +382,7 @@ namespace jeanf.scenemanagement
             _lastNotifiedZone = "";
             _lastNotifiedRegion = "";
             _isRegionTransitioning = false;
+            _zoneHeldDuringTransition = default;
             IsInitialized = false;
 
             InitializeLoadingStates();
@@ -501,7 +503,14 @@ namespace jeanf.scenemanagement
         
         public static void NotifyZoneChangeFromECS(FixedString128Bytes zoneId)
         {
-            if (Instance == null || _isRegionTransitioning || zoneId.IsEmpty) return;
+            if (Instance == null || zoneId.IsEmpty) return;
+            if (_isRegionTransitioning)
+            {
+                // The ECS VolumeSystem only notifies on change, so a zone entered mid-transition
+                // (e.g. landing in the destination elevator) would otherwise be lost for good.
+                _zoneHeldDuringTransition = zoneId;
+                return;
+            }
             Instance.OnZoneChangedFromECS(zoneId);
         }
         
@@ -635,7 +644,19 @@ namespace jeanf.scenemanagement
                 SetLoadingComplete(LoadingSource.InitialRegion, true);
             }
 
-            if (_currentPlayerRegion?.zonesInThisRegion != null && _currentPlayerRegion.zonesInThisRegion.Count > 0)
+            // Prefer the zone the volume system actually detected during the transition (latest wins)
+            // over guessing zonesInThisRegion[0]; the guess remains the fallback when nothing was held
+            // or the held zone fails the dictionary/accessibility checks.
+            var appliedHeldZone = false;
+            if (!_zoneHeldDuringTransition.IsEmpty)
+            {
+                var heldZone = _zoneHeldDuringTransition;
+                _zoneHeldDuringTransition = default;
+                OnZoneChangedFromECS(heldZone);
+                appliedHeldZone = _lastNotifiedZone == heldZone.ToString();
+            }
+
+            if (!appliedHeldZone && _currentPlayerRegion?.zonesInThisRegion != null && _currentPlayerRegion.zonesInThisRegion.Count > 0)
             {
                 var firstZone = _currentPlayerRegion.zonesInThisRegion[0];
                 if (firstZone != null)
