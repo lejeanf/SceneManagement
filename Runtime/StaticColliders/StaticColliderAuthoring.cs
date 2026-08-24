@@ -73,7 +73,7 @@ namespace jeanf.scenemanagement
         /// is in reach — without one the prop bakes to nothing and the player walks through it.
         /// Surfaced through the propertyDrawer validation framework (inspector banner, hierarchy
         /// highlight, play-mode console scan); the project-wide prefab sweep lives in
-        /// Tools/SceneManagement/Validate Static Colliders.
+        /// Tools/Jeanf/SceneManagement/Validate Static Colliders.
         /// </summary>
         public bool IsValid
         {

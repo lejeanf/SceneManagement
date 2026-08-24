@@ -21,7 +21,7 @@ namespace jeanf.scenemanagement
         private Dictionary<string, List<string>> previewData = new Dictionary<string, List<string>>();
         private Dictionary<string, string> _zoneDisplayNames = new Dictionary<string, string>();
 
-        [MenuItem("Tools/SceneManagement/Volume Data Generator")]
+        [MenuItem("Tools/Jeanf/SceneManagement/Volume Data Generator")]
         public static void ShowWindow()
         {
             GetWindow<VolumeDataGenerator>("Volume Data Generator");

@@ -61,7 +61,7 @@ namespace jeanf.scenemanagement
         private bool _scanned;
         private Vector2 _scroll;
 
-        [MenuItem("Tools/SceneManagement/Zone Detection Validation")]
+        [MenuItem("Tools/Jeanf/SceneManagement/Zone Detection Validation")]
         private static void Open() => GetWindow<ZoneValidationWindow>("Zone Validation");
 
         private void OnHierarchyChange() => _scanned = false;

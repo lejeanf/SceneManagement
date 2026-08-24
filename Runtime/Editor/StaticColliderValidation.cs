@@ -38,7 +38,7 @@ namespace jeanf.scenemanagement.Editor
                 "Add a StaticColliderBridge component to an always-loaded GameObject (e.g. a manager in your main scene).");
         }
 
-        [MenuItem("Tools/SceneManagement/Validate Static Colliders")]
+        [MenuItem("Tools/Jeanf/SceneManagement/Validate Static Colliders")]
         public static void ValidatePrefabs()
         {
             var guids = AssetDatabase.FindAssets("t:Prefab");

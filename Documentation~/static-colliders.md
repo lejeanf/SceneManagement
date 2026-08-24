@@ -141,7 +141,7 @@ No need to replicate UniversalPlayer's `SetupValidator` window. A single small e
 - **`[MenuItem]` scan** — prefabs with `StaticColliderAuthoring` but zero *supported* colliders,
   or with a `MeshCollider` under the component (unsupported, named explicitly). Menu path per the
   project convention `Tools/[PackageName]/[Function]`:
-  **`Tools/SceneManagement/Validate Static Colliders`** — no new menu root. See *Menu paths* below.
+  **`Tools/Jeanf/SceneManagement/Validate Static Colliders`** — no new menu root. See *Menu paths* below.
 - **layer warning** — authored collider layers that don't collide with the player's layer in the
   Physics Layer Collision Matrix. Complements UniversalPlayer's existing
   `CheckPlayerGroundCollision`, which only covers the player's side.
@@ -197,11 +197,11 @@ plus a stale registry**. The 1.4.0 bump in `SceneManagement/package.json` is not
 
 Convention: `Tools/[PackageName]/[Function]`, no new roots.
 
-The new validator is **`Tools/SceneManagement/Validate Static Colliders`**, and this package's two
+The new validator is **`Tools/Jeanf/SceneManagement/Validate Static Colliders`**, and this package's two
 existing items are renamed **in the same commit** so it ships with one root, not two:
 
-- `Tools/Scene Management/Scene Loading Tracker` → `Tools/SceneManagement/Scene Loading Tracker`
-- `Tools/Scene Management/Volume Data Generator` → `Tools/SceneManagement/Volume Data Generator`
+- `Tools/Scene Management/Scene Loading Tracker` → `Tools/Jeanf/SceneManagement/Scene Loading Tracker`
+- `Tools/Scene Management/Volume Data Generator` → `Tools/Jeanf/SceneManagement/Volume Data Generator`
 
 These ride along free on the 1.4.0 bump this feature already needs.
 

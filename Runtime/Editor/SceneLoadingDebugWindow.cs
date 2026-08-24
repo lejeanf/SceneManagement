@@ -9,7 +9,7 @@ namespace jeanf.scenemanagement.Editor
 {
     public class SceneLoadingDebugWindow : EditorWindow
     {
-        [MenuItem("Tools/SceneManagement/Scene Loading Tracker")]
+        [MenuItem("Tools/Jeanf/SceneManagement/Scene Loading Tracker")]
         public static void ShowWindow()
         {
             var window = GetWindow<SceneLoadingDebugWindow>("Scene Loading Tracker");
