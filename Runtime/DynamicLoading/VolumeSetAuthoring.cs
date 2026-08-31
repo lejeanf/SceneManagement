@@ -27,7 +27,7 @@ namespace jeanf.scenemanagement
 
                     AddComponent(sceneEntity, new StreamingGO
                     {
-                        InstanceID = authoring.gameObject.GetInstanceID()
+                        InstanceID = authoring.gameObject.GetEntityId()
                     });
 
                     var buffer = AddBuffer<VolumeBuffer>(sceneEntity);

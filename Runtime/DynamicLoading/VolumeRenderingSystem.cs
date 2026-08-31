@@ -15,7 +15,7 @@ namespace jeanf.scenemanagement
     public partial struct VolumeRenderingSystem : ISystem
     {
 #if UNITY_EDITOR
-        private static int[] s_cachedInstanceIDs = System.Array.Empty<int>();
+        private static EntityId[] s_cachedInstanceIDs = System.Array.Empty<EntityId>();
         private static int s_lastSelectionCount = -1;
 #endif
         
@@ -27,7 +27,7 @@ namespace jeanf.scenemanagement
 
         public void OnUpdate(ref SystemState state)
         {
-            NativeHashSet<int> selectedGameObjectsIds = new NativeHashSet<int>(100, Allocator.TempJob);
+            NativeHashSet<EntityId> selectedGameObjectsIds = new NativeHashSet<EntityId>(100, Allocator.TempJob);
 
 #if UNITY_EDITOR
             // Only update cache when selection changes
@@ -36,7 +36,7 @@ namespace jeanf.scenemanagement
             {
                 s_lastSelectionCount = currentSelectionCount;
                 var selectedIds = Selection.entityIds;
-                s_cachedInstanceIDs = new int[selectedIds.Length];
+                s_cachedInstanceIDs = new EntityId[selectedIds.Length];
                 for (int i = 0; i < selectedIds.Length; i++) s_cachedInstanceIDs[i] = selectedIds[i];
             }
     
@@ -87,7 +87,7 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         public partial struct DrawBBJob : IJobEntity
         {
-            [ReadOnly] public NativeHashSet<int> selectedGOIds;
+            [ReadOnly] public NativeHashSet<EntityId> selectedGOIds;
             public bool checkGO;
             public Color color;
 
@@ -108,7 +108,7 @@ namespace jeanf.scenemanagement
         [BurstCompile]
         public partial struct DrawBBSceneJob : IJobEntity
         {
-            [ReadOnly] public NativeHashSet<int> selectedGOIds;
+            [ReadOnly] public NativeHashSet<EntityId> selectedGOIds;
             [ReadOnly] public ComponentLookup<Volume> streamingVolumeLookUp;
             [ReadOnly] public ComponentLookup<LocalToWorld> localToWorldLookUp;
             public bool checkGO;

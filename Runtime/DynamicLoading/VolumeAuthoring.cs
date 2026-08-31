@@ -24,7 +24,7 @@ namespace jeanf.scenemanagement
 
                 AddComponent(entity, new StreamingGO
                 {
-                    InstanceID = authoring.gameObject.GetInstanceID()
+                    InstanceID = authoring.gameObject.GetEntityId()
                 });
                 
                 if(authoring.isDebug) AddComponent<VolumeDebugTag>(entity);
@@ -40,6 +40,6 @@ namespace jeanf.scenemanagement
 
     public struct StreamingGO : IComponentData
     {
-        public int InstanceID;
+        public EntityId InstanceID;
     }
 }
