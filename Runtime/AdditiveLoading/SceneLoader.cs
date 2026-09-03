@@ -95,7 +95,12 @@ namespace jeanf.scenemanagement
         #if BAKERY_INCLUDED
             if (!_bakeryChecked)
             {
-                foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+#if UNITY_6000_4_OR_NEWER
+                var assemblies = UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies();
+#else
+                var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+#endif
+                foreach (var assembly in assemblies)
                 {
                     var type = assembly.GetType("ftLightmaps");
                     if (type != null)

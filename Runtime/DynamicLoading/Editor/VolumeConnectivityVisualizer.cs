@@ -112,7 +112,7 @@ namespace jeanf.scenemanagement
         {
             if (connectivity == null) return;
 
-            var allVolumes = Object.FindObjectsByType<VolumeAuthoring>(FindObjectsSortMode.None);
+            var allVolumes = Object.FindObjectsByType<VolumeAuthoring>(FindObjectsInactive.Exclude);
             var volumesByZone = GroupVolumesByZone(allVolumes);
 
             var zoneToRegion = new Dictionary<string, Region>();
@@ -401,7 +401,7 @@ namespace jeanf.scenemanagement
         private void FindRegionConnectivity()
         {
             if (_foundConnectivity != null) return;
-            var connectivityAuthoring = Object.FindFirstObjectByType<RegionConnectivityAuthoring>();
+            var connectivityAuthoring = Object.FindAnyObjectByType<RegionConnectivityAuthoring>();
             if (connectivityAuthoring != null && connectivityAuthoring.regionConnectivity != null)
                 _foundConnectivity = connectivityAuthoring.regionConnectivity;
         }

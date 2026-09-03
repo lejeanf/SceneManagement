@@ -28,10 +28,10 @@ namespace jeanf.scenemanagement.Editor
         private static void WarnIfBridgeMissing()
         {
             var usesSubScenes = Object.FindObjectsByType<Unity.Scenes.SubScene>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None).Length > 0;
+                FindObjectsInactive.Include).Length > 0;
             if (!usesSubScenes) return;
 
-            if (Object.FindFirstObjectByType<StaticColliderBridge>(FindObjectsInactive.Include) != null) return;
+            if (Object.FindAnyObjectByType<StaticColliderBridge>(FindObjectsInactive.Include) != null) return;
 
             Debug.LogWarning($"{LogPrefix} SubScenes are in use but there is no StaticColliderBridge in the loaded " +
                 "scenes — every prop baked with a StaticColliderAuthoring is NON-SOLID: the player walks through it. " +

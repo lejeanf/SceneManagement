@@ -19,7 +19,7 @@ namespace jeanf.scenemanagement
             if (_instance != null)
                 return;
 
-            var sceneLoaderObj = FindFirstObjectByType<SceneLoader>();
+            var sceneLoaderObj = FindAnyObjectByType<SceneLoader>();
             if (sceneLoaderObj != null)
             {
                 _instance = sceneLoaderObj.gameObject.AddComponent<SceneLoaderDebugWrapper>();

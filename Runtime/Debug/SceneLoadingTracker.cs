@@ -49,8 +49,8 @@ namespace jeanf.scenemanagement
             public SceneType sceneType;
             public LoadingState state;
             public float timestamp;
-            public float? startTime;
-            public float? endTime;
+            [NonSerialized] public float? startTime;
+            [NonSerialized] public float? endTime;
             public string errorMessage;
             public string parentScene;
             public List<string> dependencies = new List<string>();

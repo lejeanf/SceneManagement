@@ -445,7 +445,7 @@ namespace jeanf.scenemanagement
         private Dictionary<string, float> CollectProximityThresholds()
         {
             var result = new Dictionary<string, float>();
-            var bridge = FindFirstObjectByType<ObjectZoneTrackingBridge>(FindObjectsInactive.Include);
+            var bridge = FindAnyObjectByType<ObjectZoneTrackingBridge>(FindObjectsInactive.Include);
             if (bridge == null) return result;
             foreach (var config in bridge.ProximityZones)
                 if (config.zone != null && config.threshold > 0f) result[$"{config.zone.id}"] = config.threshold;

@@ -488,7 +488,7 @@ namespace jeanf.scenemanagement
         
         private void BuildLandingZoneCache()
         {
-            var connectivity = FindFirstObjectByType<RegionConnectivityAuthoring>();
+            var connectivity = FindAnyObjectByType<RegionConnectivityAuthoring>();
             if (connectivity?.regionConnectivity?.landingZones == null) return;
             
             for (int i = 0; i < connectivity.regionConnectivity.landingZones.Count; i++)

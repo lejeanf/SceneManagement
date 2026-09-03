@@ -51,7 +51,7 @@ namespace jeanf.scenemanagement
         /// <summary>Chain parameters of the bridge in the open scenes, or the bridge's serialized defaults.</summary>
         public static ChainParams SceneChainParams()
         {
-            var bridge = Object.FindFirstObjectByType<ObjectZoneTrackingBridge>(FindObjectsInactive.Include);
+            var bridge = Object.FindAnyObjectByType<ObjectZoneTrackingBridge>(FindObjectsInactive.Include);
             return bridge != null
                 ? new ChainParams(bridge.CoverageTolerance, bridge.MaxLiftAboveVolume, bridge.MaxFallbackDist)
                 : new ChainParams(0.25f, 4f, 2f);
@@ -60,7 +60,7 @@ namespace jeanf.scenemanagement
         /// <summary>Every volume with a zone in the open scenes (SubScenes must be open for edit).</summary>
         public static List<VolumeAuthoring> GatherVolumes()
         {
-            var found = Object.FindObjectsByType<VolumeAuthoring>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var found = Object.FindObjectsByType<VolumeAuthoring>(FindObjectsInactive.Include);
             var kept = new List<VolumeAuthoring>(found.Length);
             foreach (var volume in found)
                 if (volume.zone != null) kept.Add(volume);
@@ -145,7 +145,7 @@ namespace jeanf.scenemanagement
         /// component (position-irrelevant managers).</summary>
         public static List<Transform> GatherTrackedObjects()
         {
-            var behaviours = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var behaviours = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include);
             var tracked = new HashSet<GameObject>();
             var exempt = new HashSet<GameObject>();
             var result = new List<Transform>();
