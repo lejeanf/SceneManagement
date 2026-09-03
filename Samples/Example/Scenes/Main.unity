@@ -1717,6 +1717,7 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 9
       objectReference: {fileID: 0}
+<<<<<<< HEAD
     - target: {fileID: 7523403568087710756, guid: 3b71689896aa2124092a905f967617eb, type: 3}
       propertyPath: closedFistPose
       value: 
@@ -1730,6 +1731,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 11400000, guid: 38991e7165a71a540a6455b54c7c00bb, type: 2}
     - target: {fileID: 7576668503239243436, guid: 3b71689896aa2124092a905f967617eb, type: 3}
+=======
+    - target: {fileID: 7576668503239243436, guid: 3b71689896aa2124092a905f967617eb,
+        type: 3}
+>>>>>>> e2fda79c88c16b37a48fa010bc80ed94188f8439
       propertyPath: m_Layer
       value: 9
       objectReference: {fileID: 0}
@@ -4409,8 +4414,15 @@ MonoBehaviour:
   postTransitionSettleTime: 0.5
   muteEventSO: {fileID: 11400000, guid: 8a8f850dc9757154a988fab2b7f65155, type: 2}
   unmuteEventSO: {fileID: 11400000, guid: 6a442c7528f8b9c4390821e926b2e962, type: 2}
+<<<<<<< HEAD
   stethoscopeStateEvent: {fileID: 11400000, guid: f9603f80ae7a05f43a5d472e4a91a536, type: 2}
   floorLoadingIsFinishedAndSoundIsUnMuted: {fileID: 11400000, guid: d105c8277e760064e84688448cf957b8, type: 2}
+=======
+  stethoscopeStateEvent: {fileID: 11400000, guid: f9603f80ae7a05f43a5d472e4a91a536,
+    type: 2}
+  floorLoadingIsFinishedAndSoundIsUnMuted: {fileID: 11400000, guid: d105c8277e760064e84688448cf957b8,
+    type: 2}
+>>>>>>> e2fda79c88c16b37a48fa010bc80ed94188f8439
 --- !u!4 &1354006743
 Transform:
   m_ObjectHideFlags: 0
