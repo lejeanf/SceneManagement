@@ -1727,17 +1727,9 @@ PrefabInstance:
       value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 7523403568087710756, guid: 3b71689896aa2124092a905f967617eb, type: 3}
-      propertyPath: closedFistPose
-      value: 
-      objectReference: {fileID: 11400000, guid: 05e810e1654e2d14aaece3bb11e6fff2, type: 2}
-    - target: {fileID: 7523403568087710756, guid: 3b71689896aa2124092a905f967617eb, type: 3}
       propertyPath: fullClosedFistPose
       value: 
       objectReference: {fileID: 11400000, guid: 14cd456ab7459ad40ba000f2429ca60f, type: 2}
-    - target: {fileID: 7523403568087710756, guid: 3b71689896aa2124092a905f967617eb, type: 3}
-      propertyPath: semiClosedFistPose
-      value: 
-      objectReference: {fileID: 11400000, guid: 38991e7165a71a540a6455b54c7c00bb, type: 2}
     - target: {fileID: 7576668503239243436, guid: 3b71689896aa2124092a905f967617eb, type: 3}
       propertyPath: m_Layer
       value: 9
