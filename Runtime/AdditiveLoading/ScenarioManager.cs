@@ -174,7 +174,7 @@ namespace jeanf.scenemanagement
             _activeScenarios.Remove(UnloadScenario(scenarioID));
             List<string> scenarioList = _activeScenarios.Select(scenario => scenario.id.ToString()).ToList();
             UpdateScenariosList?.Invoke(scenarioList);
-            onUnloadScenario.Invoke();
+            onUnloadScenario?.Invoke();
             
             if (!WorldManager.IsRegionTransitioning)
             {
