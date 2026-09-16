@@ -31,6 +31,7 @@ namespace jeanf.scenemanagement
         [SerializeField] private Zone initialZone;
         
         private Dictionary<string, Zone> _zoneDictionary = new Dictionary<string, Zone>();
+        private Dictionary<int, Zone> _zoneDictionaryPerNumber = new Dictionary<int, Zone>();
         private Dictionary<string, Region> _regionDictionary = new Dictionary<string, Region>();
         private Dictionary<string, Region> _regionDictionaryPerZone = new Dictionary<string, Region>();
         private Dictionary<string, List<SceneReference>> _dependenciesPerRegion = new Dictionary<string, List<SceneReference>>();
@@ -407,6 +408,7 @@ namespace jeanf.scenemanagement
         private void ClearAllMappings()
         {
             _zoneDictionary.Clear();
+            _zoneDictionaryPerNumber.Clear();
             _regionDictionary.Clear();
             _regionDictionaryPerZone.Clear();
             _dependenciesPerRegion.Clear();
@@ -456,6 +458,10 @@ namespace jeanf.scenemanagement
                         {
                             _zoneDictionary.TryAdd(zone.id, zone);
                             _regionDictionaryPerZone.TryAdd(zone.id, region);
+                            // Zone numbers are the project's room numbers: doors carry the number
+                            // of the room they close, which is how a door knows what it locks.
+                            // 0 is the "no number" value shared by corridors and lobbies.
+                            if (zone.zoneNb != 0) _zoneDictionaryPerNumber.TryAdd(zone.zoneNb, zone);
                         }
                     }
                 }
@@ -872,6 +878,18 @@ namespace jeanf.scenemanagement
         public static Dictionary<string, Zone> GetZoneDictionary()
         {
             return Instance?._zoneDictionary;
+        }
+
+        /// <summary>
+        /// The zone carrying this room number, or null when no zone uses it. Room numbers are how
+        /// the rest of the project addresses a room - a door's id is the number of the room it
+        /// closes - so this is the bridge from "door 2005" to the zone that door locks. Number 0
+        /// is not indexed: corridors and lobbies all share it.
+        /// </summary>
+        public static Zone GetZoneByNumber(int zoneNumber)
+        {
+            if (Instance == null || zoneNumber == 0) return null;
+            return Instance._zoneDictionaryPerNumber.TryGetValue(zoneNumber, out var zone) ? zone : null;
         }
 
         public static Dictionary<string, Region> GetRegionDictionary()
