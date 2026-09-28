@@ -3,6 +3,7 @@
     "main",
     {
       "name": "prerelease/*",
+      "channel": "${name.replace(/^prerelease\\//g, '')}",
       "prerelease": "${name.replace(/^prerelease\\//g, '')}"
     }
   ],

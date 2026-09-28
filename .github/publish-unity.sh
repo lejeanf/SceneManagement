@@ -8,7 +8,8 @@ CHANNEL="${1:-}"
 if [[ -z "${CHANNEL}" || "${CHANNEL}" == "null" || "${CHANNEL}" == "false" || "${CHANNEL}" == "undefined" ]]; then
   TAG="latest"
 else
-  TAG="${CHANNEL}"
+  # npm dist-tags cannot contain "/". prerelease/alpha -> alpha
+  TAG="${CHANNEL##*/}"
 fi
 
 # Install the official UPM CLI (adds `upm` to PATH via shell profile,
