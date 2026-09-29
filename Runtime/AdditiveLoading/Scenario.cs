@@ -20,12 +20,5 @@ namespace jeanf.scenemanagement
         public List<Zone> listOfZonesNeededForThisScenario;
 
         public bool enableFadeOnLoad = true;
-
-        [Header("Reset on unload")]
-        [Tooltip("Take the player out of the zones this scenario locks before its scenes are unloaded. Zones with no registered exit (no door, no ZoneExitAnchor) are skipped: they do not lock, so nobody gets trapped in them.")]
-        public bool evacuatePlayerOnUnload = true;
-
-        [Tooltip("OPTIONAL: zones to evacuate. Leave empty and the zones above (List Of Zones Needed For This Scenario) are used, which is the normal case - fill it only to narrow or widen that set.")]
-        public List<Zone> zonesToEvacuateOverride = new List<Zone>();
     }
 }
