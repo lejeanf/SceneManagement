@@ -73,6 +73,7 @@ GameObject:
   - component: {fileID: 244770327199706285}
   - component: {fileID: 8979075195523201058}
   - component: {fileID: 2246953710021239090}
+  - component: {fileID: 84974619290902718}
   m_Layer: 0
   m_Name: AdditiveLoading
   m_TagString: Untagged
@@ -345,3 +346,18 @@ MonoBehaviour:
   isUsingFilter: 1
   _filter: {fileID: 11400000, guid: e14ab3017803f2940baa9f73e384110b, type: 2}
   sendEventOnEnable: 0
+--- !u!114 &84974619290902718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2024255771601921181}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 870d6a39371c636478cc8124cdbf4bcc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isDebug: 0
+  loadingStatusChannel: {fileID: 11400000, guid: 01b3e76448211f34eaf1311534feccaa, type: 2}
+  loadingProgressChannel: {fileID: 11400000, guid: a646722a3745a364b9adb77ea97ec123, type: 2}
