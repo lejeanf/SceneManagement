@@ -106,3 +106,6 @@ Depedencies:
 LICENCE:
 
 <img src="https://licensebuttons.net/l/by-nc-sa/3.0/88x31.png"></img>
+
+------------------------------------------------------------------------------------------------------
+Releasing a change (how a commit here becomes a version uvs can pull): see [Documentation~/release-workflow.md](Documentation~/release-workflow.md). Short version: never edit the version by hand; push a `fix:`/`feat:`/`chore:` commit to the branch uvs consumes from (`prerelease/alpha` while uvs is on an alpha, `main` otherwise), CI publishes to npm, then bump `Packages/manifest.json` on uvs `dev`.
