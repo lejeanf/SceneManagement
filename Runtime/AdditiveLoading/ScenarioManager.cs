@@ -37,6 +37,13 @@ namespace jeanf.scenemanagement
         public static UpdateScenariosDelegate UpdateScenariosList;
 
         /// <summary>
+        /// A scenario load request was refused before anything was faded or unloaded. The reason
+        /// is the same text as the logged error (today: a scene reference with no address).
+        /// </summary>
+        public delegate void ScenarioLoadFailedDelegate(string scenarioId, string reason);
+        public static ScenarioLoadFailedDelegate ScenarioLoadFailed;
+
+        /// <summary>
         /// Evacuation feedback for project UI: the zone the player must leave and how many seconds
         /// are left before they get teleported out. Seconds is negative once the evacuation is
         /// over, whether they walked out or were moved.
@@ -149,6 +156,18 @@ namespace jeanf.scenemanagement
             if (_activeScenarios.Contains(scenario))
             {
                 Debug.Log($"A request to load scenario with ID: {scenario.scenarioName} has been received but that scenario is already in the list of active scenarios. The request has been denied.");
+                return;
+            }
+
+            // Refuse up front, before the fade and before the running scenario is unloaded: with an
+            // empty address SceneLoader has nothing to ask Addressables for, and the scenario would
+            // end up "active" with no scene.
+            var missingAddresses = SceneAddressValidation.MissingAddresses(scenario);
+            if (missingAddresses.Count > 0)
+            {
+                var reason = SceneAddressValidation.DescribeMissing(scenario, missingAddresses);
+                Debug.LogError($"[ScenarioManager] {reason}", scenario);
+                ScenarioLoadFailed?.Invoke(scenarioId, reason);
                 return;
             }
 

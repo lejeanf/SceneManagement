@@ -47,7 +47,18 @@ namespace jeanf.scenemanagement
         
         public delegate void FlushScenesDelegate();
         public FlushScenesDelegate FlushScenesRequest;
-        
+
+        /// <summary>
+        /// A requested scene did not load: rejected before queueing (empty address) or failed in
+        /// Addressables. The reason is the same text as the logged error.
+        /// </summary>
+        public delegate void SceneLoadFailedDelegate(string sceneName, string reason);
+        public static SceneLoadFailedDelegate SceneLoadFailed;
+
+        private readonly HashSet<string> _failedScenes = new();
+        /// <summary>Scenes that failed during the current load session; reset when a session starts.</summary>
+        public IReadOnlyCollection<string> FailedScenes => _failedScenes;
+
         private readonly struct SceneOperation
         {
             public readonly SceneOperationType Type;
@@ -236,7 +247,7 @@ namespace jeanf.scenemanagement
 
             if (!ValidateSceneName(sceneName))
             {
-                if (isDebug) Debug.LogWarning($"[SceneLoader] Scene validation failed: {sceneName}");
+                ReportLoadFailure(sceneName, $"empty scene address — {SceneAddressValidation.MissingAddressHint}");
                 return;
             }
 
@@ -248,7 +259,13 @@ namespace jeanf.scenemanagement
         private void QueueUnloadScene(string sceneName)
         {
             _hasCalledLoadComplete = false;
-            
+
+            if (!ValidateSceneName(sceneName))
+            {
+                Debug.LogError("[SceneLoader] Unload request ignored: empty scene address.", this);
+                return;
+            }
+
             _unloadQueue.Enqueue(new SceneOperation(SceneOperationType.Unload, sceneName));
             ProcessUnloadQueue().Forget();
         }
@@ -273,12 +290,19 @@ namespace jeanf.scenemanagement
             ProcessUnloadQueue().Forget();
         }
 
-        private bool ValidateSceneName(string sceneName)
+        private static bool ValidateSceneName(string sceneName) => SceneAddressValidation.IsValidAddress(sceneName);
+
+        /// <summary>
+        /// One path for every load failure: an unconditional error (never behind isDebug — a
+        /// silent drop is exactly how a scenario came up with no scene), the session's failed
+        /// set, and the event for whoever asked.
+        /// </summary>
+        private void ReportLoadFailure(string sceneName, string reason)
         {
-            if (string.IsNullOrEmpty(sceneName))
-                return false;
-            
-            return true;
+            var label = string.IsNullOrWhiteSpace(sceneName) ? "<empty address>" : sceneName;
+            Debug.LogError($"[SceneLoader] Scene '{label}' not loaded: {reason}", this);
+            _failedScenes.Add(label);
+            SceneLoadFailed?.Invoke(label, reason);
         }
 
         private async UniTaskVoid ProcessLoadQueue()
@@ -476,6 +500,7 @@ namespace jeanf.scenemanagement
         private void BeginProgressSession()
         {
             _inflightProgress.Clear();
+            _failedScenes.Clear();
             _sessionTotalScenes = 0;
             _sessionCompletedScenes = 0;
             LoadingInformation.ReportProgress(0f);
@@ -537,7 +562,10 @@ namespace jeanf.scenemanagement
 
                 if (handle.Status != AsyncOperationStatus.Succeeded)
                 {
-                    Debug.LogError($"[SceneLoader] Addressable load failed for scene: {sceneName} (status: {handle.Status})");
+                    // OperationException carries the real cause (InvalidKeyException for an
+                    // address with no entry, a missing bundle, ...); the status alone never did.
+                    var cause = handle.OperationException?.Message ?? "no exception reported";
+                    ReportLoadFailure(sceneName, $"Addressables load failed (status {handle.Status}): {cause}");
                     return;
                 }
 
@@ -570,7 +598,7 @@ namespace jeanf.scenemanagement
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[SceneLoader] Failed to load scene {sceneName}: {ex}");
+                ReportLoadFailure(sceneName, $"exception during load: {ex}");
             }
             finally
             {
